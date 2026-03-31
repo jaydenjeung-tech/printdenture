@@ -6,6 +6,21 @@ export async function middleware(request: NextRequest) {
     request: { headers: request.headers },
   });
 
+  // ✅ Coming Soon 로직 — 맨 위에 추가
+  const host = request.headers.get('host') || ''
+  const { pathname } = request.nextUrl
+
+  if (
+    host.includes('printcrown.com') &&
+    pathname !== '/coming-soon' &&
+    !pathname.startsWith('/_next') &&
+    !pathname.startsWith('/api') &&
+    !pathname.match(/\.(ico|png|jpg|svg|webp|woff2?)$/)
+  ) {
+    return NextResponse.redirect(new URL('/coming-soon', request.url))
+  }
+  // ✅ 여기까지 — 아래는 기존 코드 그대로
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,9 +39,7 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const { pathname } = request.nextUrl;
 
-  // 로그인 필요한 페이지
   const protectedRoutes = ["/dashboard", "/order"];
   const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));
 
@@ -34,7 +47,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth", request.url));
   }
 
-  // 이미 로그인한 유저가 /auth 접근하면 대시보드로
   if (pathname.startsWith("/auth") && user) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
