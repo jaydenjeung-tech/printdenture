@@ -45,11 +45,11 @@ type Rx = {
 const STATUS_STEPS = ["received", "printing", "qc", "shipped", "delivered"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; next: string | null }> = {
-  received:  { label: "Received",    color: "bg-blue-50 text-blue-600 border-blue-200",     next: "printing" },
-  printing:  { label: "Printing",    color: "bg-amber-50 text-amber-600 border-amber-200",  next: "qc" },
+  received:  { label: "Received",    color: "bg-blue-50 text-blue-600 border-blue-200",       next: "printing" },
+  printing:  { label: "Printing",    color: "bg-amber-50 text-amber-600 border-amber-200",    next: "qc" },
   qc:        { label: "QC Check",    color: "bg-purple-50 text-purple-600 border-purple-200", next: "shipped" },
-  shipped:   { label: "Shipped",     color: "bg-green-50 text-green-600 border-green-200",  next: "delivered" },
-  delivered: { label: "Delivered",   color: "bg-gray-50 text-gray-500 border-gray-200",     next: null },
+  shipped:   { label: "Shipped",     color: "bg-green-50 text-green-600 border-green-200",    next: "delivered" },
+  delivered: { label: "Delivered",   color: "bg-gray-50 text-gray-500 border-gray-200",       next: null },
 };
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
@@ -58,6 +58,12 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   nightguard:  { label: "Night Guard",    color: "bg-amber-50 text-amber-700 border-amber-200" },
   sportsguard: { label: "Sports Guard",   color: "bg-purple-50 text-purple-700 border-purple-200" },
 };
+
+const DATE_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+];
 
 export default function LabPage() {
   const router = useRouter();
@@ -69,6 +75,17 @@ export default function LabPage() {
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<string>("active");
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+
+  // Batch
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchStatus, setBatchStatus] = useState("");
+  const [batchSaving, setBatchSaving] = useState(false);
 
   useEffect(() => {
     checkAndLoad();
@@ -86,7 +103,6 @@ export default function LabPage() {
       .single();
 
     if (!profile?.is_admin) { router.push("/dashboard"); return; }
-
     await loadData();
   }
 
@@ -149,15 +165,75 @@ export default function LabPage() {
     setSaving(prev => ({ ...prev, [`track_${orderId}`]: false }));
   }
 
+  async function handleBatchUpdate() {
+    if (!batchStatus || selected.size === 0) return;
+    setBatchSaving(true);
+    const supabase = createClient();
+    const ids = [...selected];
+    await supabase.from("orders").update({ status: batchStatus }).in("id", ids);
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: batchStatus } : o));
+    setSelected(new Set());
+    setBatchStatus("");
+    setBatchSaving(false);
+  }
+
   async function downloadStl(filePath: string) {
     const supabase = createClient();
     const { data } = await supabase.storage.from("stl-files").createSignedUrl(filePath, 60);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 
-  const activeOrders = orders.filter(o => !["delivered"].includes(o.status));
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(ids: string[]) {
+    if (ids.every(id => selected.has(id))) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(ids));
+    }
+  }
+
+  // Date filter logic
+  function matchesDate(order: Order) {
+    if (dateFilter === "all") return true;
+    const created = new Date(order.created_at);
+    const now = new Date();
+    if (dateFilter === "today") {
+      return created.toDateString() === now.toDateString();
+    }
+    if (dateFilter === "week") {
+      const weekAgo = new Date();
+      weekAgo.setDate(now.getDate() - 7);
+      return created >= weekAgo;
+    }
+    return true;
+  }
+
+  const activeOrders = orders.filter(o => o.status !== "delivered");
   const completedOrders = orders.filter(o => o.status === "delivered");
-  const displayOrders = activeTab === "active" ? activeOrders : completedOrders;
+  const baseOrders = activeTab === "active" ? activeOrders : completedOrders;
+
+  const filtered = baseOrders.filter(o => {
+    const profile = profiles[o.user_id];
+    const practiceName = profile?.practice_name?.toLowerCase() || "";
+    const q = search.toLowerCase();
+
+    const matchSearch = !search ||
+      o.id.toLowerCase().includes(q) ||
+      o.product_name.toLowerCase().includes(q) ||
+      practiceName.includes(q);
+
+    const matchStatus = statusFilter === "all" || o.status === statusFilter;
+    const matchCategory = categoryFilter === "all" || o.product_id === categoryFilter;
+
+    return matchSearch && matchStatus && matchCategory && matchesDate(o);
+  });
 
   const stats = {
     received: orders.filter(o => o.status === "received").length,
@@ -176,7 +252,6 @@ export default function LabPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
-      {/* Header */}
       <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2">
@@ -213,33 +288,121 @@ export default function LabPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white border border-[#E2E0D8] rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-5 bg-white border border-[#E2E0D8] rounded-xl p-1 w-fit">
           {[
             { key: "active", label: `Active (${activeOrders.length})` },
             { key: "completed", label: `Completed (${completedOrders.length})` },
           ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-4 h-8 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-[#1A1A1A] text-white"
-                  : "text-[#6B6B6B] hover:text-[#1A1A1A]"
-              }`}
-            >
+                activeTab === tab.key ? "bg-[#1A1A1A] text-white" : "text-[#6B6B6B] hover:text-[#1A1A1A]"
+              }`}>
               {tab.label}
             </button>
           ))}
         </div>
 
+        {/* Search & Filters */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by ID, practice, product..."
+            className="h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE] w-64"
+          />
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]">
+            <option value="all">All statuses</option>
+            {STATUS_STEPS.map(s => (
+              <option key={s} value={s}>{STATUS_CONFIG[s]?.label}</option>
+            ))}
+          </select>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]">
+            <option value="all">All products</option>
+            {Object.entries(CATEGORY_CONFIG).map(([key, val]) => (
+              <option key={key} value={key}>{val.label}</option>
+            ))}
+          </select>
+          <div className="flex gap-1 bg-white border border-[#E2E0D8] rounded-lg p-1">
+            {DATE_FILTERS.map(d => (
+              <button key={d.key} onClick={() => setDateFilter(d.key)}
+                className={`px-3 h-7 rounded-md text-xs font-medium transition-all ${
+                  dateFilter === d.key ? "bg-[#1A1A1A] text-white" : "text-[#6B6B6B] hover:text-[#1A1A1A]"
+                }`}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {(search || statusFilter !== "all" || categoryFilter !== "all" || dateFilter !== "all") && (
+            <button
+              onClick={() => { setSearch(""); setStatusFilter("all"); setCategoryFilter("all"); setDateFilter("all"); }}
+              className="h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#9B9B9B] hover:text-[#1A1A1A] transition-all"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Batch controls */}
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 mb-4 p-3 bg-white rounded-xl border border-[#1A1A1A]">
+            <span className="text-sm font-medium text-[#1A1A1A]">{selected.size} selected</span>
+            <select value={batchStatus} onChange={(e) => setBatchStatus(e.target.value)}
+              className="h-8 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]">
+              <option value="">Move to...</option>
+              {STATUS_STEPS.map(s => (
+                <option key={s} value={s}>{STATUS_CONFIG[s]?.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBatchUpdate}
+              disabled={!batchStatus || batchSaving}
+              className="h-8 px-4 rounded-lg bg-[#1A1A1A] text-white text-sm font-medium hover:bg-[#2A2A2A] transition-all disabled:opacity-40"
+            >
+              {batchSaving ? "Updating..." : "Apply"}
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="h-8 px-3 rounded-lg border border-[#E2E0D8] text-sm text-[#6B6B6B] hover:text-[#1A1A1A] transition-all"
+            >
+              Cancel
+            </button>
+            <Link
+                href={`/lab/workorders?ids=${[...selected].join(",")}`}
+                target="_blank"
+                className="h-8 px-4 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] font-medium hover:border-[#1A1A1A] transition-all inline-flex items-center"
+                >
+                Print Work Orders ({selected.size})
+                </Link>
+          </div>
+        )}
+
+        {/* Select all */}
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="checkbox"
+              checked={filtered.every(o => selected.has(o.id))}
+              onChange={() => toggleSelectAll(filtered.map(o => o.id))}
+              className="w-4 h-4 rounded cursor-pointer"
+            />
+            <span className="text-xs text-[#9B9B9B]">
+              Select all ({filtered.length} cases)
+            </span>
+          </div>
+        )}
+
         {/* Orders */}
         <div className="space-y-3">
-          {displayOrders.map((order) => {
+          {filtered.map((order) => {
             const profile = profiles[order.user_id];
             const rx = rxMap[order.id];
             const status = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.received;
             const category = CATEGORY_CONFIG[order.product_id] ?? { label: order.product_name, color: "bg-gray-50 text-gray-600 border-gray-200" };
             const isExpanded = expandedId === order.id;
+            const isSelected = selected.has(order.id);
             const date = new Date(order.created_at).toLocaleDateString("en-US", {
               month: "short", day: "numeric", year: "numeric",
             });
@@ -247,68 +410,80 @@ export default function LabPage() {
               ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
               : order.tooth_number ? `#${order.tooth_number}` : null;
             const nextStatus = status.next;
+            const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
 
             return (
-              <div key={order.id} className="bg-white rounded-2xl border border-[#E2E0D8] overflow-hidden">
-                <div
-                    className="w-full text-left p-5 cursor-pointer"
-                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
+              <div key={order.id} className={`bg-white rounded-2xl border overflow-hidden transition-all ${
+                isSelected ? "border-[#1A1A1A]" : "border-[#E2E0D8]"
+              }`}>
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(order.id)}
+                      className="w-4 h-4 rounded cursor-pointer mt-1 flex-shrink-0"
+                    />
+
+                    {/* Content */}
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setExpandedId(isExpanded ? null : order.id)}
                     >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span className="font-mono text-xs text-[#9B9B9B] bg-[#F8F7F4] px-2 py-0.5 rounded">
-                          #{order.id.slice(0, 6).toUpperCase()}
-                        </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${category.color}`}>
-                          {category.label}
-                        </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${status.color}`}>
-                          {status.label}
-                        </span>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="font-mono text-xs text-[#9B9B9B] bg-[#F8F7F4] px-2 py-0.5 rounded">
+                              #{order.id.slice(0, 6).toUpperCase()}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${category.color}`}>
+                              {category.label}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${status.color}`}>
+                              {status.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap text-xs text-[#9B9B9B]">
+                            <span className="font-medium text-[#4B4B4B]">
+                              {profile?.practice_name || "Unknown"}
+                            </span>
+                            {order.shade && <span>Shade: {order.shade}</span>}
+                            {teeth && <span>Tooth: {teeth}</span>}
+                            <span>{date}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {nextStatus && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); updateStatus(order.id, nextStatus); }}
+                              disabled={saving[order.id]}
+                              className="h-8 px-3 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all disabled:opacity-40"
+                            >
+                              {saving[order.id] ? "..." : `Move to ${STATUS_CONFIG[nextStatus]?.label}`}
+                            </button>
+                          )}
+                          <span className="text-xs text-[#9B9B9B]">{isExpanded ? "▲" : "▼"}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 flex-wrap text-xs text-[#9B9B9B]">
-                        <span className="font-medium text-[#4B4B4B]">
-                          {profile?.practice_name || "Unknown practice"}
-                        </span>
-                        {order.shade && <span>Shade: {order.shade}</span>}
-                        {teeth && <span>Tooth: {teeth}</span>}
-                        <span>{date}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {nextStatus && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); updateStatus(order.id, nextStatus); }}
-                          disabled={saving[order.id]}
-                          className="h-8 px-3 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all disabled:opacity-40"
-                        >
-                          {saving[order.id] ? "..." : `Move to ${STATUS_CONFIG[nextStatus]?.label}`}
-                        </button>
-                      )}
-                      <p className="text-xs text-[#9B9B9B]">{isExpanded ? "▲" : "▼"}</p>
                     </div>
                   </div>
                 </div>
 
                 {isExpanded && (
                   <div className="border-t border-[#E2E0D8] p-5 bg-[#F8F7F4] space-y-5">
-
-                    {/* Status pipeline */}
+                    {/* Pipeline */}
                     <div>
                       <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">Pipeline</p>
                       <div className="flex gap-2 flex-wrap">
                         {STATUS_STEPS.filter(s => s !== "delivered").map((step) => (
-                          <button
-                            key={step}
-                            onClick={() => updateStatus(order.id, step)}
+                          <button key={step} onClick={() => updateStatus(order.id, step)}
                             disabled={saving[order.id]}
                             className={`h-8 px-3 rounded-lg text-xs font-medium border transition-all ${
                               order.status === step
                                 ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
                                 : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A]"
-                            }`}
-                          >
+                            }`}>
                             {STATUS_CONFIG[step]?.label}
                           </button>
                         ))}
@@ -340,22 +515,40 @@ export default function LabPage() {
                     )}
 
                     {/* STL */}
-                    {order.stl_file_path && (
-                      <div>
-                        <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">STL File</p>
-                        <button
-                          onClick={() => downloadStl(order.stl_file_path!)}
-                          className="h-9 px-4 rounded-lg border border-[#2563EB] bg-white text-sm text-[#2563EB] font-medium hover:bg-[#EFF6FF] transition-all"
+                
+                        {order.stl_file_path && (
+                        <div>
+                            <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">STL File</p>
+                            <div className="flex gap-2">
+                            <button onClick={() => downloadStl(order.stl_file_path!)}
+                                className="h-9 px-4 rounded-lg border border-[#2563EB] bg-white text-sm text-[#2563EB] font-medium hover:bg-[#EFF6FF] transition-all">
+                                Download STL
+                            </button>
+                            <Link
+                                href={`/lab/workorders?ids=${order.id}`}
+                                target="_blank"
+                                className="h-9 px-4 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] font-medium hover:border-[#1A1A1A] transition-all inline-flex items-center"
+                            >
+                                Print Rx
+                            </Link>
+                            </div>
+                        </div>
+                        )}
+                        {/* Work Order - 항상 표시 */}
+                        <div>
+                        <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">Work Order</p>
+                        <Link
+                            href={`/lab/workorders?ids=${order.id}`}
+                            target="_blank"
+                            className="h-9 px-4 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] font-medium hover:border-[#1A1A1A] transition-all inline-flex items-center"
                         >
-                          Download STL
-                        </button>
-                      </div>
-                    )}
-
+                            Print Work Order
+                        </Link>
+                        </div>
                     {/* Tracking */}
                     <div>
                       <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">
-                        Shipping (tracking number saved = auto Shipped)
+                        Shipping (tracking saved = auto Shipped)
                       </p>
                       <div className="flex gap-2">
                         <input
@@ -365,14 +558,18 @@ export default function LabPage() {
                           placeholder="UPS tracking number..."
                           className="flex-1 h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]"
                         />
-                        <button
-                          onClick={() => updateTracking(order.id)}
+                        <button onClick={() => updateTracking(order.id)}
                           disabled={saving[`track_${order.id}`]}
-                          className="h-9 px-4 rounded-lg bg-[#16A34A] text-white text-sm font-medium hover:bg-[#15803D] transition-all disabled:opacity-40"
-                        >
+                          className="h-9 px-4 rounded-lg bg-[#16A34A] text-white text-sm font-medium hover:bg-[#15803D] transition-all disabled:opacity-40">
                           {saving[`track_${order.id}`] ? "Saving..." : "Ship"}
                         </button>
                       </div>
+                      {order.tracking_number && (
+                        <a href={upsUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-[#2563EB] hover:underline mt-1 block">
+                          Track: {order.tracking_number}
+                        </a>
+                      )}
                     </div>
 
                     {/* Notes */}
@@ -388,11 +585,9 @@ export default function LabPage() {
             );
           })}
 
-          {displayOrders.length === 0 && (
+          {filtered.length === 0 && (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#E2E0D8]">
-              <p className="text-[#9B9B9B] text-sm">
-                {activeTab === "active" ? "No active cases." : "No completed cases."}
-              </p>
+              <p className="text-[#9B9B9B] text-sm">No cases found.</p>
             </div>
           )}
         </div>

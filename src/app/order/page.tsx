@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase";
-
+import { useSearchParams } from "next/navigation";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -617,6 +617,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function OrderPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // ← 추가
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<OrderData>({
@@ -629,6 +630,8 @@ export default function OrderPage() {
   });
   const [products, setProducts] = useState<Product[]>([]);
 const [productsLoading, setProductsLoading] = useState(true);
+
+
 // 프로필 자동완성
 useEffect(() => {
   const supabase = createClient();
@@ -646,7 +649,14 @@ useEffect(() => {
       .order("sort_order");
     setProducts(productData || []);
     setProductsLoading(false);
-
+    const productId = searchParams.get("product");
+    if (productId && productData) {
+      const found = productData.find((p: Product) => p.id === productId);
+      if (found) {
+        setData(prev => ({ ...prev, product: found }));
+        setStep(2);
+      }
+    }
     // 프로필 자동완성
     const { data: profile } = await supabase
       .from("profiles")
