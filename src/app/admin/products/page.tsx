@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import Link from "next/link";
 
 type Product = {
   id: string;
@@ -187,7 +188,11 @@ export default function AdminProductsPage() {
           <span className="text-[#E2E0D8]">/</span>
           <span className="text-sm text-[#6B6B6B]">Admin · Products</span>
         </div>
+        <Link href="/admin/orders" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
+  Orders
+</Link>
         <button onClick={openAdd}
+
           className="h-9 px-4 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white text-sm font-medium rounded-lg transition-all">
           + Add product
         </button>

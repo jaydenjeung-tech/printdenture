@@ -90,12 +90,24 @@ export default function Navbar() {
             <div className="w-24 h-9 rounded-lg bg-[#E2E0D8] animate-pulse" />
           ) : user ? (
             <>
-              {user.isAdmin && (
-                <Link href="/admin/products">
-                  <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
-                    Admin
-                  </Button>
-                </Link>
+          {user.isAdmin && (
+                <>
+                  <Link href="/lab">
+                    <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+                      Lab
+                    </Button>
+                  </Link>
+                  <Link href="/admin/orders">
+                    <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+                      Orders
+                    </Button>
+                  </Link>
+                  <Link href="/admin/products">
+                    <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+                      Products
+                    </Button>
+                  </Link>
+                </>
               )}
               <Link href="/dashboard">
                 <Button variant="ghost" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
@@ -148,13 +160,25 @@ export default function Navbar() {
               <hr className="border-[#E2E0D8]" />
               {user ? (
                 <>
-                  {user.isAdmin && (
-                    <Link href="/admin/products" onClick={() => setOpen(false)}>
-                      <Button variant="outline" className="w-full text-[#9333EA] border-[#9333EA]">
-                        Admin
-                      </Button>
-                    </Link>
-                  )}
+  {user.isAdmin && (
+  <>
+    <Link href="/lab">
+      <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+        Lab
+      </Button>
+    </Link>
+    <Link href="/admin/orders">
+      <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+        Orders
+      </Button>
+    </Link>
+    <Link href="/admin/products">
+      <Button variant="ghost" className="text-sm text-[#9333EA] hover:text-[#7E22CE]">
+        Products
+      </Button>
+    </Link>
+  </>
+)}
                   <Link href="/dashboard" onClick={() => setOpen(false)}>
                     <Button variant="outline" className="w-full">Dashboard</Button>
                   </Link>
