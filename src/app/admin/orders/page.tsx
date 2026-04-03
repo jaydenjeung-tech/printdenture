@@ -233,6 +233,7 @@ export default function AdminOrdersPage() {
         <div className="flex gap-3">
         <Link href="/lab" className="...">Lab Queue</Link>
         <Link href="/admin/products" className="...">Products</Link>
+        <Link href="/admin/support" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Support</Link>
         </div>
       </div>
 

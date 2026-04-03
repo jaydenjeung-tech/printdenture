@@ -114,6 +114,11 @@ export default function Navbar() {
                   Dashboard
                 </Button>
               </Link>
+              <Link href="/support">  {/* ← 추가 */}
+              <Button variant="ghost" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
+                Support
+              </Button>
+              </Link>
               <Link href="/order">
                 <Button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm px-5 h-9 rounded-lg">
                   New order
@@ -196,6 +201,9 @@ export default function Navbar() {
                     <Button className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white">
                       New order
                     </Button>
+                  </Link>
+                  <Link href="/support" onClick={() => setOpen(false)}>  {/* ← 추가 */}
+                  <Button variant="outline" className="w-full">Support</Button>
                   </Link>
                   <button onClick={() => { handleSignOut(); setOpen(false); }}
                     className="text-sm text-[#9B9B9B] hover:text-[#1A1A1A] text-left transition-colors">

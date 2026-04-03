@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
           due_date: dueDate.toISOString().split("T")[0],
         })
         .eq("id", orderId);
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notify-new-order`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        });
         }
   }
 

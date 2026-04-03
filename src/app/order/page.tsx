@@ -482,7 +482,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
 }) {
   const p = data.product!;
   const subtotal = p.price * data.quantity;
-  const shipping = 15;
+  const shipping = 9;
   const total = subtotal + shipping;
   const canSubmit = data.firstName && data.lastName && data.practiceName &&
     data.address && data.city && data.state && data.zip;
@@ -634,7 +634,7 @@ function OrderContent() {
     if (!user) { router.push("/auth"); return; }
 
     const p = data.product;
-    const total = p.price * data.quantity + 15;
+    const total = p.price * data.quantity + 9;
 
     // 1. orders 저장
     const { data: order, error: orderError } = await supabase
