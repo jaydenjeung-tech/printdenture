@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       metadata: { orderId: order.id, userId: user.id },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true&orderId=${order.id}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
     });
 

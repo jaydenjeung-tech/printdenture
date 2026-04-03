@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase";
 import Navbar from "@/components/navbar";
+import { useSearchParams } from "next/navigation";
 
 type Order = {
   id: string;
@@ -24,6 +25,7 @@ type Order = {
   stl_file_path: string | null;
   stripe_session_id: string | null;
   paid_at: string | null;
+  due_date: string | null;
 };
 
 type Profile = {
@@ -41,6 +43,29 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   shipped:   { label: "Shipped",     color: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" },
   delivered: { label: "Delivered",   color: "bg-[#F1EFF8] text-[#6B6B6B] border-[#E2E0D8]" },
 };
+
+function DueDateChip({ dueDate }: { dueDate: string | null }) {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  const formatted = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const label = days < 0 ? `${Math.abs(days)}d overdue`
+    : days === 0 ? "Due today"
+    : days === 1 ? "Due tomorrow"
+    : `Due in ${days}d`;
+  const color = days < 0 ? "text-red-600 bg-red-50 border-red-200"
+    : days <= 1 ? "text-orange-600 bg-orange-50 border-orange-200"
+    : days <= 2 ? "text-yellow-600 bg-yellow-50 border-yellow-200"
+    : "text-green-600 bg-green-50 border-green-200";
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${color}`}>
+      Est. delivery {formatted} · {label}
+    </span>
+  );
+}
 
 function StatusProgress({ status }: { status: string }) {
   const currentIdx = STATUS_STEPS.indexOf(status);
@@ -63,12 +88,10 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
   const date = new Date(order.created_at).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
-
   const teeth = order.tooth_numbers?.length
     ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
     : order.tooth_number ? `#${order.tooth_number}` : null;
-
- const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
+  const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
 
   return (
     <div className="bg-white rounded-2xl border border-[#E2E0D8] overflow-hidden hover:border-[#C8C6BE] transition-colors">
@@ -88,6 +111,7 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
               {teeth && <span className="text-xs text-[#9B9B9B]">Tooth {teeth}</span>}
               <span className="text-xs text-[#9B9B9B]">{date}</span>
             </div>
+            <DueDateChip dueDate={order.due_date} />
             <StatusProgress status={order.status} />
           </div>
           <div className="text-right flex-shrink-0">
@@ -102,43 +126,30 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
           {order.tracking_number && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-[#6B6B6B] w-24">Tracking</span>
-              <a
-                href={upsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-[#2563EB] hover:underline font-medium"
-              >
+              <a href={upsUrl} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-[#2563EB] hover:underline font-medium">
                 {order.tracking_number}
               </a>
             </div>
           )}
-
           {order.notes && (
             <div className="flex items-start gap-2">
               <span className="text-xs font-medium text-[#6B6B6B] w-24">Notes</span>
               <span className="text-xs text-[#4B4B4B]">{order.notes}</span>
             </div>
           )}
-
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-[#6B6B6B] w-24">Order ID</span>
             <span className="text-xs text-[#9B9B9B] font-mono">{order.id.slice(0, 8)}...</span>
           </div>
-
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => onReorder(order)}
-              className="h-8 px-4 rounded-lg text-xs font-medium border border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-all bg-white"
-            >
+            <button onClick={() => onReorder(order)}
+              className="h-8 px-4 rounded-lg text-xs font-medium border border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-all bg-white">
               Reorder
             </button>
             {order.status === "shipped" && order.tracking_number && (
-              <a
-                href={upsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-8 px-4 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all flex items-center"
-              >
+              <a href={upsUrl} target="_blank" rel="noopener noreferrer"
+                className="h-8 px-4 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all flex items-center">
                 Track package
               </a>
             )}
@@ -149,11 +160,34 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
   );
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 결제 완료 후 order 업데이트
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (!orderId) return;
+
+    async function completeOrder() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await fetch("/api/order-complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, userId: user.id }),
+      });
+
+      router.replace("/dashboard");
+    }
+
+    completeOrder();
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -198,7 +232,7 @@ export default function DashboardPage() {
               {orders.length} total case{orders.length !== 1 ? "s" : ""}
             </p>
           </div>
-           </div>
+        </div>
 
         {orders.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
@@ -235,5 +269,17 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
+        <p className="text-sm text-[#9B9B9B]">Loading...</p>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -21,6 +21,7 @@ type Order = {
   notes: string | null;
   stl_file_path: string | null;
   paid_at: string | null;
+  due_date: string | null;  // ← 추가
 };
 
 type Profile = {
@@ -64,7 +65,29 @@ const DATE_FILTERS = [
   { key: "today", label: "Today" },
   { key: "week", label: "This week" },
 ];
-
+// export default function ... 바로 위에 추가
+function DueDateChip({ dueDate }: { dueDate: string | null }) {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  const formatted = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const label = days < 0 ? `${Math.abs(days)}d overdue`
+    : days === 0 ? "Due today"
+    : days === 1 ? "Due tomorrow"
+    : `Due in ${days}d`;
+  const color = days < 0 ? "text-red-600 bg-red-50 border-red-200"
+    : days <= 1 ? "text-orange-600 bg-orange-50 border-orange-200"
+    : days <= 2 ? "text-yellow-600 bg-yellow-50 border-yellow-200"
+    : "text-green-600 bg-green-50 border-green-200";
+  return (
+    <span className={`px-2 py-0.5 rounded-full border font-medium ${color}`}>
+      {formatted} · {label}
+    </span>
+  );
+}
 export default function LabPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -112,7 +135,7 @@ export default function LabPage() {
     const { data: ordersData } = await supabase
       .from("orders")
       .select("*")
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (!ordersData) { setLoading(false); return; }
     setOrders(ordersData);
@@ -263,10 +286,13 @@ export default function LabPage() {
           <span className="text-[#E2E0D8]">/</span>
           <span className="text-sm text-[#6B6B6B]">Lab Workqueue</span>
         </div>
-        <div className="flex gap-4">
-          <Link href="/admin/orders" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Orders</Link>
-          <Link href="/admin/products" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Products</Link>
-          <Link href="/dashboard" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">Dashboard</Link>
+       <div className="flex gap-3">
+        <Link href="/lab/scan"
+            className="h-9 px-4 rounded-lg bg-[#1A1A1A] text-white text-sm font-medium hover:bg-[#2A2A2A] transition-all flex items-center gap-2">
+            📷 Scan
+        </Link>
+        <Link href="/admin/orders" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] flex items-center">Order Management</Link>
+        <Link href="/admin/products" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] flex items-center">Products</Link>
         </div>
       </div>
 
@@ -453,17 +479,34 @@ export default function LabPage() {
                             <span>{date}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {nextStatus && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); updateStatus(order.id, nextStatus); }}
-                              disabled={saving[order.id]}
-                              className="h-8 px-3 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all disabled:opacity-40"
-                            >
-                              {saving[order.id] ? "..." : `Move to ${STATUS_CONFIG[nextStatus]?.label}`}
-                            </button>
-                          )}
-                          <span className="text-xs text-[#9B9B9B]">{isExpanded ? "▲" : "▼"}</span>
+                        <div className="flex items-center gap-3 flex-wrap text-xs text-[#9B9B9B]">
+                        <span className="font-medium text-[#4B4B4B]">
+                            {profile?.practice_name || "Unknown"}
+                        </span>
+                        {order.shade && <span>Shade: {order.shade}</span>}
+                        {teeth && <span>Tooth: {teeth}</span>}
+                        <span>{date}</span>
+                        {order.due_date && (() => {
+                            const due = new Date(order.due_date);
+                            const today = new Date();
+                            today.setHours(0,0,0,0);
+                            due.setHours(0,0,0,0);
+                            const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+                            const label = days < 0 ? `${Math.abs(days)}d overdue`
+                            : days === 0 ? "Due today"
+                            : days === 1 ? "Due tomorrow"
+                            : `Due in ${days}d`;
+                            const color = days < 0 ? "bg-red-50 text-red-600 border-red-200"
+                            : days <= 1 ? "bg-orange-50 text-orange-600 border-orange-200"
+                            : days <= 2 ? "bg-yellow-50 text-yellow-600 border-yellow-200"
+                            : "bg-green-50 text-green-600 border-green-200";
+                            const formatted = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                            return (
+                            <span className={`px-2 py-0.5 rounded-full border font-medium ${color}`}>
+                                📅 {formatted} · {label}
+                            </span>
+                            );
+                        })()}
                         </div>
                       </div>
                     </div>

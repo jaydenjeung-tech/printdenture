@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 
@@ -28,6 +28,7 @@ type Rx = {
   margin_type: string | null;
   occlusion: string | null;
   guard_type: string | null;
+  arch: string | null;
   color: string | null;
   dentist_name: string;
   dentist_license_no: string;
@@ -51,7 +52,6 @@ type Profile = {
 
 function Barcode({ value }: { value: string }) {
   const ref = useRef<SVGSVGElement>(null);
-
   useEffect(() => {
     if (ref.current && typeof window !== "undefined") {
       import("jsbarcode").then((JsBarcode) => {
@@ -67,11 +67,10 @@ function Barcode({ value }: { value: string }) {
       });
     }
   }, [value]);
-
   return <svg ref={ref} />;
 }
 
-export default function WorkOrdersPage() {
+function WorkOrdersContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const ids = searchParams.get("ids")?.split(",").filter(Boolean) || [];
@@ -92,16 +91,11 @@ export default function WorkOrdersPage() {
     if (!user) { router.push("/auth"); return; }
 
     const { data: adminProfile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
+      .from("profiles").select("is_admin").eq("id", user.id).single();
     if (!adminProfile?.is_admin) { router.push("/dashboard"); return; }
 
     const { data: ordersData } = await supabase
-      .from("orders")
-      .select("*")
-      .in("id", ids);
+      .from("orders").select("*").in("id", ids);
 
     if (!ordersData) { setLoading(false); return; }
     ordersData.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -117,11 +111,7 @@ export default function WorkOrdersPage() {
     profiles?.forEach(p => { pMap[p.id] = p; });
     setProfileMap(pMap);
 
-    const { data: rxData } = await supabase
-      .from("rx")
-      .select("*")
-      .in("order_id", ids);
-
+    const { data: rxData } = await supabase.from("rx").select("*").in("order_id", ids);
     const rMap: Record<string, Rx> = {};
     rxData?.forEach(rx => { rMap[rx.order_id] = rx; });
     setRxMap(rMap);
@@ -167,21 +157,17 @@ export default function WorkOrdersPage() {
         const rx = rxMap[order.id];
         const profile = profileMap[order.user_id];
         const isLast = idx === orders.length - 1;
-
         const date = new Date(order.created_at).toLocaleDateString("en-US", {
           month: "long", day: "numeric", year: "numeric",
         });
-
         const dueDate = order.due_date
           ? new Date(order.due_date).toLocaleDateString("en-US", {
               month: "short", day: "numeric", year: "numeric",
             })
           : null;
-
         const teeth = order.tooth_numbers?.length
           ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
           : order.tooth_number ? `#${order.tooth_number}` : "—";
-
         const caseId = order.id.slice(0, 6).toUpperCase();
 
         return (
@@ -276,8 +262,14 @@ export default function WorkOrdersPage() {
                         <td className="px-3 py-2">{rx.guard_type}</td>
                       </tr>
                     )}
-                    {rx?.color && (
+                    {rx?.arch && (
                       <tr className="border-b border-gray-100">
+                        <td className="px-3 py-2 font-medium text-gray-500">Arch</td>
+                        <td className="px-3 py-2 font-bold capitalize">{rx.arch}</td>
+                      </tr>
+                    )}
+                    {rx?.color && (
+                      <tr className="border-b border-gray-100 bg-gray-50">
                         <td className="px-3 py-2 font-medium text-gray-500">Color</td>
                         <td className="px-3 py-2">{rx.color}</td>
                       </tr>
@@ -358,5 +350,17 @@ export default function WorkOrdersPage() {
         );
       })}
     </>
+  );
+}
+
+export default function WorkOrdersPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-400">Loading...</p>
+      </div>
+    }>
+      <WorkOrdersContent />
+    </Suspense>
   );
 }

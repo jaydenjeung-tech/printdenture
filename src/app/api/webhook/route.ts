@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { calculateDueDate } from "@/lib/utils/due-date";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-// Supabase service role로 RLS 우회
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -31,15 +31,25 @@ export async function POST(req: NextRequest) {
     const orderId = session.metadata?.orderId;
 
     if (orderId) {
-      await supabase
+      const { data: order } = await supabase
+        .from("orders")
+        .select("product_name, product_id")
+        .eq("id", orderId)
+        .single();
+
+      const paidAt = new Date(session.created * 1000);
+      const dueDate = calculateDueDate(paidAt, order?.product_name, order?.product_id);
+
+           await supabase
         .from("orders")
         .update({
-          status: "paid",
+          status: "received",
           stripe_session_id: session.id,
-          paid_at: new Date().toISOString(),
+          paid_at: paidAt.toISOString(),
+          due_date: dueDate.toISOString().split("T")[0],
         })
         .eq("id", orderId);
-    }
+        }
   }
 
   return NextResponse.json({ received: true });
