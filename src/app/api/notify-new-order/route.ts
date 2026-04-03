@@ -2,19 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   try {
     const { orderId } = await req.json();
     if (!orderId) return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
 
-    // 주문 정보 가져오기
     const { data: order } = await supabase
       .from("orders")
       .select("*")
@@ -23,7 +22,6 @@ export async function POST(req: NextRequest) {
 
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    // 치과 프로필 가져오기
     const { data: profile } = await supabase
       .from("profiles")
       .select("first_name, last_name, practice_name, phone")
@@ -39,33 +37,24 @@ export async function POST(req: NextRequest) {
     const labUrl = `${process.env.NEXT_PUBLIC_APP_URL}/lab`;
 
     await resend.emails.send({
-      from: "PrintCrown <onboarding@resend.dev>",  // 도메인 인증 전 기본값
+      from: "PrintCrown <onboarding@resend.dev>",
       to: process.env.ADMIN_EMAIL!,
       subject: `🦷 New order #${caseId} — ${order.product_name}`,
       html: `
         <!DOCTYPE html>
         <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-        </head>
+        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
         <body style="margin:0;padding:0;background:#F8F7F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
           <div style="max-width:560px;margin:40px auto;padding:0 20px;">
 
-            <!-- Header -->
-            <div style="background:#1A1A1A;border-radius:16px 16px 0 0;padding:24px 32px;display:flex;align-items:center;gap:12px;">
-              <div style="width:32px;height:32px;background:white;border-radius:6px;display:flex;align-items:center;justify-content:center;">
-                <span style="color:#1A1A1A;font-size:11px;font-weight:700;">PC</span>
-              </div>
+            <div style="background:#1A1A1A;border-radius:16px 16px 0 0;padding:24px 32px;">
               <span style="color:white;font-size:16px;font-weight:600;">Print<span style="color:#60A5FA;">Crown</span></span>
             </div>
 
-            <!-- Body -->
             <div style="background:white;padding:32px;border:1px solid #E2E0D8;border-top:none;">
-              <p style="margin:0 0 8px;font-size:13px;color:#9B9B9B;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">New Order</p>
+              <p style="margin:0 0 8px;font-size:12px;color:#9B9B9B;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">New Order</p>
               <h1 style="margin:0 0 24px;font-size:24px;font-weight:700;color:#1A1A1A;">Case #${caseId}</h1>
 
-              <!-- Order details -->
               <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
                 <tr style="border-bottom:1px solid #F0EEE8;">
                   <td style="padding:10px 0;font-size:13px;color:#9B9B9B;width:40%;">Product</td>
@@ -105,13 +94,11 @@ export async function POST(req: NextRequest) {
                 <p style="margin:0;font-size:13px;color:#4B4B4B;">${order.notes}</p>
               </div>` : ""}
 
-              <!-- CTA -->
               <a href="${labUrl}" style="display:block;background:#1A1A1A;color:white;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-size:14px;font-weight:600;">
                 View in Lab Queue →
               </a>
             </div>
 
-            <!-- Footer -->
             <div style="padding:20px 32px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#9B9B9B;">PrintCrown · California, USA · HIPAA Compliant</p>
             </div>
