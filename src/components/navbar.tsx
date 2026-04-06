@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/lib/supabase";
+import PrintCrownLogo from "@/components/logo"
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function Navbar() {
     return isHome ? anchor : `/${anchor}`;
   }
 
- const navLinks = [
+ const navLinks: { label: string; href: string }[] = [
   { label: "Products", href: navLink("#products") },
   { label: "How it works", href: navLink("#how-it-works") },
   ...(user ? [{ label: "Pricing", href: "/pricing" }] : []),
@@ -65,13 +66,8 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-            <span className="text-white text-xs font-bold tracking-tight">PC</span>
-          </div>
-          <span className="font-semibold text-[#1A1A1A] tracking-tight text-lg">
-            Print<span className="text-[#2563EB]">Crown</span>
-          </span>
+        <Link href="/">
+          <PrintCrownLogo size={36} />
         </Link>
 
         {/* Desktop nav */}
