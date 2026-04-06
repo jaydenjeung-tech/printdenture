@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import Image from "next/image"
 
 export default function Hero() {
   return (
@@ -77,16 +78,18 @@ export default function Hero() {
             <div className="bg-white rounded-3xl border border-[#E2E0D8] p-6 shadow-xl">
 
               {/* Image area — replace with actual photo */}
-              <div className="rounded-2xl bg-gradient-to-br from-[#EFF6FF] to-[#F0F9FF] flex items-center justify-center mb-5 overflow-hidden h-56">
-                <div className="text-center">
-                  <svg viewBox="0 0 96 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-20 h-16 mx-auto mb-2">
-                    <ellipse cx="48" cy="68" rx="28" ry="6" fill="#BFDBFE" opacity="0.4"/>
-                    <path d="M22 56 L22 36 L33 48 L48 26 L63 48 L74 36 L74 56 Q74 64 48 64 Q22 64 22 56Z" fill="#EFF6FF"/>
-                    <path d="M22 56 L22 36 L33 48 L48 26 L63 48 L74 36 L74 56 Q74 64 48 64 Q22 64 22 56Z" fill="none" stroke="#2563EB" strokeWidth="1.5" strokeLinejoin="round"/>
-                  </svg>
-                  <p className="text-xs text-[#9B9B9B]">Product photo</p>
+              <Link href="/order">
+                <div className="rounded-2xl mb-5 overflow-hidden relative cursor-pointer" style={{ aspectRatio: "4/3" }}>
+                  <Image
+                    src="/main_zirsample.png"
+                    alt="Zirconia Crown"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover object-top hover:scale-105 transition-transform duration-300"
+                    priority
+                  />
                 </div>
-              </div>
+              </Link>
 
               {/* Product info */}
               <div className="space-y-4">

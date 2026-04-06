@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: { name: "Shipping (FedEx)" },
-            unit_amount: 1500,
+            unit_amount: 900,
           },
           quantity: 1,
         },

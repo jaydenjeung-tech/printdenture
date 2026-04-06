@@ -34,7 +34,7 @@ const CATEGORY_META: Record<string, {
     label: "Printed Crowns",
     tag: "Fast turnaround",
     tagColor: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]",
-    features: ["SLA printed", "Temporary & permanent", "Same-day dispatch"],
+    features: ["DLP printed", "Temporary & permanent", "Same-day dispatch"],
   },
   nightguard: {
     label: "Night Guards",
