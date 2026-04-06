@@ -26,12 +26,23 @@ type Order = {
   stripe_session_id: string | null;
   paid_at: string | null;
   due_date: string | null;
+  is_remake: boolean;
+  remake_reason: string | null;
 };
 
 type Profile = {
+  id: string;
   first_name: string;
   last_name: string;
   practice_name: string;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  dentist_name: string | null;
+  license_no: string | null;
+  license_state: string | null;
 };
 
 const STATUS_STEPS = ["received", "printing", "qc", "shipped", "delivered"];
@@ -42,6 +53,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   qc:        { label: "QC Check",    color: "bg-[#FDF4FF] text-[#9333EA] border-[#E9D5FF]" },
   shipped:   { label: "Shipped",     color: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" },
   delivered: { label: "Delivered",   color: "bg-[#F1EFF8] text-[#6B6B6B] border-[#E2E0D8]" },
+};
+
+const REMAKE_REASONS: Record<string, string> = {
+  shade: "Shade Mismatch",
+  fit: "Fit Issue",
+  fracture: "Fracture",
+  design: "Design Change",
+  other: "Other",
 };
 
 function DueDateChip({ dueDate }: { dueDate: string | null }) {
@@ -98,11 +117,16 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
       <button className="w-full text-left p-5" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1 flex-wrap">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <p className="font-semibold text-[#1A1A1A]">{order.product_name}</p>
               <Badge className={`text-xs border ${status.color}`}>{status.label}</Badge>
               {order.paid_at && (
                 <Badge className="text-xs border bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]">Paid</Badge>
+              )}
+              {order.is_remake && (
+                <Badge className="text-xs border bg-red-50 text-red-500 border-red-200">
+                  Remake · {REMAKE_REASONS[order.remake_reason || ""] || order.remake_reason}
+                </Badge>
               )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
@@ -111,11 +135,15 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
               {teeth && <span className="text-xs text-[#9B9B9B]">Tooth {teeth}</span>}
               <span className="text-xs text-[#9B9B9B]">{date}</span>
             </div>
-            <DueDateChip dueDate={order.due_date} />
+            {!order.is_remake && <DueDateChip dueDate={order.due_date} />}
             <StatusProgress status={order.status} />
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="font-bold text-[#1A1A1A]">${order.total_price}</p>
+            {order.is_remake ? (
+              <p className="text-sm text-red-400 font-medium">Remake</p>
+            ) : (
+              <p className="font-bold text-[#1A1A1A]">${order.total_price}</p>
+            )}
             <p className="text-xs text-[#9B9B9B] mt-0.5">{expanded ? "▲" : "▼"}</p>
           </div>
         </div>
@@ -143,10 +171,12 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
             <span className="text-xs text-[#9B9B9B] font-mono">{order.id.slice(0, 8)}...</span>
           </div>
           <div className="flex gap-2 pt-1">
-            <button onClick={() => onReorder(order)}
-              className="h-8 px-4 rounded-lg text-xs font-medium border border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-all bg-white">
-              Reorder
-            </button>
+            {!order.is_remake && (
+              <button onClick={() => onReorder(order)}
+                className="h-8 px-4 rounded-lg text-xs font-medium border border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-all bg-white">
+                Reorder
+              </button>
+            )}
             {order.status === "shipped" && order.tracking_number && (
               <a href={upsUrl} target="_blank" rel="noopener noreferrer"
                 className="h-8 px-4 rounded-lg text-xs font-medium bg-[#1A1A1A] text-white hover:bg-[#2A2A2A] transition-all flex items-center">
@@ -160,32 +190,108 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
   );
 }
 
+// ── Profile edit modal ────────────────────────────────────
+function ProfileModal({ profile, onClose, onSave }: {
+  profile: Profile;
+  onClose: () => void;
+  onSave: (updated: Profile) => void;
+}) {
+  const [form, setForm] = useState({ ...profile });
+  const [saving, setSaving] = useState(false);
+
+  function update(key: keyof Profile, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const supabase = createClient();
+    await supabase.from("profiles").update({
+      practice_name: form.practice_name,
+      phone: form.phone,
+      address: form.address,
+      city: form.city,
+      state: form.state,
+      zip: form.zip,
+    }).eq("id", profile.id);
+    onSave(form);
+    setSaving(false);
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl border border-[#E2E0D8] p-6 w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-[#1A1A1A]">Practice Info</h3>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full bg-[#F8F7F4] flex items-center justify-center text-[#6B6B6B] hover:bg-[#E2E0D8] transition-all">
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {[
+            { label: "Practice name", key: "practice_name" as keyof Profile },
+            { label: "Phone",         key: "phone" as keyof Profile },
+            { label: "Address",       key: "address" as keyof Profile },
+            { label: "City",          key: "city" as keyof Profile },
+            { label: "State",         key: "state" as keyof Profile },
+            { label: "ZIP",           key: "zip" as keyof Profile },
+          ].map(field => (
+            <div key={field.key}>
+              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
+                {field.label}
+              </label>
+              <input
+                type="text"
+                value={(form[field.key] as string) || ""}
+                onChange={e => update(field.key, e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A]"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose}
+            className="flex-1 h-10 rounded-xl border border-[#E2E0D8] text-sm text-[#6B6B6B] hover:bg-[#F8F7F4] transition-all">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 h-10 rounded-xl bg-[#1A1A1A] text-white text-sm font-medium hover:bg-[#2563EB] transition-all disabled:opacity-40">
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main dashboard ────────────────────────────────────────
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // 결제 완료 후 order 업데이트
   useEffect(() => {
     const orderId = searchParams.get("orderId");
     if (!orderId) return;
-
     async function completeOrder() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       await fetch("/api/order-complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, userId: user.id }),
       });
-
       router.replace("/dashboard");
     }
-
     completeOrder();
   }, [searchParams]);
 
@@ -219,28 +325,54 @@ function DashboardContent() {
     );
   }
 
+  const nonRemakeOrders = orders.filter(o => !o.is_remake);
+  const inProgressOrders = orders.filter(o => ["received", "printing", "qc"].includes(o.status) && !o.is_remake);
+  const shippedOrders = orders.filter(o => ["shipped", "delivered"].includes(o.status));
+
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
+
+      {showProfileModal && profile && (
+        <ProfileModal
+          profile={profile}
+          onClose={() => setShowProfileModal(false)}
+          onSave={updated => setProfile(updated)}
+        />
+      )}
+
       <div className="max-w-3xl mx-auto px-6 pt-24 pb-10">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#1A1A1A]">
               {profile ? `Hi, Dr. ${profile.last_name}` : "My cases"}
             </h1>
             <p className="text-sm text-[#6B6B6B] mt-0.5">
-              {orders.length} total case{orders.length !== 1 ? "s" : ""}
+              {nonRemakeOrders.length} total case{nonRemakeOrders.length !== 1 ? "s" : ""}
             </p>
           </div>
+          {profile && (
+            <button onClick={() => setShowProfileModal(true)}
+              className="flex items-center gap-2 h-9 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Edit profile
+            </button>
+          )}
         </div>
 
+        {/* Stats */}
         {orders.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
             {[
-              { label: "Total orders", value: orders.length },
-              { label: "In progress", value: orders.filter(o => ["received","printing","qc"].includes(o.status)).length },
-              { label: "Shipped", value: orders.filter(o => ["shipped","delivered"].includes(o.status)).length },
-            ].map((stat) => (
+              { label: "Total orders", value: nonRemakeOrders.length },
+              { label: "In progress",  value: inProgressOrders.length },
+              { label: "Shipped",      value: shippedOrders.length },
+            ].map(stat => (
               <div key={stat.label} className="bg-white rounded-xl border border-[#E2E0D8] p-4 text-center">
                 <p className="text-2xl font-bold text-[#1A1A1A]">{stat.value}</p>
                 <p className="text-xs text-[#9B9B9B] mt-0.5">{stat.label}</p>
@@ -249,6 +381,32 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* Practice info strip */}
+        {profile?.practice_name && (
+          <div className="bg-white rounded-xl border border-[#E2E0D8] px-4 py-3 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#1A1A1A]">{profile.practice_name}</p>
+                <p className="text-xs text-[#9B9B9B]">
+                  {[profile.city, profile.state].filter(Boolean).join(", ") || "Add your address"}
+                  {profile.phone && ` · ${profile.phone}`}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setShowProfileModal(true)}
+              className="text-xs text-[#9B9B9B] hover:text-[#1A1A1A] transition-colors">
+              Edit →
+            </button>
+          </div>
+        )}
+
+        {/* Orders */}
         {orders.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E2E0D8]">
             <p className="text-4xl mb-4">📦</p>
@@ -262,7 +420,7 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {orders.map((order) => (
+            {orders.map(order => (
               <OrderCard key={order.id} order={order} onReorder={handleReorder} />
             ))}
           </div>

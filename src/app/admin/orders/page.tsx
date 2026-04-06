@@ -24,6 +24,9 @@ type Order = {
   stl_file_path: string | null;
   paid_at: string | null;
   due_date: string | null;
+  is_remake: boolean;
+  remake_of: string | null;
+  remake_reason: string | null;
 };
 
 type Rx = {
@@ -179,7 +182,7 @@ export default function AdminOrdersPage() {
   }
 
   // Stats
-  const paidOrders = orders.filter(o => o.paid_at);
+  const paidOrders = orders.filter(o => o.paid_at && !o.is_remake);
   const now = new Date();
   const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total_price, 0);
   const thisMonthRevenue = paidOrders
@@ -227,7 +230,7 @@ export default function AdminOrdersPage() {
       return 0;
     });
 
-  const filteredRevenue = filtered.filter(o => o.paid_at).reduce((sum, o) => sum + o.total_price, 0);
+  const filteredRevenue = filtered.filter(o => o.paid_at && !o.is_remake).reduce((sum, o) => sum + o.total_price, 0);
 
   if (loading) {
     return (
@@ -382,7 +385,7 @@ export default function AdminOrdersPage() {
                         {rx && <p className="text-xs text-[#9B9B9B] mt-0.5">Dr. {rx.dentist_name}</p>}
                       </td>
 
-                      {/* Status */}
+                     {/* Status */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${status.color}`}>
@@ -392,6 +395,11 @@ export default function AdminOrdersPage() {
                           {order.paid_at && (
                             <span className="text-xs px-1.5 py-0.5 rounded-full border font-medium bg-green-50 text-green-600 border-green-200">
                               Paid
+                            </span>
+                          )}
+                          {order.is_remake && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full border font-medium bg-red-50 text-red-500 border-red-200 whitespace-nowrap">
+                              Remake
                             </span>
                           )}
                         </div>

@@ -88,6 +88,7 @@ const userLinks = [
 // adminLinks — Dashboard 없애기
 const adminLinks = [
   { label: "All Orders", href: "/admin/orders" },
+  { label: "Customers",  href: "/admin/customers" },  // ← 추가
   { label: "Products", href: "/admin/products" },
   { label: "Lab", href: "/lab" },
   { label: "Scan", href: "/lab/scan" },
