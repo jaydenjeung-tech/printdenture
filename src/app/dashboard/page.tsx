@@ -101,8 +101,22 @@ function StatusProgress({ status }: { status: string }) {
   );
 }
 
+type Message = {
+  id: string;
+  sender_role: "admin" | "user" | "lab";
+  message: string;
+  is_internal: boolean;
+  created_at: string;
+};
+
 function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Order) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(false);
+
   const status = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.received;
   const date = new Date(order.created_at).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -111,6 +125,57 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
     ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
     : order.tooth_number ? `#${order.tooth_number}` : null;
   const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
+
+  async function loadMessages() {
+    if (loadingMsgs) return;
+    setLoadingMsgs(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("order_messages")
+      .select("*")
+      .eq("order_id", order.id)
+      .eq("is_internal", false) // 치과에게는 internal 메시지 숨김
+      .order("created_at", { ascending: true });
+    setMessages(data || []);
+    setLoadingMsgs(false);
+  }
+
+  async function toggleMessages() {
+    if (!showMessages) await loadMessages();
+    setShowMessages(!showMessages);
+  }
+
+  async function sendMessage() {
+    if (!newMessage.trim()) return;
+    setSendingMsg(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: inserted } = await supabase.from("order_messages").insert({
+      order_id: order.id,
+      sender_id: user.id,
+      sender_role: "user",
+      message: newMessage.trim(),
+      is_internal: false,
+    }).select().single();
+
+    if (inserted) setMessages(prev => [...prev, inserted]);
+    setNewMessage("");
+    setSendingMsg(false);
+  }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-[#E2E0D8] overflow-hidden hover:border-[#C8C6BE] transition-colors">
@@ -149,6 +214,7 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
         </div>
       </button>
 
+      {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-[#E2E0D8] px-5 py-4 bg-[#F8F7F4] space-y-3">
           {order.tracking_number && (
@@ -183,7 +249,75 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
                 Track package
               </a>
             )}
+            {/* Message 버튼 */}
+            <button onClick={e => { e.stopPropagation(); toggleMessages(); }}
+              className={`h-8 px-4 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                showMessages
+                  ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
+                  : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A] hover:text-[#1A1A1A]"
+              }`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {showMessages ? "Hide messages" : "Message lab"}
+            </button>
           </div>
+        </div>
+      )}
+
+      {/* Message thread */}
+      {expanded && showMessages && (
+        <div className="border-t border-[#E2E0D8] px-5 py-4 bg-white">
+          <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider mb-4">
+            Messages
+          </p>
+
+          {/* Message list */}
+          <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+            {loadingMsgs ? (
+              <p className="text-xs text-[#9B9B9B] text-center py-4">Loading...</p>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-[#9B9B9B]">No messages yet.</p>
+                <p className="text-xs text-[#C8C6BE] mt-1">Send a message to the lab about this case.</p>
+              </div>
+            ) : (
+              messages.map(msg => (
+                <div key={msg.id} className={`flex ${msg.sender_role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                    msg.sender_role === "user"
+                      ? "bg-[#2563EB] text-white rounded-br-sm"
+                      : "bg-[#F8F7F4] text-[#1A1A1A] border border-[#E2E0D8] rounded-bl-sm"
+                  }`}>
+                    {msg.sender_role !== "user" && (
+                      <p className="text-[10px] font-semibold text-[#9B9B9B] mb-0.5">PrintCrown Lab</p>
+                    )}
+                    <p className="text-sm">{msg.message}</p>
+                    <p className={`text-[10px] mt-1 ${msg.sender_role === "user" ? "text-blue-200" : "text-[#C8C6BE]"}`}>
+                      {timeAgo(msg.created_at)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={e => setNewMessage(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              placeholder="Ask about this case..."
+              className="flex-1 h-9 px-3 rounded-xl border border-[#E2E0D8] bg-[#F8F7F4] text-sm text-[#1A1A1A] focus:outline-none focus:border-[#2563EB] placeholder:text-[#C8C6BE]"
+            />
+            <button onClick={sendMessage} disabled={sendingMsg || !newMessage.trim()}
+              className="h-9 px-4 rounded-xl bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1D4ED8] transition-all disabled:opacity-40">
+              {sendingMsg ? "..." : "Send"}
+            </button>
+          </div>
+          <p className="text-xs text-[#C8C6BE] mt-1.5">Press Enter to send</p>
         </div>
       )}
     </div>
