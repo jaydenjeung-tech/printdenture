@@ -3,16 +3,16 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import Link from "next/link";
+import Navbar from "@/components/navbar";
 
 const STATUS_STEPS = ["received", "printing", "qc", "shipped", "delivered"];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; next: string | null }> = {
-  received:  { label: "Received",    color: "bg-blue-50 text-blue-600 border-blue-200",       next: "printing" },
-  printing:  { label: "Printing",    color: "bg-amber-50 text-amber-600 border-amber-200",    next: "qc" },
-  qc:        { label: "QC Check",    color: "bg-purple-50 text-purple-600 border-purple-200", next: "shipped" },
-  shipped:   { label: "Shipped",     color: "bg-green-50 text-green-600 border-green-200",    next: "delivered" },
-  delivered: { label: "Delivered",   color: "bg-gray-50 text-gray-500 border-gray-200",       next: null },
+  received:  { label: "Received",  color: "bg-blue-50 text-blue-600 border-blue-200",       next: "printing" },
+  printing:  { label: "Printing",  color: "bg-amber-50 text-amber-600 border-amber-200",    next: "qc" },
+  qc:        { label: "QC Check",  color: "bg-purple-50 text-purple-600 border-purple-200", next: "shipped" },
+  shipped:   { label: "Shipped",   color: "bg-green-50 text-green-600 border-green-200",    next: "delivered" },
+  delivered: { label: "Delivered", color: "bg-gray-50 text-gray-500 border-gray-200",       next: null },
 };
 
 type ScanResult = {
@@ -35,15 +35,10 @@ export default function ScanPage() {
   const [history, setHistory] = useState<ScanResult[]>([]);
   const [authorized, setAuthorized] = useState(false);
 
-  useEffect(() => {
-    checkAdmin();
-  }, []);
+  useEffect(() => { checkAdmin(); }, []);
 
   useEffect(() => {
-    // Keep focus on input for scanner
-    if (authorized) {
-      inputRef.current?.focus();
-    }
+    if (authorized) inputRef.current?.focus();
   }, [authorized, history]);
 
   async function checkAdmin() {
@@ -53,11 +48,12 @@ export default function ScanPage() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("role, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) { router.push("/dashboard"); return; }
+    const isAllowed = profile?.role === "admin" || profile?.role === "lab" || profile?.is_admin;
+    if (!isAllowed) { router.push("/dashboard"); return; }
     setAuthorized(true);
   }
 
@@ -69,14 +65,13 @@ export default function ScanPage() {
     setScanValue("");
 
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Find order by full ID or partial (first 6 chars)
     let query = supabase.from("orders").select(`
       id, product_name, status, user_id,
       profiles!orders_user_id_fkey(practice_name)
     `);
 
-    // Try full UUID first, then partial match
     if (value.length === 36) {
       query = query.eq("id", value);
     } else {
@@ -103,8 +98,7 @@ export default function ScanPage() {
     }
 
     const currentStatus = order.status;
-    const statusConfig = STATUS_CONFIG[currentStatus];
-    const nextStatus = statusConfig?.next;
+    const nextStatus = STATUS_CONFIG[currentStatus]?.next;
 
     if (!nextStatus) {
       setHistory(prev => [{
@@ -123,6 +117,12 @@ export default function ScanPage() {
     }
 
     await supabase.from("orders").update({ status: nextStatus }).eq("id", order.id);
+    await supabase.from("order_status_history").insert({
+      order_id: order.id,
+      changed_by: user?.id,
+      from_status: currentStatus,
+      to_status: nextStatus,
+    });
 
     setHistory(prev => [{
       id: order.id,
@@ -150,24 +150,9 @@ export default function ScanPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
-      {/* Header */}
-      <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">PC</span>
-            </div>
-            <span className="font-semibold text-[#1A1A1A]">Print<span className="text-[#2563EB]">Crown</span></span>
-          </Link>
-          <span className="text-[#E2E0D8]">/</span>
-          <span className="text-sm text-[#6B6B6B]">Barcode Scanner</span>
-        </div>
-        <Link href="/lab" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
-          Back to Lab
-        </Link>
-      </div>
+      <Navbar />
 
-      <div className="max-w-2xl mx-auto px-6 py-10">
+      <div className="max-w-2xl mx-auto px-6 pt-24 pb-10">
 
         {/* Scanner input */}
         <div className="bg-white rounded-2xl border border-[#E2E0D8] p-8 mb-6 text-center">
@@ -184,15 +169,12 @@ export default function ScanPage() {
           <p className="text-sm text-[#9B9B9B] mb-6">
             Point scanner at barcode on Work Order. Case will automatically advance to next step.
           </p>
-
           <input
             ref={inputRef}
             type="text"
             value={scanValue}
             onChange={(e) => setScanValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleScan(scanValue);
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleScan(scanValue); }}
             placeholder="Scan barcode or type case ID..."
             className="w-full h-12 px-4 rounded-xl border-2 border-[#E2E0D8] bg-white text-[#1A1A1A] text-center text-lg focus:outline-none focus:border-[#2563EB] placeholder:text-[#C8C6BE]"
             autoFocus
@@ -228,9 +210,7 @@ export default function ScanPage() {
             <div className="space-y-2">
               {history.map((result, idx) => (
                 <div key={idx} className={`flex items-center justify-between p-4 rounded-xl border ${
-                  result.success
-                    ? "bg-white border-[#E2E0D8]"
-                    : "bg-red-50 border-red-200"
+                  result.success ? "bg-white border-[#E2E0D8]" : "bg-red-50 border-red-200"
                 }`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
