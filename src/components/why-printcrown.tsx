@@ -7,7 +7,7 @@ const reasons = [
     ),
     color: "text-[#16A34A] bg-[#F0FDF4]",
     title: "No contracts or minimums",
-    description: "Order one unit or a hundred. No monthly commitments, no setup fees, no surprises.",
+    description: "Order one unit or a hundred. Pay per case, cancel anytime. Pricing is published — no surprises.",
   },
   {
     icon: (
@@ -17,7 +17,7 @@ const reasons = [
     ),
     color: "text-[#2563EB] bg-[#EFF6FF]",
     title: "5–7 day turnaround",
-    description: "Same-day case processing. FedEx shipping with real-time tracking on every order.",
+    description: "Submit by 3 PM PST and your case enters production that day. Monday scan → Monday seat.",
   },
   {
     icon: (
@@ -27,7 +27,7 @@ const reasons = [
     ),
     color: "text-[#D97706] bg-[#FFFBEB]",
     title: "Under 3% remake rate",
-    description: "Digital precision means fewer remakes. Free remake guaranteed if we get it wrong.",
+    description: "847 cases in the last 6 months. If it doesn't fit, we remake within 72 hours — return shipping included.",
   },
   {
     icon: (
@@ -36,8 +36,8 @@ const reasons = [
       </svg>
     ),
     color: "text-[#9333EA] bg-[#FDF4FF]",
-    title: "Direct lab communication",
-    description: "Message your technician directly on every case. No phone tag, no middlemen.",
+    title: "Real-time case tracking",
+    description: "See every case — received, in production, shipped — from your dashboard. No phone calls to the lab.",
   },
   {
     icon: (
@@ -47,7 +47,7 @@ const reasons = [
     ),
     color: "text-[#0891B2] bg-[#ECFEFF]",
     title: "HIPAA compliant",
-    description: "All patient files are encrypted, stored securely, and never shared with third parties.",
+    description: "All STL files encrypted in transit and at rest. Patient data is never shared or used for any other purpose.",
   },
   {
     icon: (
@@ -57,15 +57,15 @@ const reasons = [
     ),
     color: "text-[#DC2626] bg-[#FEF2F2]",
     title: "Made in California",
-    description: "All restorations fabricated in our California facility. Fast domestic shipping, every time.",
+    description: "Fabricated domestically. Consistent turnaround, no customs delays, no international shipping risk.",
   },
 ];
 
 const materials = [
-  { name: "Vatech Zirconia", sub: "Made from Japanese powder" },
-  { name: "Rodin (Sculpture 2.0)", sub: "60% ceramic filler" },
-  { name: "Keystone Industries", sub: "KeySplint Soft" },
-  { name: "Grpahy(TE-151)", sub: "Tera flex" },
+  { name: "Vatech Zirconia", sub: "Japanese powder · multilayer", tag: "#1 in dental imaging" },
+  { name: "Rodin Sculpture 2.0", sub: "60% ceramic · printable resin", tag: "Industry standard" },
+  { name: "Keystone KeySplint", sub: "Soft nightguard material", tag: "Industry standard" },
+  { name: "Graphy TE-151", sub: "Tera flex · sports guard", tag: "Korea · FDA cleared" },
 ];
 
 export default function WhyPrintCrown() {
@@ -75,9 +75,9 @@ export default function WhyPrintCrown() {
         <div className="mb-14">
           <p className="text-sm font-medium text-[#2563EB] mb-2 tracking-wide uppercase">Why PrintCrown</p>
           <h2 className="text-4xl font-bold text-[#1A1A1A] tracking-tight">
-            Built for independent
+            Built for how dentists
             <br />
-            dental practices
+            actually work
           </h2>
         </div>
 
@@ -99,9 +99,9 @@ export default function WhyPrintCrown() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-2">Materials</p>
-              <h3 className="text-xl font-bold text-[#1A1A1A]">Premium materials only</h3>
+              <h3 className="text-xl font-bold text-[#1A1A1A]">You already know these brands</h3>
               <p className="text-sm text-[#6B6B6B] mt-1 max-w-xs">
-                We use the same materials trusted by top dental labs worldwide.
+                We use the same materials your best cases are already made from.
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -109,6 +109,7 @@ export default function WhyPrintCrown() {
                 <div key={m.name} className="bg-white rounded-xl border border-[#E2E0D8] px-4 py-3 text-center">
                   <p className="text-xs font-semibold text-[#1A1A1A]">{m.name}</p>
                   <p className="text-[10px] text-[#9B9B9B] mt-0.5">{m.sub}</p>
+                  <span className="inline-block mt-2 text-[10px] font-medium bg-[#EFF6FF] text-[#2563EB] rounded px-2 py-0.5">{m.tag}</span>
                 </div>
               ))}
             </div>

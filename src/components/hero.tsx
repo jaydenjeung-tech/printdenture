@@ -1,9 +1,63 @@
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import Image from "next/image"
+import Image from "next/image";
+import { useState, useEffect } from "react";
+
+const SLIDES = [
+  {
+    image: "/main_zirsample.png",
+    alt: "Full Contour Zirconia",
+    name: "Full Contour Zirconia",
+    sub: "Milled · Sintered · Polished",
+    price: "$59",
+    specs: [
+      { label: "Material", value: "Vatech Zirconia" },
+      { label: "Turnaround", value: "7-day" },
+      { label: "Shades", value: "A1–D4" },
+      { label: "Guarantee", value: "Free remake" },
+    ],
+  },
+  {
+    image: "/Hard-Night-Guard.png",
+    alt: "Night Guard",
+    name: "Hard Night Guard",
+    sub: "3D Printed · Polished",
+    price: "$49",
+    specs: [
+      { label: "Material", value: "Keystone KeySplint" },
+      { label: "Turnaround", value: "5-day" },
+      { label: "Type", value: "Hard / Dual-laminate" },
+      { label: "Guarantee", value: "Free remake" },
+    ],
+  },
+  {
+    image: "/Sculpture.png",
+    alt: "Print Crown",
+    name: "Print Crown",
+    sub: "3D Printed · Custom fit",
+    price: "$45",
+    specs: [
+      { label: "Material", value: "Graphy TE-151" },
+      { label: "Turnaround", value: "5-day" },
+      { label: "Colors", value: "6 options" },
+      { label: "Guarantee", value: "Free remake" },
+    ],
+  },
+];
 
 export default function Hero() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(prev => (prev + 1) % SLIDES.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const slide = SLIDES[current];
+
   return (
     <section className="pt-32 pb-24 px-6 bg-[#F8F7F4]">
       <div className="max-w-6xl mx-auto">
@@ -11,7 +65,6 @@ export default function Hero() {
 
           {/* Left — Copy */}
           <div>
-            {/* Trust badges */}
             <div className="flex flex-wrap gap-2 mb-8">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-[#E2E0D8] text-[#4B4B4B]">
                 <svg className="w-3.5 h-3.5 text-[#16A34A]" fill="currentColor" viewBox="0 0 20 20">
@@ -58,12 +111,11 @@ export default function Hero() {
               </Link>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-6 pt-8 border-t border-[#E2E0D8]">
               {[
                 { value: "< 3%", label: "Remake rate" },
                 { value: "5–7d", label: "Avg. delivery" },
-                { value: "$0", label: "Setup fee" },
+                { value: "$0",   label: "Setup fee" },
               ].map((s) => (
                 <div key={s.label}>
                   <p className="text-2xl font-bold text-[#1A1A1A]">{s.value}</p>
@@ -73,16 +125,15 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Right — Product card */}
+          {/* Right — Rotating product card */}
           <div>
             <div className="bg-white rounded-3xl border border-[#E2E0D8] p-6 shadow-xl">
-
-              {/* Image area — replace with actual photo */}
               <Link href="/order">
                 <div className="rounded-2xl mb-5 overflow-hidden relative cursor-pointer" style={{ aspectRatio: "4/3" }}>
                   <Image
-                    src="/main_zirsample.png"
-                    alt="Zirconia Crown"
+                    key={slide.image}
+                    src={slide.image}
+                    alt={slide.alt}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-cover object-top hover:scale-105 transition-transform duration-300"
@@ -91,14 +142,13 @@ export default function Hero() {
                 </div>
               </Link>
 
-              {/* Product info */}
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-semibold text-[#1A1A1A]">Full Contour Zirconia</p>
-                    <p className="text-xs text-[#9B9B9B] mt-0.5">Milled · Sintered · Polished</p>
+                    <p className="font-semibold text-[#1A1A1A]">{slide.name}</p>
+                    <p className="text-xs text-[#9B9B9B] mt-0.5">{slide.sub}</p>
                   </div>
-                  <p className="text-xl font-bold text-[#1A1A1A]">$59</p>
+                  <p className="text-xl font-bold text-[#1A1A1A]">{slide.price}</p>
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
@@ -110,18 +160,22 @@ export default function Hero() {
                   </span>
                 </div>
 
-                {/* Specs grid */}
                 <div className="border-t border-[#F0EEE8] pt-4 grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Material", value: "Vatech Zirconia" },
-                    { label: "Turnaround", value: "7-day" },
-                    { label: "Shades", value: "A1–D4" },
-                    { label: "Guarantee", value: "Free remake" },
-                  ].map((s) => (
+                  {slide.specs.map((s) => (
                     <div key={s.label}>
                       <p className="text-[10px] text-[#9B9B9B] uppercase tracking-wide">{s.label}</p>
                       <p className="text-xs font-semibold text-[#1A1A1A] mt-0.5">{s.value}</p>
                     </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-center gap-1.5 pt-2">
+                  {SLIDES.map((_, i) => (
+                    <button key={i} onClick={() => setCurrent(i)}
+                      className={`h-1.5 rounded-full transition-all ${
+                        i === current ? "bg-[#2563EB] w-4" : "bg-[#E2E0D8] w-1.5"
+                      }`}
+                    />
                   ))}
                 </div>
               </div>

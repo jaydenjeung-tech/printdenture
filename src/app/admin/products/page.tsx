@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
+import PrintCrownLogo from "@/components/logo";
 
 type Product = {
   id: string;
@@ -181,10 +182,7 @@ export default function AdminProductsPage() {
       {/* Header */}
       <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold">PC</span>
-          </div>
-          <span className="font-semibold text-[#1A1A1A]">Print<span className="text-[#2563EB]">Crown</span></span>
+          <PrintCrownLogo size={28} />
           <span className="text-[#E2E0D8]">/</span>
           <span className="text-sm text-[#6B6B6B]">Admin · Products</span>
         </div>

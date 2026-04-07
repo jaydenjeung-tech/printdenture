@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 
 type Order = {
   id: string;
+  case_number: number | null;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -125,6 +126,7 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
     ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
     : order.tooth_number ? `#${order.tooth_number}` : null;
   const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
+  const caseNum = order.case_number ? `PC-${String(order.case_number).padStart(6, '0')}` : null;
 
   async function loadMessages() {
     if (loadingMsgs) return;
@@ -134,7 +136,7 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
       .from("order_messages")
       .select("*")
       .eq("order_id", order.id)
-      .eq("is_internal", false) // 치과에게는 internal 메시지 숨김
+      .eq("is_internal", false)
       .order("created_at", { ascending: true });
     setMessages(data || []);
     setLoadingMsgs(false);
@@ -151,7 +153,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const { data: inserted } = await supabase.from("order_messages").insert({
       order_id: order.id,
       sender_id: user.id,
@@ -159,7 +160,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
       message: newMessage.trim(),
       is_internal: false,
     }).select().single();
-
     if (inserted) setMessages(prev => [...prev, inserted]);
     setNewMessage("");
     setSendingMsg(false);
@@ -184,6 +184,11 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <p className="font-semibold text-[#1A1A1A]">{order.product_name}</p>
+              {caseNum && (
+                <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-[#F8F7F4] border border-[#E2E0D8] text-[#6B6B6B]">
+                  {caseNum}
+                </span>
+              )}
               <Badge className={`text-xs border ${status.color}`}>{status.label}</Badge>
               {order.paid_at && (
                 <Badge className="text-xs border bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]">Paid</Badge>
@@ -214,7 +219,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
         </div>
       </button>
 
-      {/* Expanded detail */}
       {expanded && (
         <div className="border-t border-[#E2E0D8] px-5 py-4 bg-[#F8F7F4] space-y-3">
           {order.tracking_number && (
@@ -233,8 +237,10 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
             </div>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#6B6B6B] w-24">Order ID</span>
-            <span className="text-xs text-[#9B9B9B] font-mono">{order.id.slice(0, 8)}...</span>
+            <span className="text-xs font-medium text-[#6B6B6B] w-24">Case ID</span>
+            <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-[#F8F7F4] border border-[#E2E0D8] text-[#6B6B6B]">
+              {caseNum ?? order.id.slice(0, 8)}
+            </span>
           </div>
           <div className="flex gap-2 pt-1">
             {!order.is_remake && (
@@ -249,7 +255,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
                 Track package
               </a>
             )}
-            {/* Message 버튼 */}
             <button onClick={e => { e.stopPropagation(); toggleMessages(); }}
               className={`h-8 px-4 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
                 showMessages
@@ -265,14 +270,9 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
         </div>
       )}
 
-      {/* Message thread */}
       {expanded && showMessages && (
         <div className="border-t border-[#E2E0D8] px-5 py-4 bg-white">
-          <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider mb-4">
-            Messages
-          </p>
-
-          {/* Message list */}
+          <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider mb-4">Messages</p>
           <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
             {loadingMsgs ? (
               <p className="text-xs text-[#9B9B9B] text-center py-4">Loading...</p>
@@ -301,8 +301,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
               ))
             )}
           </div>
-
-          {/* Input */}
           <div className="flex gap-2">
             <input
               type="text"
@@ -324,7 +322,6 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
   );
 }
 
-// ── Profile edit modal ────────────────────────────────────
 function ProfileModal({ profile, onClose, onSave }: {
   profile: Profile;
   onClose: () => void;
@@ -364,7 +361,6 @@ function ProfileModal({ profile, onClose, onSave }: {
             ✕
           </button>
         </div>
-
         <div className="space-y-3">
           {[
             { label: "Practice name", key: "practice_name" as keyof Profile },
@@ -387,7 +383,6 @@ function ProfileModal({ profile, onClose, onSave }: {
             </div>
           ))}
         </div>
-
         <div className="flex gap-2 mt-5">
           <button onClick={onClose}
             className="flex-1 h-10 rounded-xl border border-[#E2E0D8] text-sm text-[#6B6B6B] hover:bg-[#F8F7F4] transition-all">
@@ -403,7 +398,6 @@ function ProfileModal({ profile, onClose, onSave }: {
   );
 }
 
-// ── Main dashboard ────────────────────────────────────────
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -411,6 +405,9 @@ function DashboardContent() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "amount" | "status">("newest");
+  const [statusFilter, setStatusFilter] = useState<"all" | "inprogress" | "shipped" | "delivered">("all");
 
   useEffect(() => {
     const orderId = searchParams.get("orderId");
@@ -434,12 +431,10 @@ function DashboardContent() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
-
       const [{ data: profileData }, { data: ordersData }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
-
       if (profileData) setProfile(profileData);
       if (ordersData) setOrders(ordersData);
       setLoading(false);
@@ -463,10 +458,34 @@ function DashboardContent() {
   const inProgressOrders = orders.filter(o => ["received", "printing", "qc"].includes(o.status) && !o.is_remake);
   const shippedOrders = orders.filter(o => ["shipped", "delivered"].includes(o.status));
 
+  const filteredOrders = orders
+    .filter(o => {
+      if (statusFilter === "inprogress" && !["received", "printing", "qc"].includes(o.status)) return false;
+      if (statusFilter === "shipped" && o.status !== "shipped") return false;
+      if (statusFilter === "delivered" && o.status !== "delivered") return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const caseNum = o.case_number ? `pc-${String(o.case_number).padStart(6, '0')}` : "";
+        const teeth = o.tooth_numbers?.map(n => `#${n}`).join(" ") || "";
+        if (
+          !caseNum.includes(q) &&
+          !o.product_name.toLowerCase().includes(q) &&
+          !teeth.includes(q) &&
+          !(o.shade?.toLowerCase().includes(q))
+        ) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      if (sortBy === "amount") return b.total_price - a.total_price;
+      if (sortBy === "status") return STATUS_STEPS.indexOf(b.status) - STATUS_STEPS.indexOf(a.status);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
-
       {showProfileModal && profile && (
         <ProfileModal
           profile={profile}
@@ -474,10 +493,7 @@ function DashboardContent() {
           onSave={updated => setProfile(updated)}
         />
       )}
-
       <div className="max-w-3xl mx-auto px-6 pt-24 pb-10">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#1A1A1A]">
@@ -499,7 +515,6 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Stats */}
         {orders.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">
             {[
@@ -515,7 +530,6 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Practice info strip */}
         {profile?.practice_name && (
           <div className="bg-white rounded-xl border border-[#E2E0D8] px-4 py-3 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -540,7 +554,57 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Orders */}
+        {orders.length > 0 && (
+          <div className="mb-4 space-y-3">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9B9B9B]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by case #, product, tooth, shade..."
+                className="w-full h-10 pl-9 pr-4 rounded-xl border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9B9B9B] hover:text-[#1A1A1A]">
+                  ✕
+                </button>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex gap-1">
+                {([
+                  { key: "all", label: "All" },
+                  { key: "inprogress", label: "In Progress" },
+                  { key: "shipped", label: "Shipped" },
+                  { key: "delivered", label: "Delivered" },
+                ] as const).map(tab => (
+                  <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
+                    className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${
+                      statusFilter === tab.key
+                        ? "bg-[#1A1A1A] text-white"
+                        : "bg-white border border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A] hover:text-[#1A1A1A]"
+                    }`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as typeof sortBy)}
+                className="h-8 px-3 rounded-lg border border-[#E2E0D8] bg-white text-xs text-[#6B6B6B] focus:outline-none focus:border-[#1A1A1A]">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="amount">Amount</option>
+                <option value="status">By status</option>
+              </select>
+            </div>
+          </div>
+        )}
+
         {orders.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#E2E0D8]">
             <p className="text-4xl mb-4">📦</p>
@@ -554,7 +618,15 @@ function DashboardContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {orders.map(order => (
+            {filteredOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-[#E2E0D8]">
+                <p className="text-sm text-[#9B9B9B]">No cases match your search.</p>
+                <button onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+                  className="text-xs text-[#2563EB] hover:underline mt-2 block mx-auto">
+                  Clear filters
+                </button>
+              </div>
+            ) : filteredOrders.map(order => (
               <OrderCard key={order.id} order={order} onReorder={handleReorder} />
             ))}
           </div>
