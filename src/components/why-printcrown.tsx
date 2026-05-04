@@ -27,7 +27,7 @@ const reasons = [
     ),
     color: "text-[#D97706] bg-[#FFFBEB]",
     title: "Under 3% remake rate",
-    description: "847 cases in the last 6 months. If it doesn't fit, we remake within 72 hours — return shipping included.",
+    description: "We stand behind our work. If a case needs adjustment, contact us and we'll make it right.",
   },
   {
     icon: (
