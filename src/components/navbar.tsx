@@ -159,7 +159,7 @@ function DesktopCTAs() {
             Sign in
           </Button>
         </Link>
-        <Link href="/order">
+        <Link href="/auth?next=%2Forder">
           <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-sm px-5 h-9 rounded-lg transition-colors">
             Order now
           </Button>
@@ -212,7 +212,7 @@ function DesktopCTAs() {
               Sign in
             </Button>
           </Link>
-          <Link href="/order" onClick={() => setOpen(false)}>
+          <Link href="/auth?next=%2Forder" onClick={() => setOpen(false)}>
             <Button className="w-full bg-[#1B2B3A] hover:bg-[#243447] text-white">
               Order now
             </Button>

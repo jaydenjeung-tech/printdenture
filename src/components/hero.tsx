@@ -10,7 +10,6 @@ const SLIDES = [
     alt: "Full Contour Zirconia",
     name: "Full Contour Zirconia",
     sub: "Milled · Sintered · Polished · Glazed",
-    price: "$59",
     specs: [
       { label: "Material",   value: "Vatech Zirconia" },
       { label: "Turnaround", value: "7-day" },
@@ -23,7 +22,6 @@ const SLIDES = [
     alt: "Night Guard",
     name: "Hard Night Guard",
     sub: "3D Printed · Polished · Dual-laminate",
-    price: "$49",
     specs: [
       { label: "Material",   value: "Keystone KeySplint" },
       { label: "Turnaround", value: "5-day" },
@@ -36,7 +34,6 @@ const SLIDES = [
     alt: "Print Crown",
     name: "Print Crown",
     sub: "3D Printed · Custom fit",
-    price: "$45",
     specs: [
       { label: "Material",   value: "Rodin 2.0 sculpture" },
       { label: "Turnaround", value: "5-day" },
@@ -69,9 +66,9 @@ export default function Hero() {
             {/* Trust pills */}
             <div className="flex flex-wrap gap-2 mb-8">
               {[
-                { label: "HIPAA compliant",    dot: "#0F6E56" },
-                { label: "Made in California", dot: "#1D9E75" },
-                { label: "5–7 day delivery",   dot: "#5DCAA5" },
+                { label: "AI crown design review", dot: "#378ADD" },
+                { label: "HIPAA compliant",        dot: "#0F6E56" },
+                { label: "5–7 day delivery",       dot: "#5DCAA5" },
               ].map((t) => (
                 <span key={t.label}
                   className="inline-flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-white border border-[#9FE1CB] text-[#085041]">
@@ -83,17 +80,17 @@ export default function Hero() {
 
             {/* Headline */}
             <h1 className="text-5xl md:text-[56px] font-semibold text-[#0F2336] leading-[1.06] tracking-[-2px] mb-5">
-              From your scanner
+              AI crown design
               <br />
-              to your patient,
+              you approve before
               <br />
-              <span className="text-[#0F6E56]">in days.</span>
+              <span className="text-[#0F6E56]">we fabricate.</span>
             </h1>
 
-            <p className="text-[17px] text-[#085041] leading-relaxed mb-10 max-w-[440px]">
-              Upload your STL, choose your restoration, and get precision-milled
-              zirconia crowns and 3D-printed appliances delivered to your practice.
-              No contracts. No minimums.
+            <p className="text-[17px] text-[#085041] leading-relaxed mb-10 max-w-[460px]">
+              Upload your intraoral STL, review a Dentbird AI crown proposal against your Rx,
+              and release the case only when the prep, margin, and occlusion look right.
+              Precision-milled zirconia and 3D-printed appliances ship to your practice in days.
             </p>
 
             {/* CTAs */}
@@ -112,12 +109,12 @@ export default function Hero() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-6 pt-8 border-t border-[#9FE1CB]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-[#9FE1CB]">
               {[
+                { value: "1 step", label: "Doctor sign-off" },
                 { value: "< 3%", label: "Remake rate" },
                 { value: "5–7d", label: "Avg. delivery" },
                 { value: "$0",   label: "Setup fee" },
-                { value: "500+", label: "Active practices" },
               ].map((s) => (
                 <div key={s.label}>
                   <p className="text-[22px] font-semibold text-[#0F2336] tracking-tight">{s.value}</p>
@@ -149,13 +146,7 @@ export default function Hero() {
                   className="object-cover object-top hover:scale-105 transition-transform duration-300"
                   priority
                 />
-                <span className="absolute top-3 left-3 text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#0F2336]/70 text-white border border-white/20 backdrop-blur-sm z-10">
-                  {slide.alt}
-                </span>
-                <span className="absolute top-3 right-3 text-[14px] font-semibold px-3 py-1.5 rounded-lg bg-[#0F6E56] text-white z-10">
-                  {slide.price}
-                </span>
-              </div>
+                </div>
             </Link>
 
             <div className="p-6">

@@ -62,6 +62,36 @@ export default function HowItWorks() {
           </h2>
         </div>
 
+        <div className="mb-12 rounded-2xl border border-[#E1F5EE] bg-white p-6 md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+            <div>
+              <p className="text-[11px] font-medium text-[#378ADD] uppercase tracking-[0.08em] mb-2">
+                Built for chairside confidence
+              </p>
+              <h3 className="text-[24px] font-semibold text-[#1B2B3A] tracking-tight leading-tight mb-3">
+                Clinical control stays with you—not the lab.
+              </h3>
+              <p className="text-[14px] text-[#6B7280] leading-relaxed max-w-xl">
+                Crown cases include a Dentbird AI design review between your Rx and fabrication,
+                so you can sign off before milling or printing begins.
+              </p>
+            </div>
+
+            <ul className="space-y-3">
+              {[
+                "Dentbird drafts the crown from your scan, shade, and margin preferences.",
+                "Compare the proposal to your prep before checkout—no surprise design changes.",
+                "Fabrication starts only after you approve the AI crown design.",
+              ].map((item) => (
+                <li key={item} className="flex gap-3 rounded-xl border border-[#E1F5EE] bg-[#F7FAF9] px-4 py-3">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0F6E56] flex-shrink-0" />
+                  <span className="text-[13px] text-[#4B5563] leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
         {/* Steps */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {steps.map((step, i) => (

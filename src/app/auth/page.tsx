@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
-import PrintCrownLogo from "@/components/logo";
+import Navbar from "@/components/navbar";
 
 type Mode = "login" | "signup";
 
-export default function AuthPage() {
+function getPostAuthPath(next: string | null) {
+  if (next?.startsWith("/") && !next.startsWith("//")) return next;
+  return "/dashboard";
+}
+
+function AuthContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const postAuthPath = getPostAuthPath(searchParams.get("next"));
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +35,7 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}${postAuthPath}`,
       },
     });
     if (error) {
@@ -49,7 +55,7 @@ export default function AuthPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.push("/dashboard");
+        router.push(postAuthPath);
       }
     } else {
       const { data, error } = await supabase.auth.signUp({ email, password });
@@ -69,16 +75,10 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4] flex flex-col">
-      {/* Top bar */}
-      <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center px-6">
-        <Link href="/">
-          <PrintCrownLogo size={28} />
-        </Link>
-      </div>
+  <div className="min-h-screen bg-[#F8F7F4] flex flex-col">
+    <Navbar />
 
-      {/* Form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+    <div className="flex-1 flex items-center justify-center px-6 pt-24 pb-12">
         <div className="w-full max-w-sm">
           {/* Tab switcher */}
           <div className="flex bg-white border border-[#E2E0D8] rounded-xl p-1 mb-8">
@@ -235,5 +235,17 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
+        <p className="text-sm text-[#9B9B9B]">Loading...</p>
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }

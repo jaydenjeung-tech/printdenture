@@ -34,33 +34,50 @@ export async function POST(req: NextRequest) {
 
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: order.product_name,
+            description: [
+              order.shade ? `Shade: ${order.shade}` : null,
+              order.tooth_number ? `Tooth: #${order.tooth_number}` : null,
+            ].filter(Boolean).join(" · ") || undefined,
+          },
+          unit_amount: order.unit_price * 100,
+        },
+        quantity: order.quantity,
+      },
+    ];
+
+    const productSubtotal = order.unit_price * order.quantity;
+    const shipping = 9;
+    const designFee = Math.max(0, order.total_price - productSubtotal - shipping);
+    if (designFee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: { name: "CAD design fee" },
+          unit_amount: designFee * 100,
+        },
+        quantity: 1,
+      });
+    }
+
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: { name: "Shipping (FedEx)" },
+        unit_amount: 900,
+      },
+      quantity: 1,
+    });
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: order.product_name,
-              description: [
-                order.shade ? `Shade: ${order.shade}` : null,
-                order.tooth_number ? `Tooth: #${order.tooth_number}` : null,
-              ].filter(Boolean).join(" · ") || undefined,
-            },
-            unit_amount: order.unit_price * 100,
-          },
-          quantity: order.quantity,
-        },
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "Shipping (FedEx)" },
-            unit_amount: 900,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       metadata: { orderId: order.id, userId: user.id },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true&orderId=${order.id}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,

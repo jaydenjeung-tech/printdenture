@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
+import Navbar from "@/components/navbar";
 
 type Order = {
   id: string;
@@ -275,28 +276,13 @@ export default function LabPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
-      <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">PC</span>
-            </div>
-            <span className="font-semibold text-[#1A1A1A]">Print<span className="text-[#2563EB]">Crown</span></span>
-          </Link>
-          <span className="text-[#E2E0D8]">/</span>
-          <span className="text-sm text-[#6B6B6B]">Lab Workqueue</span>
-        </div>
-       <div className="flex gap-3">
-        <Link href="/lab/scan"
-            className="h-9 px-4 rounded-lg bg-[#1A1A1A] text-white text-sm font-medium hover:bg-[#2A2A2A] transition-all flex items-center gap-2">
-            📷 Scan
-        </Link>
-        <Link href="/admin/orders" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] flex items-center">Order Management</Link>
-        <Link href="/admin/products" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A] flex items-center">Products</Link>
-        </div>
-      </div>
+      <Navbar />
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 pt-24 pb-16">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[#1A1A1A]">Lab Workqueue</h1>
+          <p className="text-sm text-[#9B9B9B] mt-1">{orders.length} total orders</p>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-8">

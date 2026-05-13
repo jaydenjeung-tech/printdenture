@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import Link from "next/link";
-import PrintCrownLogo from "@/components/logo";
+import Navbar from "@/components/navbar";
 
 type Product = {
   id: string;
@@ -179,24 +178,20 @@ export default function AdminProductsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
-      {/* Header */}
-      <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <PrintCrownLogo size={28} />
-          <span className="text-[#E2E0D8]">/</span>
-          <span className="text-sm text-[#6B6B6B]">Admin · Products</span>
+      <Navbar />
+
+      <div className="max-w-3xl mx-auto px-6 pt-24 pb-16">
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1A1A1A]">Products</h1>
+            <p className="text-sm text-[#9B9B9B] mt-1">Manage catalog items shown to customers</p>
+          </div>
+          <button onClick={openAdd}
+            className="h-9 px-4 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white text-sm font-medium rounded-lg transition-all shrink-0">
+            + Add product
+          </button>
         </div>
-        <Link href="/admin/orders" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
-  Orders
-</Link>
-        <button onClick={openAdd}
 
-          className="h-9 px-4 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white text-sm font-medium rounded-lg transition-all">
-          + Add product
-        </button>
-      </div>
-
-      <div className="max-w-3xl mx-auto px-6 py-10">
         {grouped.map((cat) => (
           <div key={cat.value} className="mb-10">
             <div className="flex items-center gap-2 mb-4">

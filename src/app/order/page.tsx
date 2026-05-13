@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
+import Navbar from "@/components/navbar";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -44,7 +44,29 @@ type OrderData = {
   licenseNo: string;
   licenseState: string;
   authorized: boolean;
+  aiDesignStatus: "idle" | "processing" | "ready" | "failed";
+  aiDesignApproved: boolean;
+  aiDesignSummary: string;
+  aiDesignedFileName: string;
+  aiDesignError: string;
+  designChoice: "ai" | "cad" | "";
 };
+
+const CAD_DESIGN_FEE = 5;
+
+function getOrderPricing(data: OrderData) {
+  const product = data.product;
+  const subtotal = product ? product.price * data.quantity : 0;
+  const shipping = 9;
+  const designFee = data.designChoice === "cad" ? CAD_DESIGN_FEE : 0;
+  return { subtotal, shipping, designFee, total: subtotal + shipping + designFee };
+}
+
+function needsDentbirdDesign(product: Product | null) {
+  return !!product
+    && ["zirconia", "printed"].includes(product.category)
+    && product.fields.includes("toothNumber");
+}
 
 const SHADES = ["A1", "A2", "A3", "A3.5", "B1", "B2", "B3", "C1", "C2", "D2"];
 const MARGIN_TYPES = ["Feather", "Chamfer", "Shoulder"];
@@ -60,6 +82,11 @@ const CATEGORY_GROUPS = [
   { label: "Guards", categories: ["nightguard", "sportsguard"] },
 ];
 
+const UPPER_RIGHT = UPPER_TEETH.slice(0, 8);
+const UPPER_LEFT = UPPER_TEETH.slice(8);
+const LOWER_RIGHT = LOWER_TEETH.slice(0, 8);
+const LOWER_LEFT = LOWER_TEETH.slice(8);
+
 // ── Tooth Selector ─────────────────────────────────────────────────────────
 function ToothSelector({ selected, onChange }: {
   selected: number[];
@@ -72,34 +99,60 @@ function ToothSelector({ selected, onChange }: {
   function ToothBtn({ n }: { n: number }) {
     const isSelected = selected.includes(n);
     return (
-      <button type="button" onClick={() => toggle(n)}
-        className={`w-7 h-9 rounded-md border text-[10px] font-medium transition-all flex flex-col items-center justify-center gap-0.5
-          ${isSelected ? "bg-[#1A1A1A] border-[#1A1A1A] text-white" : "bg-white border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A]"}`}>
-        <div className={`w-3 h-2 rounded-sm ${isSelected ? "bg-white/30" : "bg-[#E2E0D8]"}`} />
+      <button
+        type="button"
+        onClick={() => toggle(n)}
+        aria-label={`Tooth ${n}`}
+        aria-pressed={isSelected}
+        className={`flex h-9 w-8 shrink-0 flex-col items-center justify-center rounded-md border text-[10px] font-semibold transition-all
+          ${isSelected
+            ? "bg-[#1A1A1A] border-[#1A1A1A] text-white shadow-sm"
+            : "bg-white border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A]"}`}
+      >
+        <span className={`mb-0.5 h-1.5 w-3 rounded-sm ${isSelected ? "bg-white/35" : "bg-[#E2E0D8]"}`} />
         <span>{n}</span>
       </button>
     );
   }
 
+  function ArchRow({ label, rightTeeth, leftTeeth }: {
+    label: string;
+    rightTeeth: number[];
+    leftTeeth: number[];
+  }) {
+    return (
+      <div>
+        <p className="mb-2 text-center text-xs font-medium text-[#6B6B6B]">{label}</p>
+        <div className="-mx-1 overflow-x-auto px-1">
+          <div className="mx-auto flex w-max items-center gap-2 px-1">
+            <div className="flex gap-1">
+              {rightTeeth.map((n) => <ToothBtn key={n} n={n} />)}
+            </div>
+            <div className="h-9 w-px shrink-0 bg-[#E2E0D8]" aria-hidden="true" />
+            <div className="flex gap-1">
+              {leftTeeth.map((n) => <ToothBtn key={n} n={n} />)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs text-[#9B9B9B]">← Right</span>
-        <span className="text-xs font-medium text-[#1A1A1A]">Upper</span>
-        <span className="text-xs text-[#9B9B9B]">Left →</span>
+    <div className="space-y-4">
+      <div className="flex justify-between px-1 text-xs text-[#9B9B9B]">
+        <span>Patient right</span>
+        <span>Patient left</span>
       </div>
-      <div className="flex gap-0.5 justify-center mb-1">
-        {UPPER_TEETH.map((n) => <ToothBtn key={n} n={n} />)}
-      </div>
-      <div className="border-t border-dashed border-[#E2E0D8] my-2" />
-      <div className="flex gap-0.5 justify-center mb-1">
-        {LOWER_TEETH.map((n) => <ToothBtn key={n} n={n} />)}
-      </div>
-      <div className="flex justify-center">
-        <span className="text-xs font-medium text-[#1A1A1A]">Lower</span>
-      </div>
+
+      <ArchRow label="Upper" rightTeeth={UPPER_RIGHT} leftTeeth={UPPER_LEFT} />
+
+      <div className="border-t border-dashed border-[#E2E0D8]" />
+
+      <ArchRow label="Lower" rightTeeth={LOWER_RIGHT} leftTeeth={LOWER_LEFT} />
+
       {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3">
+        <div className="flex flex-wrap gap-1.5">
           {[...selected].sort((a, b) => a - b).map((n) => (
             <span key={n} className="px-2 py-0.5 rounded-full bg-[#1A1A1A] text-white text-xs">#{n}</span>
           ))}
@@ -110,10 +163,9 @@ function ToothSelector({ selected, onChange }: {
 }
 
 // ── Step Indicator ─────────────────────────────────────────────────────────
-function StepIndicator({ current }: { current: number }) {
-  const steps = ["Product", "Case details", "Rx", "Review & pay"];
+function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
   return (
-    <div className="flex items-center justify-center gap-0 mb-10">
+    <div className="flex items-center justify-center gap-0 mb-10 overflow-x-auto px-1">
       {steps.map((label, i) => {
         const idx = i + 1;
         const done = idx < current;
@@ -140,43 +192,118 @@ function StepIndicator({ current }: { current: number }) {
 }
 
 // ── Step 1 ─────────────────────────────────────────────────────────────────
-function Step1({ data, products, onNext }: {
-  data: OrderData;
+function Step1({ products, selectedProduct, onSelect, onContinue }: {
   products: Product[];
-  onNext: (p: Product) => void;
+  selectedProduct: Product | null;
+  onSelect: (p: Product) => void;
+  onContinue: () => void;
 }) {
   const groups = CATEGORY_GROUPS.map((g) => ({
     ...g,
     items: products.filter((p) => g.categories.includes(p.category)),
   })).filter((g) => g.items.length > 0);
 
+  const [activeGroup, setActiveGroup] = useState(groups[0]?.label ?? "");
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const match = groups.find((group) => group.items.some((product) => product.id === selectedProduct.id));
+    if (match) setActiveGroup(match.label);
+  }, [selectedProduct, products]);
+
+  const currentGroup = groups.find((group) => group.label === activeGroup) ?? groups[0];
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Choose your product</h2>
-      <p className="text-[#6B6B6B] mb-8">Select the restoration type for this case.</p>
-      <div className="space-y-6 mb-8">
-        {groups.map((group, gi) => (
-          <div key={group.label}>
-            <p className="text-xs font-medium text-[#9B9B9B] uppercase tracking-widest mb-3">{group.label}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {group.items.map((p) => (
-                <button key={p.id} onClick={() => onNext(p)}
-                  className="text-left p-4 rounded-xl border transition-all border-[#E2E0D8] bg-white hover:border-[#1A1A1A] hover:shadow-sm">
-                  <div className="w-6 h-0.5 rounded-full mb-3" style={{ background: p.accent }} />
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <span className="text-sm font-medium text-[#1A1A1A] leading-snug">{p.name}</span>
-                    <span className="text-sm font-semibold text-[#1A1A1A] whitespace-nowrap flex-shrink-0">${p.price}</span>
+      <p className="text-[#6B6B6B] mb-6">Pick a category, compare options, then continue when you are ready.</p>
+
+      {groups.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {groups.map((group) => {
+            const active = group.label === activeGroup;
+            return (
+              <button
+                key={group.label}
+                type="button"
+                onClick={() => setActiveGroup(group.label)}
+                className={`h-10 px-4 rounded-xl text-sm font-medium border transition-all
+                  ${active
+                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
+                    : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A]/40 hover:text-[#1A1A1A]"}`}
+              >
+                {group.label}
+                <span className={`ml-1.5 text-xs ${active ? "text-white/70" : "text-[#9B9B9B]"}`}>
+                  ({group.items.length})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="space-y-3 mb-8">
+        {currentGroup?.items.map((product) => {
+          const selected = selectedProduct?.id === product.id;
+          return (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => onSelect(product)}
+              aria-pressed={selected}
+              className={`w-full text-left rounded-2xl border transition-all
+                ${selected
+                  ? "border-[#1A1A1A] bg-white shadow-sm ring-2 ring-[#1A1A1A]/10"
+                  : "border-[#E2E0D8] bg-white hover:border-[#1A1A1A]/40"}`}
+            >
+              <div className="flex items-start gap-4 p-4 sm:p-5">
+                <div className="w-1.5 self-stretch rounded-full shrink-0" style={{ background: product.accent }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1A1A1A]">{product.name}</h3>
+                      <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">{product.description}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-semibold text-[#1A1A1A]">${product.price}</p>
+                      <p className="text-xs text-[#9B9B9B] mt-1">{product.turnaround}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-[#9B9B9B] leading-relaxed mb-2">{p.description}</p>
-                  <span className="inline-block text-[10px] text-[#9B9B9B] bg-[#F8F7F4] border border-[#E2E0D8] rounded-full px-2 py-0.5">
-                    {p.turnaround}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {gi < groups.length - 1 && <div className="border-b border-[#E2E0D8] mt-6" />}
-          </div>
-        ))}
+                </div>
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm shrink-0 transition-all
+                    ${selected
+                      ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
+                      : "border-[#E2E0D8] bg-[#F8F7F4] text-transparent"}`}
+                  aria-hidden="true"
+                >
+                  ✓
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-2xl border border-[#E2E0D8] bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-widest text-[#9B9B9B]">Selected product</p>
+          <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
+            {selectedProduct ? selectedProduct.name : "Choose a product to continue"}
+          </p>
+          {selectedProduct && (
+            <p className="text-xs text-[#9B9B9B] mt-1">
+              ${selectedProduct.price} · {selectedProduct.turnaround}
+            </p>
+          )}
+        </div>
+        <Button
+          className="h-12 px-6 rounded-xl bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white w-full sm:w-auto"
+          disabled={!selectedProduct}
+          onClick={onContinue}
+        >
+          Continue to case details
+        </Button>
       </div>
     </div>
   );
@@ -214,27 +341,39 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange }: 
         </div>
       </div>
 
-      {/* Quantity */}
-      <div className="mb-5">
-        <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Quantity</label>
-        <div className="flex items-center gap-3">
-          <button onClick={() => onChange("quantity", Math.max(1, data.quantity - 1))}
-            className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">−</button>
-          <span className="w-8 text-center font-semibold text-[#1A1A1A]">{data.quantity}</span>
-          <button onClick={() => onChange("quantity", data.quantity + 1)}
-            className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">+</button>
-        </div>
-      </div>
-
-      {/* Tooth selector */}
       {needsTooth && (
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-3">Tooth number(s) *</label>
-          <div className="p-4 rounded-xl bg-white border border-[#E2E0D8] overflow-x-auto">
+          <label className="block text-sm font-medium text-[#1A1A1A] mb-3">Tooth chart *</label>
+          <p className="text-sm text-[#6B6B6B] mb-3">Tap teeth on the chart. Quantity updates with your selection.</p>
+          <div className="p-4 rounded-xl bg-white border border-[#E2E0D8]">
             <ToothSelector selected={data.toothNumbers} onChange={onTeethChange} />
           </div>
         </div>
       )}
+
+      <div className="mb-5">
+        <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Quantity</label>
+        {needsTooth ? (
+          <div className="rounded-xl border border-[#E2E0D8] bg-[#F8F7F4] px-4 py-3">
+            <p className="text-2xl font-semibold text-[#1A1A1A]">{data.toothNumbers.length}</p>
+            <p className="text-sm text-[#6B6B6B] mt-1">
+              {data.toothNumbers.length === 0
+                ? "Select teeth on the chart to set quantity."
+                : data.toothNumbers.length === 1
+                  ? "unit for 1 selected tooth"
+                  : `units for ${data.toothNumbers.length} selected teeth`}
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button onClick={() => onChange("quantity", Math.max(1, data.quantity - 1))}
+              className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">−</button>
+            <span className="w-8 text-center font-semibold text-[#1A1A1A]">{data.quantity}</span>
+            <button onClick={() => onChange("quantity", data.quantity + 1)}
+              className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">+</button>
+          </div>
+        )}
+      </div>
 
       {/* Shade */}
       {needsShade && (
@@ -458,6 +597,203 @@ function Step3Rx({ data, onNext, onBack, onChange }: {
   );
 }
 
+// ── Step 4 — Dentbird AI crown design ──────────────────────────────────────
+function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
+  data: OrderData;
+  onBack: () => void;
+  onNext: () => void;
+  onDesignChange: (patch: Partial<OrderData>) => void;
+  onRetry: () => void;
+}) {
+  const p = data.product!;
+  const requestStarted = useRef(false);
+
+  useEffect(() => {
+    if (requestStarted.current || !data.file || data.aiDesignStatus === "ready") return;
+    requestStarted.current = true;
+
+    async function runDesign() {
+      onDesignChange({
+        aiDesignStatus: "processing",
+        aiDesignError: "",
+        aiDesignApproved: false,
+        aiDesignSummary: "",
+        aiDesignedFileName: "",
+      });
+
+      try {
+        const formData = new FormData();
+        formData.append("stl", data.file!);
+        formData.append("productCategory", p.category);
+        formData.append("productName", p.name);
+        formData.append("shade", data.shade);
+        formData.append("toothNumbers", JSON.stringify(data.toothNumbers));
+        formData.append("marginType", data.marginType);
+        formData.append("occlusion", data.occlusion);
+
+        const response = await fetch("/api/dentbird/design", {
+          method: "POST",
+          body: formData,
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Dentbird design failed.");
+        }
+
+        onDesignChange({
+          aiDesignStatus: "ready",
+          aiDesignSummary: result.summary,
+          aiDesignedFileName: result.designedFileName,
+          aiDesignError: "",
+        });
+      } catch (error) {
+        onDesignChange({
+          aiDesignStatus: "failed",
+          aiDesignError: error instanceof Error ? error.message : "Dentbird design failed.",
+        });
+      }
+    }
+
+    runDesign();
+  }, [data.aiDesignStatus, data.file, data.marginType, data.occlusion, data.shade, data.toothNumbers, onDesignChange, p.category, p.name]);
+
+  const teeth = data.toothNumbers.length
+    ? [...data.toothNumbers].sort((a, b) => a - b).map((tooth) => `#${tooth}`).join(", ")
+    : "—";
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">AI crown design review</h2>
+      <p className="text-[#6B6B6B] mb-8">
+        Dentbird generates a crown proposal from your scan. Approve it or request CAD design instead.
+      </p>
+
+      <div className="grid gap-4 md:grid-cols-2 mb-6">
+        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Uploaded scan</p>
+          <p className="text-sm font-medium text-[#1A1A1A]">{data.fileName || "No STL uploaded"}</p>
+          <p className="text-xs text-[#9B9B9B] mt-2">Teeth: {teeth}</p>
+          {data.shade && <p className="text-xs text-[#9B9B9B] mt-1">Shade: {data.shade}</p>}
+        </div>
+
+        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Dentbird proposal</p>
+          {data.aiDesignStatus === "processing" && (
+            <p className="text-sm text-[#6B6B6B]">Generating crown design from your STL...</p>
+          )}
+          {data.aiDesignStatus === "failed" && (
+            <div>
+              <p className="text-sm text-red-600">{data.aiDesignError || "Design failed."}</p>
+              <button type="button" onClick={() => { requestStarted.current = false; onRetry(); }}
+                className="mt-3 text-sm font-medium text-[#2563EB] hover:underline">
+                Try again
+              </button>
+            </div>
+          )}
+          {data.aiDesignStatus === "ready" && (
+            <div>
+              <p className="text-sm font-medium text-[#1A1A1A]">{data.aiDesignedFileName}</p>
+              <p className="text-sm text-[#6B6B6B] mt-2 leading-relaxed">{data.aiDesignSummary}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Design path</p>
+      <div className="grid gap-3 mb-6">
+        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
+          ${data.designChoice === "ai" ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+          <input
+            type="radio"
+            name="designChoice"
+            className="hidden"
+            checked={data.designChoice === "ai"}
+            onChange={() => onDesignChange({ designChoice: "ai", aiDesignApproved: false })}
+          />
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
+            ${data.designChoice === "ai" ? "border-[#1A1A1A]" : "border-[#C8C6BE] bg-white"}`}>
+            {data.designChoice === "ai" && <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-[#1A1A1A]">Approve the AI crown design</p>
+            <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">
+              Continue with the Dentbird proposal. No additional design fee.
+            </p>
+          </div>
+        </label>
+
+        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
+          ${data.designChoice === "cad" ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+          <input
+            type="radio"
+            name="designChoice"
+            className="hidden"
+            checked={data.designChoice === "cad"}
+            onChange={() => onDesignChange({ designChoice: "cad", aiDesignApproved: false })}
+          />
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
+            ${data.designChoice === "cad" ? "border-[#1A1A1A]" : "border-[#C8C6BE] bg-white"}`}>
+            {data.designChoice === "cad" && <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-[#1A1A1A]">Request CAD design instead</p>
+            <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">
+              If the AI proposal is not right for this case, our team will design the crown in CAD.
+              A ${CAD_DESIGN_FEE} design fee is added at checkout.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      {data.designChoice === "ai" && (
+        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all mb-8
+          ${data.aiDesignApproved ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
+            ${data.aiDesignApproved ? "bg-[#1A1A1A] border-[#1A1A1A]" : "bg-white border-[#C8C6BE]"}`}>
+            {data.aiDesignApproved && <span className="text-white text-xs">✓</span>}
+          </div>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={data.aiDesignApproved}
+            disabled={data.aiDesignStatus !== "ready"}
+            onChange={(e) => onDesignChange({ aiDesignApproved: e.target.checked })}
+          />
+          <p className="text-sm text-[#4B4B4B] leading-relaxed">
+            I reviewed the Dentbird crown design and approve it for this case.
+          </p>
+        </label>
+      )}
+
+      {data.designChoice === "cad" && (
+        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4 mb-8">
+          <p className="text-sm text-[#4B4B4B] leading-relaxed">
+            CAD design will be prepared from your scan and Rx after checkout. The ${CAD_DESIGN_FEE} design fee
+            appears on the review step before payment.
+          </p>
+        </div>
+      )}
+
+      {data.designChoice === "" && <div className="mb-8" />}
+
+      <div className="flex gap-3">
+        <Button variant="outline" className="h-12 px-6 rounded-xl border-[#E2E0D8] text-[#6B6B6B]" onClick={onBack}>Back</Button>
+        <Button
+          className="flex-1 h-12 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white rounded-xl text-base"
+          disabled={
+            data.designChoice === ""
+            || (data.designChoice === "ai" && (data.aiDesignStatus !== "ready" || !data.aiDesignApproved))
+            || (data.designChoice === "cad" && data.aiDesignStatus === "idle")
+          }
+          onClick={onNext}
+        >
+          Continue to review
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Field helper ───────────────────────────────────────────────────────────
 function Field({ label, placeholder, half, value, onChange }: {
   label: string; field?: string; placeholder?: string; half?: boolean;
@@ -481,9 +817,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
   submitting: boolean;
 }) {
   const p = data.product!;
-  const subtotal = p.price * data.quantity;
-  const shipping = 9;
-  const total = subtotal + shipping;
+  const { subtotal, shipping, designFee, total } = getOrderPricing(data);
   const canSubmit = data.firstName && data.lastName && data.practiceName &&
     data.address && data.city && data.state && data.zip;
 
@@ -510,8 +844,22 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
         {data.guardType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Guard: {data.guardType} · Arch: {data.arch}</p>}
         {data.marginType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
         <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
-        {data.fileName && <p className="text-xs text-[#9B9B9B] ml-4 mb-3">File: {data.fileName}</p>}
+        {data.fileName && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Scan: {data.fileName}</p>}
+        {data.designChoice === "cad" && (
+          <p className="text-xs text-[#9B9B9B] ml-4 mb-3">CAD design requested</p>
+        )}
+        {data.designChoice === "ai" && data.aiDesignApproved && data.aiDesignedFileName && (
+          <p className="text-xs text-[#9B9B9B] ml-4 mb-3">Dentbird design: {data.aiDesignedFileName}</p>
+        )}
+        {data.designChoice !== "cad" && !(data.aiDesignApproved && data.aiDesignedFileName) && data.fileName && (
+          <div className="mb-3" />
+        )}
         <div className="border-t border-[#F0EEE8] pt-3 space-y-1.5">
+          {designFee > 0 && (
+            <div className="flex justify-between text-sm text-[#6B6B6B]">
+              <span>CAD design fee</span><span>${designFee}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm text-[#6B6B6B]">
             <span>Shipping (FedEx)</span><span>${shipping}</span>
           </div>
@@ -571,15 +919,22 @@ function OrderContent() {
     address: "", city: "", state: "", zip: "", phone: "",
     marginType: "", occlusion: "", guardType: "", color: "", arch: "",
     dentistName: "", licenseNo: "", licenseState: "", authorized: false,
+    aiDesignStatus: "idle", aiDesignApproved: false, aiDesignSummary: "",
+    aiDesignedFileName: "", aiDesignError: "", designChoice: "",
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
     const supabase = createClient();
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth"); return; }
+      if (!user) {
+        const nextPath = `/order${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+        router.replace(`/auth?next=${encodeURIComponent(nextPath)}`);
+        return;
+      }
 
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
@@ -613,28 +968,70 @@ function OrderContent() {
           licenseState: profile.license_state || "",
         }));
       }
+
+      setPageLoading(false);
     }
     init();
-  }, []);
+  }, [router, searchParams]);
+
+  function patchData(patch: Partial<OrderData>) {
+    setData((prev) => ({ ...prev, ...patch }));
+  }
+
+  function resetAiDesign() {
+    setData((prev) => ({
+      ...prev,
+      aiDesignStatus: "idle",
+      aiDesignApproved: false,
+      aiDesignSummary: "",
+      aiDesignedFileName: "",
+      aiDesignError: "",
+      designChoice: "",
+    }));
+  }
+
+  const showAiDesign = needsDentbirdDesign(data.product);
+  const orderSteps = showAiDesign
+    ? ["Product", "Case details", "Rx", "AI crown", "Review & pay"]
+    : ["Product", "Case details", "Rx", "Review & pay"];
 
   function update(key: keyof OrderData, value: string | number | boolean | number[]) {
     setData((prev) => ({ ...prev, [key]: value }));
   }
 
   function handleFileChange(file: File) {
-    setData((prev) => ({ ...prev, file, fileName: file.name }));
+    setData((prev) => ({
+      ...prev,
+      file,
+      fileName: file.name,
+      aiDesignStatus: "idle",
+      aiDesignApproved: false,
+      aiDesignSummary: "",
+      aiDesignedFileName: "",
+      aiDesignError: "",
+      designChoice: "",
+    }));
   }
 
   async function handleSubmit() {
     if (!data.product || !data.file) return;
+    if (needsDentbirdDesign(data.product)) {
+      if (!data.designChoice) return;
+      if (data.designChoice === "ai" && !data.aiDesignApproved) return;
+    }
     setSubmitting(true);
 
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/auth"); return; }
+    if (!user) {
+      const nextPath = `/order${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+      router.replace(`/auth?next=${encodeURIComponent(nextPath)}`);
+      setSubmitting(false);
+      return;
+    }
 
     const p = data.product;
-    const total = p.price * data.quantity + 9;
+    const { total } = getOrderPricing(data);
 
     // 1. orders 저장
     const { data: order, error: orderError } = await supabase
@@ -649,7 +1046,14 @@ function OrderContent() {
         shade: data.shade || null,
         tooth_number: data.toothNumbers[0]?.toString() || null,
         tooth_numbers: data.toothNumbers,
-        notes: data.notes || null,
+        notes: [
+          data.notes,
+          data.designChoice === "cad"
+            ? `CAD design requested (+$${CAD_DESIGN_FEE} design fee)`
+            : data.aiDesignApproved && data.aiDesignedFileName
+              ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
+              : null,
+        ].filter(Boolean).join("\n") || null,
         status: "received",
       })
       .select().single();
@@ -732,39 +1136,63 @@ function OrderContent() {
     window.location.href = url;
   }
 
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
+        <p className="text-sm text-[#9B9B9B]">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
-      <div className="h-14 border-b border-[#E2E0D8] bg-white flex items-center px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-            <span className="text-white text-[10px] font-bold">PC</span>
-          </div>
-          <span className="font-semibold text-[#1A1A1A]">Print<span className="text-[#2563EB]">Crown</span></span>
-        </Link>
-      </div>
+      <Navbar />
 
-      <div className="max-w-xl mx-auto px-6 py-12">
-        <StepIndicator current={step} />
+      <div className={`mx-auto px-6 pt-24 pb-16 ${step === 1 ? "max-w-2xl" : step === 2 || (step === 4 && showAiDesign) ? "max-w-3xl" : "max-w-xl"}`}>
+        <StepIndicator current={step} steps={orderSteps} />
         {step === 1 && (
           productsLoading ? (
             <div className="flex items-center justify-center py-20">
               <p className="text-sm text-[#9B9B9B]">Loading products...</p>
             </div>
           ) : (
-            <Step1 data={data} products={products}
-              onNext={(p) => { setData((prev) => ({ ...prev, product: p })); setStep(2); }} />
+            <Step1
+              products={products}
+              selectedProduct={data.product}
+              onSelect={(p) => setData((prev) => ({ ...prev, product: p }))}
+              onContinue={() => setStep(2)}
+            />
           )
         )}
         {step === 2 && (
           <Step2 data={data} onChange={update} onFileChange={handleFileChange}
-            onTeethChange={(teeth) => update("toothNumbers", teeth)}
+            onTeethChange={(teeth) => {
+              setData((prev) => ({
+                ...prev,
+                toothNumbers: teeth,
+                quantity: teeth.length > 0 ? teeth.length : 1,
+              }));
+            }}
             onBack={() => setStep(1)} onNext={() => setStep(3)} />
         )}
         {step === 3 && (
           <Step3Rx data={data} onChange={update} onBack={() => setStep(2)} onNext={() => setStep(4)} />
         )}
-        {step === 4 && (
+        {step === 4 && showAiDesign && (
+          <Step4Dentbird
+            data={data}
+            onBack={() => setStep(3)}
+            onNext={() => setStep(5)}
+            onDesignChange={patchData}
+            onRetry={resetAiDesign}
+          />
+        )}
+        {step === 4 && !showAiDesign && (
           <Step4 data={data} onChange={(k, v) => update(k, v)} onBack={() => setStep(3)}
+            onSubmit={handleSubmit} submitting={submitting} />
+        )}
+        {step === 5 && showAiDesign && (
+          <Step4 data={data} onChange={(k, v) => update(k, v)} onBack={() => setStep(4)}
             onSubmit={handleSubmit} submitting={submitting} />
         )}
       </div>
