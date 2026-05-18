@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase";
+import { createClient, getClientUser } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
 
@@ -929,7 +929,7 @@ function OrderContent() {
   useEffect(() => {
     const supabase = createClient();
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await getClientUser(supabase);
       if (!user) {
         const nextPath = `/order${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
         router.replace(`/auth?next=${encodeURIComponent(nextPath)}`);

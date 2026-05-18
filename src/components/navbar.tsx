@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { createClient } from "@/lib/supabase";
+import { createClient, getClientUser } from "@/lib/supabase";
 import PrintCrownLogo from "@/components/logo";
 
 type Role = "user" | "lab" | "admin";
@@ -27,8 +27,12 @@ export default function Navbar() {
     const supabase = createClient();
 
     async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      const { user } = await getClientUser(supabase);
+      if (!user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("profiles")

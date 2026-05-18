@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase";
+import { createClient, getClientUser } from "@/lib/supabase";
 import Navbar from "@/components/navbar";
 
 type Mode = "login" | "signup";
@@ -27,6 +27,11 @@ function AuthContent() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    void getClientUser(supabase);
+  }, []);
 
   async function handleGoogleSignIn() {
     setError("");
