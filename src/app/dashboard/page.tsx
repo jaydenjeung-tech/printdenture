@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase";
+import { loadOrderDraft, formatDraftSavedAt } from "@/lib/order-draft";
 import Navbar from "@/components/navbar";
 import { useSearchParams } from "next/navigation";
 
@@ -48,6 +49,14 @@ type Profile = {
 
 const STATUS_STEPS = ["received", "printing", "qc", "shipped", "delivered"];
 
+const STATUS_STEP_LABELS: Record<string, string> = {
+  received: "Received",
+  printing: "In progress",
+  qc: "QC",
+  shipped: "Shipped",
+  delivered: "Delivered",
+};
+
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   received:  { label: "Received",    color: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]" },
   printing:  { label: "In Progress", color: "bg-[#FFFBEB] text-[#D97706] border-[#FDE68A]" },
@@ -89,15 +98,39 @@ function DueDateChip({ dueDate }: { dueDate: string | null }) {
 
 function StatusProgress({ status }: { status: string }) {
   const currentIdx = STATUS_STEPS.indexOf(status);
+  const safeIdx = currentIdx >= 0 ? currentIdx : 0;
+  const nextStep = safeIdx < STATUS_STEPS.length - 1 ? STATUS_STEPS[safeIdx + 1] : null;
+
   return (
-    <div className="flex items-center gap-1 mt-3">
-      {STATUS_STEPS.map((step, idx) => (
-        <div key={step} className="flex items-center gap-1 flex-1">
-          <div className={`h-1.5 flex-1 rounded-full transition-all ${
-            idx <= currentIdx ? "bg-[#2563EB]" : "bg-[#E2E0D8]"
-          }`} />
-        </div>
-      ))}
+    <div className="mt-3">
+      <div className="flex items-center gap-1">
+        {STATUS_STEPS.map((step, idx) => (
+          <div key={step} className="flex-1 min-w-0">
+            <div
+              className={`h-1.5 rounded-full transition-all ${
+                idx <= safeIdx ? "bg-[#2563EB]" : "bg-[#E2E0D8]"
+              }`}
+              title={STATUS_STEP_LABELS[step]}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex mt-1.5 gap-0.5">
+        {STATUS_STEPS.map((step, idx) => (
+          <span
+            key={step}
+            className={`flex-1 text-center text-[9px] leading-tight truncate px-0.5
+              ${idx === safeIdx ? "text-[#2563EB] font-semibold" : idx < safeIdx ? "text-[#6B6B6B]" : "text-[#C8C6BE]"}`}
+          >
+            {STATUS_STEP_LABELS[step]}
+          </span>
+        ))}
+      </div>
+      {nextStep && status !== "delivered" && (
+        <p className="text-[10px] text-[#9B9B9B] mt-1">
+          Next: {STATUS_STEP_LABELS[nextStep]}
+        </p>
+      )}
     </div>
   );
 }
@@ -408,6 +441,18 @@ function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "amount" | "status">("newest");
   const [statusFilter, setStatusFilter] = useState<"all" | "inprogress" | "shipped" | "delivered">("all");
+  const [orderDraft, setOrderDraft] = useState<{ productName: string; savedAt: string; step: number } | null>(null);
+
+  useEffect(() => {
+    const draft = loadOrderDraft();
+    if (draft?.productId && draft.step >= 2) {
+      setOrderDraft({
+        productName: `Step ${draft.step} saved`,
+        savedAt: draft.savedAt,
+        step: draft.step,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const orderId = searchParams.get("orderId");
@@ -514,6 +559,22 @@ function DashboardContent() {
             </button>
           )}
         </div>
+
+        {orderDraft && (
+          <div className="mb-6 rounded-xl border border-[#BFDBFE] bg-[#F0F9FF] px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#1A1A1A]">You have an order in progress</p>
+              <p className="text-xs text-[#6B6B6B] mt-1">
+                Step {orderDraft.step} · saved {formatDraftSavedAt(orderDraft.savedAt)}
+              </p>
+            </div>
+            <Link href="/order?resume=draft">
+              <Button className="h-9 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white shrink-0">
+                Continue order
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {orders.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">

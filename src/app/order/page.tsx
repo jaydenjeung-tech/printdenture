@@ -7,6 +7,13 @@ import { createClient, getClientUser } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
 import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
+import {
+  saveOrderDraft,
+  loadOrderDraft,
+  clearOrderDraft,
+  formatDraftSavedAt,
+  type OrderDraftStored,
+} from "@/lib/order-draft";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -67,6 +74,41 @@ function needsDentbirdDesign(product: Product | null) {
   return !!product
     && ["zirconia", "printed"].includes(product.category)
     && product.fields.includes("toothNumber");
+}
+
+function draftFieldsFromStored(draft: OrderDraftStored, product: Product): Partial<OrderData> {
+  return {
+    product,
+    quantity: draft.quantity,
+    shade: draft.shade,
+    toothNumbers: draft.toothNumbers,
+    notes: draft.notes,
+    file: null,
+    fileName: draft.fileName,
+    firstName: draft.firstName,
+    lastName: draft.lastName,
+    practiceName: draft.practiceName,
+    address: draft.address,
+    city: draft.city,
+    state: draft.state,
+    zip: draft.zip,
+    phone: draft.phone,
+    marginType: draft.marginType,
+    occlusion: draft.occlusion,
+    guardType: draft.guardType,
+    color: draft.color,
+    arch: draft.arch,
+    dentistName: draft.dentistName,
+    licenseNo: draft.licenseNo,
+    licenseState: draft.licenseState,
+    authorized: draft.authorized,
+    aiDesignStatus: draft.aiDesignStatus === "processing" ? "idle" : draft.aiDesignStatus,
+    aiDesignApproved: draft.aiDesignApproved,
+    aiDesignSummary: draft.aiDesignSummary,
+    aiDesignedFileName: draft.aiDesignedFileName,
+    aiDesignError: draft.aiDesignError,
+    designChoice: draft.designChoice,
+  };
 }
 
 const SHADES = ["A1", "A2", "A3", "A3.5", "B1", "B2", "B3", "C1", "C2", "D2"];
@@ -699,36 +741,69 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
         Dentbird generates a crown proposal from your scan. Approve it or request CAD design instead.
       </p>
 
-      <div className="grid gap-4 md:grid-cols-2 mb-6">
-        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Uploaded scan</p>
-          <p className="text-sm font-medium text-[#1A1A1A]">{data.fileName || "No STL uploaded"}</p>
-          <p className="text-xs text-[#9B9B9B] mt-2">Teeth: {teeth}</p>
-          {data.shade && <p className="text-xs text-[#9B9B9B] mt-1">Shade: {data.shade}</p>}
+      <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] mb-6">
+        <div className="rounded-xl border border-[#E2E0D8] bg-white overflow-hidden">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] px-4 pt-4 pb-2">Your scan</p>
+          <div className="mx-4 mb-4 aspect-[4/3] rounded-xl bg-gradient-to-br from-[#F8F7F4] to-[#E8E6DE] border border-dashed border-[#C8C6BE] flex flex-col items-center justify-center text-center px-4">
+            <svg className="w-10 h-10 text-[#9B9B9B] mb-2" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p className="text-sm font-medium text-[#1A1A1A] break-all">{data.fileName || "No STL"}</p>
+            <p className="text-[11px] text-[#9B9B9B] mt-1">Intraoral STL upload</p>
+          </div>
+          <div className="px-4 pb-4 space-y-1">
+            <p className="text-xs text-[#9B9B9B]">Teeth: {teeth}</p>
+            {data.shade && <p className="text-xs text-[#9B9B9B]">Shade: {data.shade}</p>}
+            {data.marginType && <p className="text-xs text-[#9B9B9B]">Margin: {data.marginType}</p>}
+          </div>
         </div>
 
-        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Dentbird proposal</p>
-          {data.aiDesignStatus === "processing" && (
-            <p className="text-sm text-[#6B6B6B]">Generating crown design from your STL...</p>
-          )}
-          {data.aiDesignStatus === "failed" && (
-            <div>
-              <p className="text-sm text-red-600">{data.aiDesignError || "Design failed."}</p>
-              <button type="button" onClick={() => { requestStarted.current = false; onRetry(); }}
-                className="mt-3 text-sm font-medium text-[#2563EB] hover:underline">
-                Try again
-              </button>
-            </div>
-          )}
-          {data.aiDesignStatus === "ready" && (
-            <div>
-              <p className="text-sm font-medium text-[#1A1A1A]">{data.aiDesignedFileName}</p>
-              <p className="text-sm text-[#6B6B6B] mt-2 leading-relaxed">{data.aiDesignSummary}</p>
+        <div className="hidden md:flex items-center justify-center text-[#C8C6BE] text-2xl font-light">→</div>
+
+        <div className="rounded-xl border border-[#E2E0D8] bg-white overflow-hidden">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] px-4 pt-4 pb-2">Dentbird proposal</p>
+          <div className="mx-4 mb-4 aspect-[4/3] rounded-xl bg-gradient-to-br from-[#F0F9FF] to-[#E1F5EE] border border-[#BFDBFE] flex flex-col items-center justify-center text-center px-4">
+            {data.aiDesignStatus === "processing" && (
+              <>
+                <div className="w-8 h-8 rounded-full border-2 border-[#378ADD] border-t-transparent animate-spin mb-3" />
+                <p className="text-sm text-[#085041]">Generating crown design…</p>
+              </>
+            )}
+            {data.aiDesignStatus === "failed" && (
+              <>
+                <p className="text-sm text-red-600">{data.aiDesignError || "Design failed."}</p>
+                <button type="button" onClick={() => { requestStarted.current = false; onRetry(); }}
+                  className="mt-3 text-sm font-medium text-[#2563EB] hover:underline">
+                  Try again
+                </button>
+              </>
+            )}
+            {data.aiDesignStatus === "ready" && (
+              <>
+                <svg className="w-10 h-10 text-[#378ADD] mb-2" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+                </svg>
+                <p className="text-sm font-medium text-[#1A1A1A] break-all">{data.aiDesignedFileName}</p>
+                <p className="text-[11px] text-[#378ADD] mt-1">AI crown proposal ready</p>
+              </>
+            )}
+            {data.aiDesignStatus === "idle" && (
+              <p className="text-sm text-[#6B6B6B]">Waiting for design…</p>
+            )}
+          </div>
+          {data.aiDesignStatus === "ready" && data.aiDesignSummary && (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-[#4B4B4B] leading-relaxed">{data.aiDesignSummary}</p>
             </div>
           )}
         </div>
       </div>
+
+      {data.aiDesignStatus === "ready" && (
+        <p className="text-xs text-[#6B6B6B] bg-[#F8F7F4] border border-[#E2E0D8] rounded-lg px-3 py-2 mb-6 leading-relaxed">
+          Interactive 3D preview is coming soon. For now, review the proposal summary and tooth parameters above before approving.
+        </p>
+      )}
 
       <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Design path</p>
       <div className="grid gap-3 mb-6">
@@ -956,6 +1031,12 @@ function OrderContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
+  const [draftPrompt, setDraftPrompt] = useState<{
+    savedAt: string;
+    productName: string;
+    needsStlReupload: boolean;
+  } | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -973,9 +1054,37 @@ function OrderContent() {
       setProductsLoading(false);
 
       const productId = searchParams.get("product");
+      const resumeDraft = searchParams.get("resume") === "draft";
+      const storedDraft = loadOrderDraft();
+
       if (productId && productData) {
         const found = productData.find((p: Product) => p.id === productId);
-        if (found) { setData(prev => ({ ...prev, product: found })); setStep(2); }
+        if (found) {
+          setData((prev) => ({ ...prev, product: found }));
+          setStep(2);
+        }
+      } else if (storedDraft?.productId && productData) {
+        const found = productData.find((p: Product) => p.id === storedDraft.productId);
+        if (found && storedDraft.step >= 2) {
+          if (resumeDraft) {
+            setData((prev) => ({ ...prev, ...draftFieldsFromStored(storedDraft, found) }));
+            setStep(storedDraft.step);
+            setDraftRestored(true);
+            if (storedDraft.fileName) {
+              setDraftPrompt({
+                savedAt: storedDraft.savedAt,
+                productName: found.name,
+                needsStlReupload: true,
+              });
+            }
+          } else {
+            setDraftPrompt({
+              savedAt: storedDraft.savedAt,
+              productName: found.name,
+              needsStlReupload: !!storedDraft.fileName,
+            });
+          }
+        }
       }
 
       const { data: profile } = await supabase
@@ -986,17 +1095,17 @@ function OrderContent() {
       if (profile) {
         setData((prev) => ({
           ...prev,
-          firstName: profile.first_name || "",
-          lastName: profile.last_name || "",
-          practiceName: profile.practice_name || "",
-          address: profile.address || "",
-          city: profile.city || "",
-          state: profile.state || "",
-          zip: profile.zip || "",
-          phone: profile.phone || "",
-          dentistName: profile.dentist_name || "",
-          licenseNo: profile.license_no || "",
-          licenseState: profile.license_state || "",
+          firstName: profile.first_name || prev.firstName,
+          lastName: profile.last_name || prev.lastName,
+          practiceName: profile.practice_name || prev.practiceName,
+          address: profile.address || prev.address,
+          city: profile.city || prev.city,
+          state: profile.state || prev.state,
+          zip: profile.zip || prev.zip,
+          phone: profile.phone || prev.phone,
+          dentistName: profile.dentist_name || prev.dentistName,
+          licenseNo: profile.license_no || prev.licenseNo,
+          licenseState: profile.license_state || prev.licenseState,
         }));
       }
 
@@ -1004,6 +1113,67 @@ function OrderContent() {
     }
     init();
   }, [router, searchParams]);
+
+  useEffect(() => {
+    if (pageLoading) return;
+    if (!data.product && step === 1) return;
+    const timer = setTimeout(() => {
+      saveOrderDraft({
+        step,
+        product: data.product,
+        quantity: data.quantity,
+        shade: data.shade,
+        toothNumbers: data.toothNumbers,
+        notes: data.notes,
+        fileName: data.fileName,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        practiceName: data.practiceName,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zip: data.zip,
+        phone: data.phone,
+        marginType: data.marginType,
+        occlusion: data.occlusion,
+        guardType: data.guardType,
+        color: data.color,
+        arch: data.arch,
+        dentistName: data.dentistName,
+        licenseNo: data.licenseNo,
+        licenseState: data.licenseState,
+        authorized: data.authorized,
+        aiDesignStatus: data.aiDesignStatus,
+        aiDesignApproved: data.aiDesignApproved,
+        aiDesignSummary: data.aiDesignSummary,
+        aiDesignedFileName: data.aiDesignedFileName,
+        aiDesignError: data.aiDesignError,
+        designChoice: data.designChoice,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [pageLoading, step, data]);
+
+  function continueFromDraft() {
+    const storedDraft = loadOrderDraft();
+    if (!storedDraft?.productId) return;
+    const found = products.find((p) => p.id === storedDraft.productId);
+    if (!found) return;
+    setData((prev) => ({ ...prev, ...draftFieldsFromStored(storedDraft, found) }));
+    setStep(storedDraft.step);
+    setDraftRestored(true);
+    setDraftPrompt(storedDraft.fileName ? {
+      savedAt: storedDraft.savedAt,
+      productName: found.name,
+      needsStlReupload: true,
+    } : null);
+  }
+
+  function discardDraft() {
+    clearOrderDraft();
+    setDraftPrompt(null);
+    setDraftRestored(false);
+  }
 
   function patchData(patch: Partial<OrderData>) {
     setData((prev) => ({ ...prev, ...patch }));
@@ -1165,6 +1335,7 @@ function OrderContent() {
     }
 
     window.location.href = url;
+    clearOrderDraft();
   }
 
   if (pageLoading) {
@@ -1180,6 +1351,34 @@ function OrderContent() {
       <Navbar />
 
       <div className={`mx-auto px-6 pt-24 pb-16 ${step === 1 ? "max-w-2xl" : step >= 2 ? "max-w-3xl" : "max-w-xl"}`}>
+        {draftPrompt && !draftRestored && (
+          <div className="mb-6 rounded-xl border border-[#BFDBFE] bg-[#F0F9FF] px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#1A1A1A]">Resume your saved order?</p>
+              <p className="text-xs text-[#6B6B6B] mt-1">
+                {draftPrompt.productName} · saved {formatDraftSavedAt(draftPrompt.savedAt)}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button variant="outline" className="h-9 rounded-lg border-[#BFDBFE] text-[#6B6B6B]"
+                onClick={discardDraft}>
+                Discard
+              </Button>
+              <Button className="h-9 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
+                onClick={continueFromDraft}>
+                Continue
+              </Button>
+            </div>
+          </div>
+        )}
+        {(draftPrompt?.needsStlReupload && draftRestored) && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-900">
+              Re-upload your STL file on the Case details step to continue
+              {data.fileName ? ` (previously: ${data.fileName})` : ""}.
+            </p>
+          </div>
+        )}
         <StepIndicator current={step} steps={orderSteps} />
         {step >= 2 && data.product && <OrderSummaryBar data={data} />}
         {step === 1 && (
