@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { createClient, getClientUser } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
+import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -57,7 +58,7 @@ const CAD_DESIGN_FEE = 5;
 function getOrderPricing(data: OrderData) {
   const product = data.product;
   const subtotal = product ? product.price * data.quantity : 0;
-  const shipping = 9;
+  const shipping = SHIPPING_FLAT_RATE;
   const designFee = data.designChoice === "cad" ? CAD_DESIGN_FEE : 0;
   return { subtotal, shipping, designFee, total: subtotal + shipping + designFee };
 }
@@ -158,6 +159,36 @@ function ToothSelector({ selected, onChange }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Order estimate (steps 2+) ──────────────────────────────────────────────
+function OrderSummaryBar({ data }: { data: OrderData }) {
+  if (!data.product) return null;
+  const p = data.product;
+  const { subtotal, shipping, designFee, total } = getOrderPricing(data);
+
+  return (
+    <div className="mb-6 rounded-xl border border-[#E2E0D8] bg-white px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B9B9B]">Order estimate</p>
+          <p className="text-sm font-medium text-[#1A1A1A] truncate">{p.name} × {data.quantity}</p>
+          {data.toothNumbers.length > 0 && (
+            <p className="text-xs text-[#9B9B9B] mt-0.5">
+              Teeth {[...data.toothNumbers].sort((a, b) => a - b).map((n) => `#${n}`).join(", ")}
+            </p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-xl font-semibold text-[#1A1A1A]">${total}</p>
+          <p className="text-[11px] text-[#9B9B9B]">
+            ${subtotal} product · ${shipping} {SHIPPING_CARRIER}
+            {designFee > 0 ? ` · $${designFee} CAD design` : ""}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -861,7 +892,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
             </div>
           )}
           <div className="flex justify-between text-sm text-[#6B6B6B]">
-            <span>Shipping (FedEx)</span><span>${shipping}</span>
+            <span>Shipping ({SHIPPING_CARRIER})</span><span>${shipping}</span>
           </div>
           <div className="flex justify-between text-base font-bold text-[#1A1A1A]">
             <span>Total</span><span>${total}</span>
@@ -1148,8 +1179,9 @@ function OrderContent() {
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
 
-      <div className={`mx-auto px-6 pt-24 pb-16 ${step === 1 ? "max-w-2xl" : step === 2 || (step === 4 && showAiDesign) ? "max-w-3xl" : "max-w-xl"}`}>
+      <div className={`mx-auto px-6 pt-24 pb-16 ${step === 1 ? "max-w-2xl" : step >= 2 ? "max-w-3xl" : "max-w-xl"}`}>
         <StepIndicator current={step} steps={orderSteps} />
+        {step >= 2 && data.product && <OrderSummaryBar data={data} />}
         {step === 1 && (
           productsLoading ? (
             <div className="flex items-center justify-center py-20">

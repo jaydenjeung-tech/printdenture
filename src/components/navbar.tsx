@@ -67,6 +67,7 @@ export default function Navbar() {
 
   const publicLinks = [
     { label: "Products",      href: navLink("#products") },
+    { label: "Pricing",       href: "/pricing" },
     { label: "How it works",  href: navLink("#how-it-works") },
   ];
 

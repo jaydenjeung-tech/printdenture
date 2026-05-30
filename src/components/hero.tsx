@@ -97,7 +97,7 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row gap-3 mb-12">
               <Link href="/order">
                 <Button className="bg-[#0F6E56] hover:bg-[#085041] text-white h-12 px-8 text-[15px] font-medium rounded-xl transition-colors">
-                  Start your first order
+                  Start an order
                 </Button>
               </Link>
               <Link href="#how-it-works">
@@ -111,7 +111,7 @@ export default function Hero() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-[#9FE1CB]">
               {[
-                { value: "1 step", label: "Doctor sign-off" },
+                { value: "Built-in", label: "Doctor sign-off" },
                 { value: "< 3%", label: "Remake rate" },
                 { value: "5–7d", label: "Avg. delivery" },
                 { value: "$0",   label: "Setup fee" },

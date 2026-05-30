@@ -1,8 +1,10 @@
+import Link from "next/link";
+
 const steps = [
   {
     number: "01",
     title: "Upload your scan",
-    description: "Drag and drop your STL file directly from 3Shape, Medit, or any intraoral scanner. No special software needed.",
+    description: "Drag and drop your STL from 3Shape, Medit, or any intraoral scanner. No special software needed.",
     detail: "Compatible with all major scanners",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -12,8 +14,8 @@ const steps = [
   },
   {
     number: "02",
-    title: "Choose & confirm",
-    description: "Select product type, shade, and material. Complete your Rx online. Get an instant price with no hidden fees.",
+    title: "Case details & Rx",
+    description: "Select product, shade, and teeth. Complete your digital Rx online with instant pricing—no hidden fees.",
     detail: "Digital Rx — paperless & HIPAA compliant",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -23,6 +25,18 @@ const steps = [
   },
   {
     number: "03",
+    title: "Review AI crown design",
+    description: "For crown cases, Dentbird drafts a proposal from your scan. Approve it—or request CAD design—before we mill.",
+    detail: "Doctor sign-off before fabrication",
+    highlight: true,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/>
+      </svg>
+    ),
+  },
+  {
+    number: "04",
     title: "We fabricate",
     description: "Your case enters our California lab same day. CAD/CAM milled, sintered, and quality-checked by our technicians.",
     detail: "CAD/CAM milled in California",
@@ -33,10 +47,10 @@ const steps = [
     ),
   },
   {
-    number: "04",
+    number: "05",
     title: "Delivered to your door",
-    description: "Ships via UPS with tracking. Arrives in 5–7 business days, packaged to protect every restoration.",
-    detail: "UPS tracked · 5–7 business days",
+    description: "Ships via FedEx with tracking. Arrives in 5–7 business days, packaged to protect every restoration.",
+    detail: "FedEx tracked · 5–7 business days",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
@@ -50,7 +64,6 @@ export default function HowItWorks() {
     <section id="how-it-works" className="py-20 px-6 bg-[#F7FAF9] border-t border-[#E5E7EB]">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header */}
         <div className="mb-12">
           <p className="text-[11px] font-medium text-[#0F6E56] mb-2 tracking-[0.08em] uppercase">
             How it works
@@ -58,8 +71,11 @@ export default function HowItWorks() {
           <h2 className="text-[32px] font-semibold text-[#1B2B3A] tracking-tight leading-tight">
             From scan to delivery
             <br />
-            in four steps
+            in five steps
           </h2>
+          <p className="text-[14px] text-[#6B7280] mt-3 max-w-xl">
+            Crown cases include an AI design review before fabrication. Guards skip straight to lab production after checkout.
+          </p>
         </div>
 
         <div className="mb-12 rounded-2xl border border-[#E1F5EE] bg-white p-6 md:p-8">
@@ -72,8 +88,7 @@ export default function HowItWorks() {
                 Clinical control stays with you—not the lab.
               </h3>
               <p className="text-[14px] text-[#6B7280] leading-relaxed max-w-xl">
-                Crown cases include a Dentbird AI design review between your Rx and fabrication,
-                so you can sign off before milling or printing begins.
+                Dentbird drafts a crown proposal from your scan and Rx. You approve it—or request CAD design—before milling begins.
               </p>
             </div>
 
@@ -81,7 +96,7 @@ export default function HowItWorks() {
               {[
                 "Dentbird drafts the crown from your scan, shade, and margin preferences.",
                 "Compare the proposal to your prep before checkout—no surprise design changes.",
-                "Fabrication starts only after you approve the AI crown design.",
+                "Fabrication starts only after you approve—or request our CAD team (+$5 design fee).",
               ].map((item) => (
                 <li key={item} className="flex gap-3 rounded-xl border border-[#E1F5EE] bg-[#F7FAF9] px-4 py-3">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0F6E56] flex-shrink-0" />
@@ -92,23 +107,24 @@ export default function HowItWorks() {
           </div>
         </div>
 
-        {/* Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {steps.map((step, i) => (
             <div key={step.number} className="relative">
-              {/* Connector line */}
               {i < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-7 left-[calc(100%_-_8px)] w-4 h-px bg-[#D1E8E0] z-10" />
               )}
 
-              <div className="bg-white rounded-xl border border-[#E5E7EB] p-6 h-full hover:border-[#1B2B3A] transition-colors duration-200">
+              <div className={`rounded-xl border p-6 h-full transition-colors duration-200
+                ${"highlight" in step && step.highlight
+                  ? "bg-[#F0F9FF] border-[#BFDBFE] hover:border-[#378ADD]"
+                  : "bg-white border-[#E5E7EB] hover:border-[#1B2B3A]"}`}>
 
-                {/* Number + Icon */}
                 <div className="flex items-center justify-between mb-5">
                   <span className="text-[28px] font-semibold text-[#D1E8E0] leading-none tracking-tight">
                     {step.number}
                   </span>
-                  <div className="w-9 h-9 rounded-lg bg-[#E1F5EE] flex items-center justify-center text-[#0F6E56]">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center
+                    ${"highlight" in step && step.highlight ? "bg-[#DBEAFE] text-[#378ADD]" : "bg-[#E1F5EE] text-[#0F6E56]"}`}>
                     {step.icon}
                   </div>
                 </div>
@@ -116,7 +132,6 @@ export default function HowItWorks() {
                 <h3 className="text-[14px] font-semibold text-[#1B2B3A] mb-2">{step.title}</h3>
                 <p className="text-[13px] text-[#6B7280] leading-relaxed mb-5">{step.description}</p>
 
-                {/* Detail badge */}
                 <div className="mt-auto">
                   <span className="inline-flex items-center gap-1.5 text-[11px] text-[#6B7280] bg-[#F7FAF9] px-2.5 py-1 rounded-full border border-[#E1F5EE]">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#1D9E75] flex-shrink-0" />
@@ -128,8 +143,14 @@ export default function HowItWorks() {
           ))}
         </div>
 
-        {/* Bottom CTA */}
-        <div className="mt-10 text-center">
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/pricing"
+            className="text-[13px] text-[#0F6E56] hover:text-[#085041] font-medium transition-colors"
+          >
+            View full pricing →
+          </Link>
+          <span className="hidden sm:inline text-[#D1D5DB]">·</span>
           <p className="text-[13px] text-[#9CA3AF]">
             Questions?{" "}
             <a href="/support" className="text-[#0F6E56] hover:text-[#085041] font-medium transition-colors">

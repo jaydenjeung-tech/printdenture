@@ -171,23 +171,17 @@ export default function Products() {
                       {/* Price + actions */}
                       <div className="mt-auto">
                         <div className="mb-4">
-                          {isLoggedIn ? (
-                            <div>
-                              <span className="text-[18px] font-semibold text-[#1B2B3A]">
-                                from ${Math.min(...items.map(i => i.price))}
-                              </span>
-                              <span className="text-[13px] text-[#9CA3AF] ml-1">/ unit</span>
-                              <p className="text-[11px] text-[#9CA3AF] mt-0.5">{rep.turnaround}</p>
-                            </div>
-                          ) : (
-                            <Link href="/auth" className="text-[12px] text-[#0F6E56] hover:underline">
-                              Sign in for pricing
-                            </Link>
-                          )}
+                          <div>
+                            <span className="text-[18px] font-semibold text-[#1B2B3A]">
+                              from ${Math.min(...items.map(i => i.price))}
+                            </span>
+                            <span className="text-[13px] text-[#9CA3AF] ml-1">/ unit</span>
+                            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{rep.turnaround}</p>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Link href={`/order?product=${rep.id}`} className="flex-1">
+                          <Link href={isLoggedIn ? `/order?product=${rep.id}` : `/auth?next=${encodeURIComponent(`/order?product=${rep.id}`)}`} className="flex-1">
                             <Button
                               size="sm"
                               className="w-full text-white text-[12px] h-8 px-3 rounded-lg"
@@ -219,13 +213,11 @@ export default function Products() {
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-medium text-[#1B2B3A] truncate">{p.name}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {isLoggedIn && (
-                                  <span className="text-[13px] font-semibold text-[#1B2B3A]">${p.price}</span>
-                                )}
+                                <span className="text-[13px] font-semibold text-[#1B2B3A]">${p.price}</span>
                                 <span className="text-[11px] text-[#9CA3AF]">{p.turnaround}</span>
                               </div>
                             </div>
-                            <Link href={`/order?product=${p.id}`}>
+                            <Link href={isLoggedIn ? `/order?product=${p.id}` : `/auth?next=${encodeURIComponent(`/order?product=${p.id}`)}`}>
                               <Button
                                 size="sm"
                                 className="text-white text-[11px] h-7 px-3 rounded-lg flex-shrink-0"
@@ -243,19 +235,26 @@ export default function Products() {
               })}
             </div>
 
-            {/* Sign-in CTA */}
-            {!isLoggedIn && (
-              <div className="text-center py-8 bg-[#F7FAF9] rounded-xl border border-[#E1F5EE]">
-                <p className="text-[13px] text-[#6B7280] mb-3">
-                  Sign in to see pricing and place orders
-                </p>
-                <Link href="/auth">
-                  <Button className="bg-[#1B2B3A] hover:bg-[#243447] text-white rounded-lg px-6 text-[13px]">
-                    Sign in to view pricing
-                  </Button>
-                </Link>
-              </div>
-            )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-8 bg-[#F7FAF9] rounded-xl border border-[#E1F5EE]">
+              <p className="text-[13px] text-[#6B7280]">
+                Transparent per-unit pricing — no account required to view.
+              </p>
+              <Link href="/pricing">
+                <Button variant="outline" className="rounded-lg border-[#9FE1CB] text-[#0F6E56] hover:bg-white text-[13px]">
+                  View full pricing
+                </Button>
+              </Link>
+              {!isLoggedIn && (
+                <>
+                  <span className="hidden sm:inline text-[#D1D5DB]">·</span>
+                  <Link href="/auth">
+                    <Button className="bg-[#1B2B3A] hover:bg-[#243447] text-white rounded-lg px-6 text-[13px]">
+                      Sign in to order
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </>
         )}
       </div>

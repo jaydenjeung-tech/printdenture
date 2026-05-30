@@ -5,7 +5,6 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { createClient } from "@/lib/supabase";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // ← 추가
 
 type Product = {
   id: string;
@@ -49,16 +48,11 @@ const CATEGORY_ORDER = ["zirconia", "printed", "nightguard", "sportsguard"];
 export default function PricingPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-const router = useRouter(); // ← 추가
+
   useEffect(() => {
     const supabase = createClient();
 
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/auth?next=/pricing");
-        return;
-      }
+    async function load() {
       const { data } = await supabase
         .from("products")
         .select("*")
@@ -68,7 +62,7 @@ const router = useRouter(); // ← 추가
       setLoading(false);
     }
 
-    init();
+    load();
   }, []);
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
@@ -83,7 +77,6 @@ const router = useRouter(); // ← 추가
 
       <div className="max-w-5xl mx-auto px-6 pt-32 pb-20">
 
-        {/* Header */}
         <div className="text-center mb-16">
           <p className="text-sm font-medium text-[#2563EB] mb-3 tracking-wide uppercase">Pricing</p>
           <h1 className="text-4xl font-bold text-[#1A1A1A] tracking-tight mb-4">
@@ -93,9 +86,11 @@ const router = useRouter(); // ← 추가
             No contracts. No minimums. No lab account required.
             Pay only for what you order.
           </p>
+          <p className="text-sm text-[#9B9B9B] mt-3">
+            Crown cases may include an optional CAD design fee ($5) if you skip AI approval.
+          </p>
         </div>
 
-        {/* Includes banner */}
         <div className="flex flex-wrap justify-center gap-6 mb-16">
           {[
             "Free shipping over $300",
@@ -112,7 +107,6 @@ const router = useRouter(); // ← 추가
           ))}
         </div>
 
-        {/* Product categories */}
         {loading ? (
           <div className="space-y-12">
             {[...Array(4)].map((_, i) => (
@@ -130,19 +124,17 @@ const router = useRouter(); // ← 추가
           <div className="space-y-16">
             {grouped.map(({ cat, meta, items }) => (
               <div key={cat}>
-                {/* Category header */}
                 <div className="flex items-end justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">{meta.label}</h2>
                     <p className="text-sm text-[#6B6B6B]">{meta.description}</p>
                   </div>
-                  <Link href="/order"
+                  <Link href="/auth?next=%2Forder"
                     className="text-sm text-[#2563EB] hover:underline whitespace-nowrap ml-4">
                     Order →
                   </Link>
                 </div>
 
-                {/* Product cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   {items.map((p) => (
                     <div key={p.id}
@@ -156,7 +148,7 @@ const router = useRouter(); // ← 추가
                           <span className="text-sm text-[#6B6B6B] ml-1">/ unit</span>
                           <p className="text-xs text-[#9B9B9B] mt-0.5">{p.turnaround}</p>
                         </div>
-                        <Link href="/order">
+                        <Link href={`/auth?next=${encodeURIComponent(`/order?product=${p.id}`)}`}>
                           <button
                             className="h-8 px-4 rounded-lg text-white text-xs font-medium transition-all hover:opacity-80"
                             style={{ background: p.accent }}>
@@ -168,7 +160,6 @@ const router = useRouter(); // ← 추가
                   ))}
                 </div>
 
-                {/* Category features */}
                 <div className="flex flex-wrap gap-3">
                   {meta.features.map((f) => (
                     <span key={f}
@@ -184,21 +175,20 @@ const router = useRouter(); // ← 추가
           </div>
         )}
 
-        {/* Bottom CTA */}
         <div className="mt-20 text-center bg-white rounded-2xl border border-[#E2E0D8] p-10">
           <h3 className="text-2xl font-bold text-[#1A1A1A] mb-3">Ready to streamline your lab orders?</h3>
           <p className="text-[#6B6B6B] mb-6 max-w-md mx-auto">
-            Join dental practices across the US ordering smarter with PrintCrown.
+            Create a free account to place orders, track cases, and manage your practice profile.
           </p>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-3 justify-center flex-wrap">
             <Link href="/auth">
               <button className="h-11 px-6 rounded-xl border border-[#E2E0D8] text-sm text-[#6B6B6B] hover:bg-[#F8F7F4] transition-all">
                 Create account
               </button>
             </Link>
-            <Link href="/order">
+            <Link href="/auth?next=%2Forder">
               <button className="h-11 px-6 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-medium transition-all">
-                Start ordering
+                Start an order
               </button>
             </Link>
           </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const productSubtotal = order.unit_price * order.quantity;
-    const shipping = 9;
+    const shipping = SHIPPING_FLAT_RATE;
     const designFee = Math.max(0, order.total_price - productSubtotal - shipping);
     if (designFee > 0) {
       lineItems.push({
@@ -68,8 +69,8 @@ export async function POST(req: NextRequest) {
     lineItems.push({
       price_data: {
         currency: "usd",
-        product_data: { name: "Shipping (FedEx)" },
-        unit_amount: 900,
+        product_data: { name: `Shipping (${SHIPPING_CARRIER})` },
+        unit_amount: shipping * 100,
       },
       quantity: 1,
     });
