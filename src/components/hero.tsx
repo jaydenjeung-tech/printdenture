@@ -1,230 +1,127 @@
-"use client";
-
 import Link from "next/link";
-import { useState, useEffect } from "react";
 
-const SLIDES = [
-  {
-    id: "complete",
-    name: "Complete dentures",
-    sub: "Premium teeth · Custom gingiva · Try-in workflow",
-    specs: [
-      { label: "Arch", value: "Upper / lower / set" },
-      { label: "Turnaround", value: "10–14 days" },
-      { label: "Teeth", value: "Premium & economy lines" },
-      { label: "Guarantee", value: "Free adjustment" },
-    ],
-    gradient: "from-[#0F6E56] to-[#1B2B3A]",
-  },
-  {
-    id: "partial",
-    name: "Flexible partials",
-    sub: "Valplast-style · Metal framework · Digital design",
-    specs: [
-      { label: "Type", value: "Flexible / cast metal" },
-      { label: "Turnaround", value: "7–10 days" },
-      { label: "Records", value: "Scan or impression" },
-      { label: "Guarantee", value: "Free adjustment" },
-    ],
-    gradient: "from-[#1D9E75] to-[#085041]",
-  },
-  {
-    id: "overdenture",
-    name: "Implant overdentures",
-    sub: "Locator · Bar · All-on-4 compatible",
-    specs: [
-      { label: "System", value: "Locator / bar retained" },
-      { label: "Turnaround", value: "12–16 days" },
-      { label: "Records", value: "Scan + implant info" },
-      { label: "Guarantee", value: "Free adjustment" },
-    ],
-    gradient: "from-[#378ADD] to-[#1B2B3A]",
-  },
+const highlights = [
+  { value: "1 visit", label: "Chairside records with JB Fork" },
+  { value: "0", label: "Try-in appointments" },
+  { value: "2", label: "Patient visits to delivery" },
+  { value: "↓", label: "Chair time per case" },
 ];
 
-function DentureVisual({ slideId }: { slideId: string }) {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center p-10">
-      <svg viewBox="0 0 200 120" className="w-full max-w-[280px] opacity-90" aria-hidden>
-        <ellipse cx="100" cy="72" rx="78" ry="28" fill="white" fillOpacity="0.15" />
-        <path
-          d="M28 72 Q100 28 172 72 Q100 98 28 72"
-          fill="none"
-          stroke="white"
-          strokeWidth="2"
-          strokeOpacity="0.6"
-        />
-        {slideId === "partial" && (
-          <path d="M55 68 L95 58 L145 68" stroke="#9FE1CB" strokeWidth="3" fill="none" strokeLinecap="round" />
-        )}
-        {slideId === "overdenture" && (
-          <>
-            <circle cx="72" cy="78" r="4" fill="#9FE1CB" />
-            <circle cx="100" cy="82" r="4" fill="#9FE1CB" />
-            <circle cx="128" cy="78" r="4" fill="#9FE1CB" />
-          </>
-        )}
-        {[40, 58, 76, 94, 112, 130, 148, 160].map((x, i) => (
-          <rect
-            key={x}
-            x={x - 5}
-            y={58 - (i % 2) * 2}
-            width="10"
-            height="14"
-            rx="2"
-            fill="white"
-            fillOpacity={0.35 + (i % 3) * 0.1}
-          />
-        ))}
-      </svg>
-      <p className="absolute bottom-6 left-6 right-6 text-[11px] text-white/70 uppercase tracking-widest">
-        {slideId === "complete" && "Full arch restoration"}
-        {slideId === "partial" && "Removable partial"}
-        {slideId === "overdenture" && "Implant retained"}
-      </p>
-    </div>
-  );
-}
-
 export default function Hero() {
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % SLIDES.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const slide = SLIDES[current];
-
   return (
-    <section className="bg-[#E1F5EE] pt-16">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 min-h-[620px]">
-          <div className="flex flex-col justify-center py-20 pr-0 lg:pr-16 border-b lg:border-b-0 lg:border-r border-[#9FE1CB]">
+    <section className="relative bg-[#0D1B2A] pt-16 overflow-hidden">
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 70% 20%, #1D9E75 0%, transparent 55%), radial-gradient(ellipse 50% 40% at 10% 80%, #378ADD 0%, transparent 50%)",
+        }}
+        aria-hidden
+      />
+
+      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-20 lg:py-28">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-16 items-center">
+          <div>
             <div className="flex flex-wrap gap-2 mb-8">
               {[
-                { label: "Digital Rx online", dot: "#378ADD" },
-                { label: "HIPAA compliant", dot: "#0F6E56" },
-                { label: "7–14 day delivery", dot: "#5DCAA5" },
-              ].map((t) => (
+                "JB Fork · JB Tray compatible",
+                "No try-in required",
+                "Digital denture lab",
+              ].map((label) => (
                 <span
-                  key={t.label}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-white border border-[#9FE1CB] text-[#085041]"
+                  key={label}
+                  className="text-[11px] font-medium px-3 py-1.5 rounded-full border border-[#1E3347] bg-[#132337] text-[#9FE1CB]"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: t.dot }} />
-                  {t.label}
+                  {label}
                 </span>
               ))}
             </div>
 
-            <h1 className="text-5xl md:text-[56px] font-semibold text-[#0F2336] leading-[1.06] tracking-[-2px] mb-5">
-              Dentures your patients
+            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-semibold text-white leading-[1.06] tracking-[-2px] mb-6">
+              Capture everything
               <br />
-              love — ordered
+              in one visit.
               <br />
-              <span className="text-[#0F6E56]">online in minutes.</span>
+              <span className="text-[#5DCAA5]">Deliver without try-in.</span>
             </h1>
 
-            <p className="text-[17px] text-[#085041] leading-relaxed mb-10 max-w-[460px]">
-              Upload scans or impressions, complete a digital Rx for complete, partial, or implant
-              overdenture cases, and track every case from your practice dashboard. California lab
-              fabrication with transparent per-arch pricing.
+            <p className="text-[17px] text-[#7CA0B8] leading-relaxed mb-8 max-w-[500px]">
+              PrintDenture is built for practices using{" "}
+              <strong className="text-[#E1F5EE] font-medium">JB Fork</strong> and the{" "}
+              <strong className="text-[#E1F5EE] font-medium">JB Tray</strong> workflow: final
+              impression, bite, and facial data in a single chairside session — then scan, order
+              online, and receive a definitive denture from our California lab.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-12">
               <Link
-                href="/order"
-                className="bg-[#0F6E56] hover:bg-[#085041] text-white h-12 px-8 text-[15px] font-medium rounded-xl inline-flex items-center justify-center transition-colors"
+                href="/auth?next=%2Forder"
+                className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white h-12 px-8 text-[15px] font-medium rounded-xl inline-flex items-center justify-center transition-colors"
               >
                 Start an order
               </Link>
               <Link
-                href="#how-it-works"
-                className="h-12 px-8 text-[15px] rounded-xl border border-[#9FE1CB] bg-transparent text-[#0F6E56] hover:bg-[#9FE1CB]/30 inline-flex items-center justify-center transition-colors"
+                href="#jb-fork"
+                className="h-12 px-8 text-[15px] rounded-xl border border-[#1E3347] text-[#9FE1CB] hover:bg-[#132337] inline-flex items-center justify-center transition-colors"
               >
-                See how it works
+                See the workflow
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-[#9FE1CB]">
-              {[
-                { value: "100%", label: "Digital workflow" },
-                { value: "< 3%", label: "Remake rate" },
-                { value: "7–14d", label: "Avg. delivery" },
-                { value: "$0", label: "Setup fee" },
-              ].map((s) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8 border-t border-[#1E3347]">
+              {highlights.map((s) => (
                 <div key={s.label}>
-                  <p className="text-[22px] font-semibold text-[#0F2336] tracking-tight">{s.value}</p>
-                  <p className="text-[11px] text-[#1D9E75] mt-0.5">{s.label}</p>
+                  <p className="text-[22px] font-semibold text-white tracking-tight">{s.value}</p>
+                  <p className="text-[11px] text-[#5A7D94] mt-0.5 leading-snug">{s.label}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex flex-col justify-center items-center pt-12 pb-16 px-8 bg-[#E1F5EE] min-h-[520px] lg:min-h-[620px]">
-            <div className="w-full max-w-[520px] mx-auto mb-3">
-              <p className="text-[11px] font-medium text-[#1D9E75] uppercase tracking-[0.08em]">
-                Featured product
-              </p>
-            </div>
-
-            <div className="w-full max-w-[520px] mx-auto bg-white rounded-2xl border border-[#9FE1CB] overflow-hidden">
-              <Link href="/order" className="block">
-                <div
-                  className={`relative overflow-hidden bg-gradient-to-br ${slide.gradient}`}
-                  style={{ aspectRatio: "4/3" }}
-                >
-                  <DentureVisual slideId={slide.id} />
-                </div>
-              </Link>
-
-              <div className="p-6">
-                <div className="mb-4">
-                  <p className="font-semibold text-[#0F2336] text-[16px]">{slide.name}</p>
-                  <p className="text-[11px] text-[#1D9E75] mt-0.5">{slide.sub}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pb-4 border-b border-[#E1F5EE]">
-                  {slide.specs.map((s) => (
-                    <div key={s.label}>
-                      <p className="text-[10px] text-[#5DCAA5] uppercase tracking-wide">{s.label}</p>
-                      <p className="text-[12px] font-semibold text-[#0F2336] mt-0.5">{s.value}</p>
+          <div className="bg-[#132337]/80 backdrop-blur-sm border border-[#1E3347] rounded-2xl p-6 lg:p-8">
+            <p className="text-[11px] font-medium text-[#5DCAA5] uppercase tracking-[0.1em] mb-6">
+              The PrintDenture difference
+            </p>
+            <ol className="space-y-0">
+              {[
+                {
+                  step: "Chairside",
+                  title: "JB Fork + tray records in one session",
+                  body: "Upper & lower impression, bite registration, and markers for facial/CBCT alignment — no separate wax rim appointment.",
+                },
+                {
+                  step: "Scan",
+                  title: "Digitize with your scanner",
+                  body: "Intraoral, model, or CBCT object scan into Exocad / 3Shape — aligned datasets from JB Fork Radi+.",
+                },
+                {
+                  step: "Order",
+                  title: "Submit to PrintDenture",
+                  body: "Upload scans, complete a digital Rx, and release to lab — no phone tag, no paper Rx.",
+                },
+                {
+                  step: "Deliver",
+                  title: "Definitive denture — no try-in",
+                  body: "We fabricate from verified digital records. Patient returns for delivery, not a try-in fitting.",
+                },
+              ].map((item, i) => (
+                <li key={item.step} className="flex gap-4 pb-6 last:pb-0">
+                  <div className="flex flex-col items-center">
+                    <div className="w-9 h-9 rounded-lg bg-[#1D9E75]/20 border border-[#1D9E75]/40 flex items-center justify-center text-[11px] font-bold text-[#5DCAA5]">
+                      {i + 1}
                     </div>
-                  ))}
-                </div>
-
-                <div className="pt-4 flex items-center justify-between">
-                  <div className="flex gap-1.5">
-                    {SLIDES.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        aria-label={`Show slide ${i + 1}`}
-                        onClick={() => setCurrent(i)}
-                        className={`h-1 rounded-full transition-all duration-200 ${
-                          i === current ? "bg-[#0F6E56] w-5" : "bg-[#9FE1CB] w-1.5"
-                        }`}
-                      />
-                    ))}
+                    {i < 3 && <div className="w-px flex-1 bg-[#1E3347] mt-2 min-h-[24px]" />}
                   </div>
-                  <Link
-                    href="/order"
-                    className="bg-[#0F6E56] hover:bg-[#085041] text-white h-8 px-4 text-[12px] font-medium rounded-lg inline-flex items-center transition-colors"
-                  >
-                    Order now →
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="w-full max-w-[520px] mx-auto mt-4 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0F6E56]" />
-              <span className="text-[11px] text-[#1D9E75]">
-                Try-in included · FedEx tracked · Free adjustment guarantee
-              </span>
-            </div>
+                  <div className="pt-0.5">
+                    <p className="text-[10px] font-medium text-[#5A7D94] uppercase tracking-wider mb-1">
+                      {item.step}
+                    </p>
+                    <p className="text-[15px] font-semibold text-white mb-1">{item.title}</p>
+                    <p className="text-[13px] text-[#7CA0B8] leading-relaxed">{item.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
       </div>

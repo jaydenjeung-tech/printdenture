@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PrintDenture — Online denture orders for dental practices",
+  title: "PrintDenture — JB Fork digital dentures without try-in",
   description:
-    "Order complete dentures, partials, immediate dentures, and implant overdentures online. Digital Rx, California lab fabrication, FedEx delivery.",
+    "Scan JB Fork & JB Tray records, order online, and receive definitive dentures from our California lab — fewer patient visits and less chair time, no try-in required.",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col bg-[#F8F7F4] text-zinc-900 font-sans">
+      <body className="min-h-full flex flex-col bg-[#F8F7F4] text-[#1A1A1A] font-sans">
         {children}
       </body>
     </html>
