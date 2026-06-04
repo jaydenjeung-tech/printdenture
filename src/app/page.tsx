@@ -2,7 +2,7 @@ import Navbar from "@/components/navbar";
 import Hero from "@/components/hero";
 import Products from "@/components/products";
 import HowItWorks from "@/components/how-it-works";
-import WhyPrintCrown from "@/components/why-printcrown";
+import WhyPrintDenture from "@/components/why-printdenture";
 import Footer from "@/components/footer";
 
 export default function Home() {
@@ -12,7 +12,7 @@ export default function Home() {
       <Hero />
       <Products />
       <HowItWorks />
-      <WhyPrintCrown />
+      <WhyPrintDenture />
       <Footer />
     </main>
   );
