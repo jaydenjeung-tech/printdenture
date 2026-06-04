@@ -1,6 +1,7 @@
 import Navbar from "@/components/navbar";
 import Hero from "@/components/hero";
 import VisitComparison from "@/components/visit-comparison";
+import JBTray from "@/components/jb-tray";
 import JBFork from "@/components/jb-fork";
 import HowItWorks from "@/components/how-it-works";
 import Products from "@/components/products";
@@ -13,6 +14,7 @@ export default function Home() {
       <Navbar />
       <Hero />
       <VisitComparison />
+      <JBTray />
       <JBFork />
       <HowItWorks />
       <Products />

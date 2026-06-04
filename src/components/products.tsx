@@ -106,8 +106,17 @@ export default function Products() {
         </div>
 
         <p className="text-[12px] text-[#5A7D94] text-center">
-          JB Fork and JB Tray are products of Seil Global. PrintDenture is an independent digital
-          lab service compatible with their clinical protocols.
+          Clinical protocols reference{" "}
+          <a
+            href="https://tomabranding.mycafe24.com/jb-jd/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#5DCAA5] hover:underline"
+          >
+            JB & JD Design (PNUADD)
+          </a>
+          . PrintDenture is an independent California lab — not affiliated with JB & JD or Seil
+          Global.
         </p>
       </div>
     </section>

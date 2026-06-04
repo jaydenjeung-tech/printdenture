@@ -7,11 +7,20 @@ export default function VisitComparison() {
             Fewer appointments
           </p>
           <h2 className="text-[28px] md:text-[32px] font-semibold text-[#1B2B3A] tracking-tight">
-            Traditional dentures vs. JB Fork + PrintDenture
+            Traditional dentures vs. JB Tray + PrintDenture
           </h2>
           <p className="text-[15px] text-[#6B7280] mt-3 max-w-2xl mx-auto">
-            JB Tray workflows can reduce visits from five to three — in some cases two. PrintDenture
-            removes the try-in visit entirely by manufacturing from your aligned digital record.
+            Per the{" "}
+            <a
+              href="https://tomabranding.mycafe24.com/jb-jd/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0F6E56] font-medium hover:underline"
+            >
+              JB & JD Design
+            </a>{" "}
+            protocol, JB Tray can reduce visits from five to three — in some cases two. PrintDenture
+            removes the try-in visit by manufacturing from your verified digital record set.
           </p>
         </div>
 
@@ -44,13 +53,13 @@ export default function VisitComparison() {
               PrintDenture path
             </span>
             <p className="text-[12px] font-semibold text-[#085041] uppercase tracking-wider mb-4">
-              JB Fork + digital lab
+              JB Tray / JB Fork + PrintDenture
             </p>
             <ul className="space-y-3">
               {[
                 {
-                  label: "Records visit — JB Fork / JB Tray",
-                  detail: "Impression, VD, centric relation & facial alignment in one",
+                  label: "Records visit — JB Tray or JB Fork",
+                  detail: "One-step impression + jaw relation; optional POP Bow & digital alignment",
                 },
                 {
                   label: "Scan & order — your office",

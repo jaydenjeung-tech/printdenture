@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 const highlights = [
-  { value: "1 visit", label: "Chairside records with JB Fork" },
-  { value: "0", label: "Try-in appointments" },
-  { value: "2", label: "Patient visits to delivery" },
-  { value: "↓", label: "Chair time per case" },
+  { value: "5 → 3", label: "Visits with JB Tray protocol" },
+  { value: "0", label: "Try-in with PrintDenture" },
+  { value: "2", label: "Visits to delivery (some cases)" },
+  { value: "1 step", label: "Impression + jaw relation" },
 ];
 
 export default function Hero() {
@@ -24,9 +24,9 @@ export default function Hero() {
           <div>
             <div className="flex flex-wrap gap-2 mb-8">
               {[
-                "JB Fork · JB Tray compatible",
-                "No try-in required",
-                "Digital denture lab",
+                "JB & JD · JB Tray workflow",
+                "JB Fork Radi+ digital",
+                "No try-in lab path",
               ].map((label) => (
                 <span
                   key={label}
@@ -61,10 +61,10 @@ export default function Hero() {
                 Start an order
               </Link>
               <Link
-                href="#jb-fork"
+                href="#jb-tray"
                 className="h-12 px-8 text-[15px] rounded-xl border border-[#1E3347] text-[#9FE1CB] hover:bg-[#132337] inline-flex items-center justify-center transition-colors"
               >
-                See the workflow
+                JB Tray guide
               </Link>
             </div>
 
@@ -86,8 +86,8 @@ export default function Hero() {
               {[
                 {
                   step: "Chairside",
-                  title: "JB Fork + tray records in one session",
-                  body: "Upper & lower impression, bite registration, and markers for facial/CBCT alignment — no separate wax rim appointment.",
+                  title: "JB Tray or JB Fork records",
+                  body: "JB Tray: final impression + VD & centric relation in one visit (no individual tray / wax rim). JB Fork Radi+: markers for facial, CBCT & IOS alignment.",
                 },
                 {
                   step: "Scan",

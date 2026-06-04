@@ -50,12 +50,12 @@ export default function JBFork() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-14">
           <div>
             <p className="text-[11px] font-medium text-[#0F6E56] uppercase tracking-[0.08em] mb-2">
-              JB Fork workflow
+              JB Fork Radi+ · digital workflow
             </p>
             <h2 className="text-[32px] font-semibold text-[#1B2B3A] tracking-tight leading-tight mb-4">
-              One device.
+              Align facial scan,
               <br />
-              Every record the lab needs.
+              CBCT & IOS in one dataset.
             </h2>
             <p className="text-[15px] text-[#6B7280] leading-relaxed mb-6">
               JB Fork is designed for edentulous and full-arch cases: an impression plate with
@@ -63,17 +63,21 @@ export default function JBFork() {
               the foundation for a true one-visit clinical protocol.
             </p>
             <p className="text-[14px] text-[#6B7280] leading-relaxed mb-6">
-              Combined with{" "}
+              Pair with{" "}
+              <a href="#jb-tray" className="text-[#0F6E56] font-medium hover:underline">
+                JB Tray
+              </a>{" "}
+              chairside records (see{" "}
               <a
-                href="https://seilglobal.com/ProstheticDentistry/?bmode=view&idx=130420299"
+                href="https://tomabranding.mycafe24.com/jb-jd/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#0F6E56] font-medium hover:underline"
               >
-                JB Tray
+                JB & JD Design
               </a>
-              , practices can take final impression and jaw relation without a separate custom tray
-              and wax-rim appointment — then send scans straight to PrintDenture.
+              ) or use JB Fork Radi+ alone for implant and full-arch digital cases — then send
+              aligned scans to PrintDenture.
             </p>
             <div className="flex flex-wrap gap-2">
               {scanMethods.map((m) => (

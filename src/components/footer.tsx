@@ -52,8 +52,13 @@ export default function Footer() {
             </p>
             <ul className="space-y-2.5 text-[13px] text-[#7CA0B8]">
               <li>
+                <Link href="#jb-tray" className="hover:text-white transition-colors">
+                  JB Tray (Just Border)
+                </Link>
+              </li>
+              <li>
                 <Link href="#jb-fork" className="hover:text-white transition-colors">
-                  JB Fork workflow
+                  JB Fork Radi+
                 </Link>
               </li>
               <li>
@@ -121,8 +126,8 @@ export default function Footer() {
         <div className="border-t border-[#243447] pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-[12px] text-[#5A7D94]">© 2026 PrintDenture. All rights reserved.</p>
           <p className="text-[11px] text-[#5A7D94] text-center sm:text-right max-w-md">
-            JB Fork & JB Tray are trademarks of their respective owners. PrintDenture is an
-            independent lab service.
+            JB Tray & JB Fork are products of PNUADD / Seil Global. PrintDenture is an independent
+            digital denture lab — not affiliated with JB & JD Design.
           </p>
         </div>
       </div>

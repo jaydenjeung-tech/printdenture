@@ -94,6 +94,7 @@ export default function Navbar() {
   }
 
   const marketingLinks = [
+    { label: "JB Tray", href: anchor("#jb-tray") },
     { label: "JB Fork", href: anchor("#jb-fork") },
     { label: "Workflow", href: anchor("#how-it-works") },
     { label: "Services", href: anchor("#products") },

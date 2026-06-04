@@ -3,10 +3,10 @@ import Link from "next/link";
 const steps = [
   {
     number: "01",
-    title: "One-visit records with JB Fork",
+    title: "One-visit records — JB Tray or JB Fork",
     description:
-      "Place JB Fork for upper and lower impressions and bite registration. Capture facial scan with the patient smiling to expose anterior teeth — markers align with CBCT per the JB Fork Radi+ protocol.",
-    detail: "Clinical · ~1 appointment",
+      "JB Tray: soften at 70–75°C, border mold, final impression plus VD and centric relation with POP Bow as needed. JB Fork Radi+: capture facial/CBCT/IOS alignment in the same philosophy.",
+    detail: "Clinical · 1 appointment",
     highlight: false,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
