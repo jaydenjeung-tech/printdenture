@@ -15,7 +15,8 @@ import {
   formatDraftSavedAt,
   type OrderDraftStored,
 } from "@/lib/order-draft";
-import { CURRENT_SITE, filterProductsForSite } from "@/lib/products/site-catalog";
+import { CURRENT_SITE } from "@/lib/products/site-catalog";
+import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import {
   DENTURE_SERVICE_GROUPS,
   isCompleteServiceGroup,
@@ -1264,7 +1265,7 @@ function OrderContent() {
 
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
-      const visibleProducts = filterProductsForSite(productData || []);
+      const visibleProducts = prepareCatalogProducts(productData || []);
       setLabProducts(visibleProducts.filter((p: Product) => p.category !== "equipment"));
       setProductsLoading(false);
 

@@ -5,11 +5,8 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { createAppClient } from "@/lib/supabase";
 import { useState, useEffect } from "react";
-import {
-  CURRENT_SITE,
-  CROWN_CATEGORIES,
-  filterProductsForSite,
-} from "@/lib/products/site-catalog";
+import { CURRENT_SITE, CROWN_CATEGORIES } from "@/lib/products/site-catalog";
+import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import { COMPLETE_DENTURE_INTRO } from "@/lib/products/complete-denture-records";
 import {
   DENTURE_SERVICE_GROUPS,
@@ -187,7 +184,7 @@ export default function PricingPage() {
         .select("*")
         .eq("active", true)
         .order("sort_order");
-      setProducts(filterProductsForSite(data || []));
+      setProducts(prepareCatalogProducts(data || []));
       setLoading(false);
     }
 

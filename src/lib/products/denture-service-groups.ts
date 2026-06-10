@@ -47,7 +47,7 @@ export const DENTURE_SERVICE_GROUPS: readonly DentureServiceGroup[] = [
   },
   {
     id: "removable",
-    label: "Removables",
+    label: "Guards",
     shortLabel: "Guards",
     description:
       "Custom night guards and sports guards from intraoral scans — not denture prosthetics.",

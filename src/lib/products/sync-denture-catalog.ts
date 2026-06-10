@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { guardCategoryFixes } from "@/lib/products/guard-catalog";
 import {
   dentureSeedCategoryFixes,
   dentureSeedsToInsert,
@@ -24,7 +25,13 @@ export async function syncPrintDentureCatalog(
   const rows = existing ?? [];
   let updated = 0;
 
-  for (const fix of dentureSeedCategoryFixes(rows)) {
+  const seedCategoryFixes = dentureSeedCategoryFixes(rows);
+  const categoryFixes = [
+    ...seedCategoryFixes,
+    ...guardCategoryFixes(rows).filter((fix) => !seedCategoryFixes.some((f) => f.id === fix.id)),
+  ];
+
+  for (const fix of categoryFixes) {
     const { error } = await supabase
       .from("products")
       .update({ category: fix.category })
