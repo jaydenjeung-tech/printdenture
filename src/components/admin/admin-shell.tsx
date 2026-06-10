@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import PrintDentureLogo, { PrintDentureWordmark } from "@/components/logo";
 import { ADMIN_FOOTER_LINKS, ADMIN_NAV, isAdminNavActive } from "@/lib/admin-nav";
 
 const NAV_ICONS: Record<string, ReactNode> = {
@@ -41,21 +42,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-[#F8F7F4]">
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-[#E2E0D8] bg-white">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[#E2E0D8]">
-          <Link href="/" className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-[#1D9E75] rounded-lg flex items-center justify-center shrink-0">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                <path
-                  d="M2 9.5c1.2-2.8 3.2-4.2 5-4.5 1.8-.3 3.5.5 5 2.5M3 11.5h8"
-                  stroke="white"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+            <PrintDentureLogo variant="light" size="sm" showWordmark={false} />
             <div className="min-w-0">
-              <p className="font-semibold text-sm text-[#1A1A1A] leading-tight truncate">
-                Print<span className="text-[#0F6E56]">Denture</span>
-              </p>
+              <PrintDentureWordmark variant="light" size="sm" className="block truncate" />
               <p className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider">Admin</p>
             </div>
           </Link>
@@ -104,8 +94,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       <div className="flex flex-1 flex-col min-w-0 min-h-screen">
         <header className="md:hidden h-14 px-4 flex items-center justify-between border-b border-[#E2E0D8] bg-white shrink-0">
-          <Link href="/admin" className="font-semibold text-sm text-[#1A1A1A]">
-            Print<span className="text-[#0F6E56]">Denture</span> Admin
+          <Link href="/admin" className="flex items-center gap-2 font-semibold text-sm text-[#1A1A1A]">
+            <PrintDentureLogo variant="light" size="sm" showWordmark={false} />
+            <PrintDentureWordmark variant="light" size="sm" />
+            <span>Admin</span>
           </Link>
           <select
             className="text-sm border border-[#E2E0D8] rounded-lg px-2 py-1.5 bg-white"

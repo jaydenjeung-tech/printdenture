@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { JB_FORK_GUIDE_PATH, JB_FORK_VIDEOS } from "@/lib/guides/jb-fork-guide";
+import { JB_TRAY_GUIDE_PATH, JB_TRAY_VIDEOS } from "@/lib/guides/jb-tray-guide";
 
 const highlights = [
   { value: "5 → 3", label: "Visits with JB Tray protocol" },
@@ -7,9 +9,14 @@ const highlights = [
   { value: "1 step", label: "Impression + jaw relation" },
 ];
 
+const heroVideos = [
+  { ...JB_TRAY_VIDEOS[0], label: "JB Tray", guideHref: JB_TRAY_GUIDE_PATH },
+  { ...JB_FORK_VIDEOS[0], label: "JB Fork Radi+", guideHref: JB_FORK_GUIDE_PATH },
+] as const;
+
 export default function Hero() {
   return (
-    <section className="relative bg-[#0D1B2A] pt-16 overflow-hidden">
+    <section className="relative bg-[#0D1B2A] pt-[4.25rem] overflow-hidden">
       <div
         className="absolute inset-0 opacity-40"
         style={{
@@ -46,25 +53,26 @@ export default function Hero() {
             </h1>
 
             <p className="text-[17px] text-[#7CA0B8] leading-relaxed mb-8 max-w-[500px]">
-              PrintDenture is built for practices using{" "}
-              <strong className="text-[#E1F5EE] font-medium">JB Fork</strong> and the{" "}
-              <strong className="text-[#E1F5EE] font-medium">JB Tray</strong> workflow: final
-              impression, bite, and facial data in a single chairside session — then scan, order
-              online, and receive a definitive denture from our California lab.
+              Your practice captures records with{" "}
+              <strong className="text-[#E1F5EE] font-medium">JB Tray</strong> or{" "}
+              <strong className="text-[#E1F5EE] font-medium">JB Fork Radi+</strong>, then scans and
+              uploads — our California lab handles{" "}
+              <strong className="text-[#E1F5EE] font-medium">design and fabrication</strong>. No
+              chairside CAD, no try-in visit.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-12">
               <Link
-                href="/auth?next=%2Forder"
+                href="/auth?next=%2Fshop"
                 className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white h-12 px-8 text-[15px] font-medium rounded-xl inline-flex items-center justify-center transition-colors"
               >
-                Start an order
+                Get JB starter kit
               </Link>
               <Link
-                href="#jb-tray"
+                href="/auth?next=%2Forder"
                 className="h-12 px-8 text-[15px] rounded-xl border border-[#1E3347] text-[#9FE1CB] hover:bg-[#132337] inline-flex items-center justify-center transition-colors"
               >
-                JB Tray guide
+                Submit a lab case
               </Link>
             </div>
 
@@ -79,33 +87,41 @@ export default function Hero() {
           </div>
 
           <div className="bg-[#132337]/80 backdrop-blur-sm border border-[#1E3347] rounded-2xl p-6 lg:p-8">
-            <p className="text-[11px] font-medium text-[#5DCAA5] uppercase tracking-[0.1em] mb-6">
+            <p className="text-[11px] font-medium text-[#5DCAA5] uppercase tracking-[0.1em] mb-2">
               The PrintDenture difference
+            </p>
+            <p className="text-[13px] text-[#7CA0B8] leading-relaxed mb-6">
+              You capture and scan. We design and fabricate — no Exocad or 3Shape denture design
+              required in your office.
             </p>
             <ol className="space-y-0">
               {[
                 {
-                  step: "Chairside",
+                  id: "records",
+                  step: "Your practice",
                   title: "JB Tray or JB Fork records",
-                  body: "JB Tray: final impression + VD & centric relation in one visit (no individual tray / wax rim). JB Fork Radi+: markers for facial, CBCT & IOS alignment.",
+                  body: "Final impression, vertical dimension, and centric relation in one visit — JB Tray chairside protocol or JB Fork Radi+ for aligned facial, CBCT, and IOS data.",
                 },
                 {
-                  step: "Scan",
-                  title: "Digitize with your scanner",
-                  body: "Intraoral, model, or CBCT object scan into Exocad / 3Shape — aligned datasets from JB Fork Radi+.",
+                  id: "scan-submit",
+                  step: "Your practice",
+                  title: "Scan & submit",
+                  body: "Export scan files from your intraoral, model, or CBCT scanner. Upload records and complete a digital Rx on PrintDenture — that is all we need from you.",
                 },
                 {
-                  step: "Order",
-                  title: "Submit to PrintDenture",
-                  body: "Upload scans, complete a digital Rx, and release to lab — no phone tag, no paper Rx.",
+                  id: "lab-fabrication",
+                  step: "PrintDenture lab",
+                  title: "Design & fabrication",
+                  body: "Our technicians design the definitive prosthesis in CAD from your scan set, then fabricate in our California lab.",
                 },
                 {
-                  step: "Deliver",
+                  id: "delivery",
+                  step: "Delivery",
                   title: "Definitive denture — no try-in",
-                  body: "We fabricate from verified digital records. Patient returns for delivery, not a try-in fitting.",
+                  body: "Patient returns for delivery, not a try-in fitting. Verified JB records let us skip the interim try-in stage.",
                 },
               ].map((item, i) => (
-                <li key={item.step} className="flex gap-4 pb-6 last:pb-0">
+                <li key={item.id} className="flex gap-4 pb-6 last:pb-0">
                   <div className="flex flex-col items-center">
                     <div className="w-9 h-9 rounded-lg bg-[#1D9E75]/20 border border-[#1D9E75]/40 flex items-center justify-center text-[11px] font-bold text-[#5DCAA5]">
                       {i + 1}
@@ -122,6 +138,61 @@ export default function Hero() {
                 </li>
               ))}
             </ol>
+          </div>
+        </div>
+
+        <div className="mt-14 lg:mt-16">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+            <div>
+              <p className="text-[11px] font-medium text-[#5DCAA5] uppercase tracking-[0.1em] mb-1">
+                See it in action
+              </p>
+              <p className="text-[15px] text-[#9FE1CB] leading-relaxed">
+                One chairside demo from each workflow — full guides have more videos and step-by-step
+                protocols.
+              </p>
+            </div>
+            <Link
+              href="/guides/jb-fork"
+              className="text-[13px] font-medium text-[#7CA0B8] hover:text-[#9FE1CB] shrink-0 transition-colors"
+            >
+              JB Fork guide →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {heroVideos.map((video) => (
+              <div
+                key={video.youtubeId}
+                className="rounded-xl border border-[#1E3347] overflow-hidden bg-[#132337]/80 backdrop-blur-sm"
+              >
+                <div className="relative aspect-video bg-[#0D1B2A]">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${video.youtubeId}`}
+                    title={video.title}
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="absolute inset-0 w-full h-full border-0"
+                  />
+                </div>
+                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-medium text-[#5DCAA5] uppercase tracking-wider mb-1">
+                      {video.label}
+                    </p>
+                    <p className="text-[14px] font-semibold text-white">{video.title}</p>
+                    <p className="text-[12px] text-[#7CA0B8] mt-1 leading-relaxed">{video.description}</p>
+                  </div>
+                  <Link
+                    href={video.guideHref}
+                    className="text-[13px] font-medium text-[#9FE1CB] hover:text-white shrink-0 transition-colors"
+                  >
+                    Full guide →
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

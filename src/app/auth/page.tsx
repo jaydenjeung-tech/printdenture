@@ -9,8 +9,15 @@ import {
   SUPABASE_SETUP_MESSAGE,
 } from "@/lib/supabase";
 import Navbar from "@/components/navbar";
+import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 
 type Mode = "login" | "signup";
+
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY",
+  "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND",
+  "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+];
 
 function getPostAuthPath(next: string | null) {
   if (next?.startsWith("/") && !next.startsWith("//")) return next;
@@ -27,17 +34,37 @@ function AuthContent() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [practiceName, setPracticeName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
   const configured = isSupabaseConfigured();
 
   useEffect(() => {
-    if (!configured) return;
+    if (!configured) {
+      setCheckingSession(false);
+      return;
+    }
     const supabase = createClient();
-    if (supabase) void getClientUser(supabase);
-  }, [configured]);
+    if (!supabase) {
+      setCheckingSession(false);
+      return;
+    }
+    void (async () => {
+      const { user } = await getClientUser(supabase);
+      if (user) {
+        router.replace(postAuthPath);
+        return;
+      }
+      setCheckingSession(false);
+    })();
+  }, [configured, postAuthPath, router]);
 
   async function handleGoogleSignIn() {
     if (!configured) {
@@ -91,11 +118,28 @@ function AuthContent() {
       if (signUpError) {
         setError(signUpError.message);
       } else if (data.user) {
+        if (!isPracticeProfileComplete({
+          practice_name: practiceName,
+          phone,
+          address,
+          city,
+          state,
+          zip,
+        })) {
+          setError("Practice name, phone, and full address are required to sign up.");
+          setLoading(false);
+          return;
+        }
         await supabase.from("profiles").insert({
           id: data.user.id,
           first_name: firstName,
           last_name: lastName,
-          practice_name: practiceName,
+          practice_name: practiceName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          zip: zip.trim(),
         });
         setSuccess("Account created! Please check your email to confirm.");
       }
@@ -108,6 +152,9 @@ function AuthContent() {
       <Navbar />
 
       <div className="flex-1 flex items-center justify-center px-6 pt-24 pb-12">
+        {checkingSession ? (
+          <p className="text-sm text-[#9B9B9B]">Checking session…</p>
+        ) : (
         <div className="w-full max-w-sm">
           <div className="flex bg-white border border-[#E2E0D8] rounded-xl p-1 mb-8">
             <button
@@ -227,7 +274,7 @@ function AuthContent() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
-                    Practice name
+                    Practice name *
                   </label>
                   <input
                     type="text"
@@ -236,6 +283,61 @@ function AuthContent() {
                     placeholder="Smith Family Dentistry"
                     className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Phone *</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(555) 000-0000"
+                    className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Street address *</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="123 Main St"
+                    className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">City *</label>
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="Los Angeles"
+                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                    />
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">State *</label>
+                    <select
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className="w-full h-10 px-2 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56]"
+                    >
+                      <option value="">—</option>
+                      {US_STATES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">ZIP *</label>
+                    <input
+                      type="text"
+                      value={zip}
+                      onChange={(e) => setZip(e.target.value)}
+                      placeholder="90001"
+                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                    />
+                  </div>
                 </div>
               </>
             )}
@@ -279,7 +381,23 @@ function AuthContent() {
               type="button"
               className="w-full h-11 bg-[#0F6E56] hover:bg-[#085041] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
               onClick={handleSubmit}
-              disabled={loading || !email || !password || !configured}
+              disabled={
+                loading ||
+                !email ||
+                !password ||
+                !configured ||
+                (mode === "signup" &&
+                  (!firstName ||
+                    !lastName ||
+                    !isPracticeProfileComplete({
+                      practice_name: practiceName,
+                      phone,
+                      address,
+                      city,
+                      state,
+                      zip,
+                    })))
+              }
             >
               {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
             </button>
@@ -302,6 +420,7 @@ function AuthContent() {
             Uses the same account as PrintCrown when your lab shares one Supabase project.
           </p>
         </div>
+        )}
       </div>
     </div>
   );

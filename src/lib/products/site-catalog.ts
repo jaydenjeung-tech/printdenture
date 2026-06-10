@@ -19,28 +19,33 @@ export const CATEGORY_SITE_DEFAULTS: Record<string, SiteId[]> = {
   zirconia: ["printcrown"],
   printed: ["printcrown"],
   implant: ["printcrown"],
-  nightguard: ["printcrown"],
-  sportsguard: ["printcrown"],
+  nightguard: ["printcrown", "printdenture"],
+  sportsguard: ["printcrown", "printdenture"],
   // PrintDenture — dentures & removable
   complete: ["printdenture"],
   partial: ["printdenture"],
   immediate: ["printdenture"],
   overdenture: ["printdenture"],
   reline: ["printdenture"],
-  removable: ["printdenture"],
   jb_tray: ["printdenture"],
+  equipment: ["printdenture"],
 };
 
 export const CROWN_CATEGORIES = ["zirconia", "printed", "implant", "nightguard", "sportsguard"];
 export const DENTURE_CATEGORIES = [
   "complete",
-  "partial",
+  "jb_tray",
   "immediate",
+  "partial",
   "overdenture",
   "reline",
-  "removable",
-  "jb_tray",
+  "nightguard",
+  "sportsguard",
+  "equipment",
 ];
+
+/** Lab-case categories shown on /order step 1 (excludes equipment — sold via /shop or equipment step). */
+export const ORDER_FLOW_CATEGORIES = DENTURE_CATEGORIES.filter((c) => c !== "equipment");
 
 export function defaultSitesForCategory(category: string): SiteId[] {
   return CATEGORY_SITE_DEFAULTS[category] ?? ["printcrown", "printdenture"];

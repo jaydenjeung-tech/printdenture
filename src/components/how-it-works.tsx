@@ -16,9 +16,9 @@ const steps = [
   },
   {
     number: "02",
-    title: "Scan & align digital data",
+    title: "Scan & upload your records",
     description:
-      "Scan the JB Fork impression with intraoral, model, or CBCT object scanner. Import into 3Shape or Exocad with facial and CBCT datasets already registered.",
+      "Export scan files from intraoral, model, or CBCT capture. No denture design in your office — upload the dataset and release the case to PrintDenture.",
     detail: "IOS · Model · CBCT",
     highlight: false,
     icon: (
@@ -29,9 +29,9 @@ const steps = [
   },
   {
     number: "03",
-    title: "Order on PrintDenture",
+    title: "Complete your Rx & release",
     description:
-      "Sign in, upload scans, and complete your digital Rx. Release the case to our California lab — no try-in selection required for JB Fork-verified workflows.",
+      "Choose product, shade, and clinical notes in our online Rx, then checkout. Once submitted, our lab owns design and fabrication — no try-in path for verified JB workflows.",
     detail: "Online · HIPAA secure",
     highlight: true,
     icon: (
@@ -42,9 +42,9 @@ const steps = [
   },
   {
     number: "04",
-    title: "Direct fabrication — no try-in",
+    title: "Lab design & fabrication",
     description:
-      "Technicians design and process the definitive prosthesis from your aligned record set. No interim try-in shipment — fewer logistics and no extra patient visit for try-in approval.",
+      "Our California technicians design the definitive prosthesis in CAD from your aligned record set, then fabricate — no interim try-in shipment or extra patient visit for approval.",
     detail: "Skip try-in stage",
     highlight: true,
     icon: (
@@ -57,8 +57,8 @@ const steps = [
     number: "05",
     title: "Delivery to your practice",
     description:
-      "FedEx tracked shipment of the definitive denture. Patient returns for insertion — chair time focused on delivery and minor adjustment, not a try-in fitting.",
-    detail: "FedEx · CA lab",
+      "UPS tracked shipment of the definitive denture. Patient returns for insertion — chair time focused on delivery and minor adjustment, not a try-in fitting.",
+    detail: "UPS · CA lab",
     highlight: false,
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -80,8 +80,8 @@ export default function HowItWorks() {
             From JB Fork impression to definitive denture
           </h2>
           <p className="text-[14px] text-[#6B7280] mt-3 leading-relaxed">
-            A digital path designed for edentulous cases — aligned with the JB Fork quick guide
-            clinical sequence and optimized for labs that fabricate without a try-in step.
+            Your practice handles records and scan upload. PrintDenture handles CAD design,
+            fabrication, and delivery — no chairside denture design required.
           </p>
         </div>
 

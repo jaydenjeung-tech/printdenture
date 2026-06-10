@@ -1,9 +1,13 @@
+import type { OrderFlowStep } from "@/lib/equipment-requirements";
+
 const DRAFT_KEY = "printdenture_order_draft_v1";
 
 export type OrderDraftStored = {
   version: 1;
   savedAt: string;
   step: number;
+  /** Semantic step name — survives when equipment step is added or removed. */
+  flowStep?: OrderFlowStep;
   productId: string | null;
   quantity: number;
   shade: string;
@@ -33,10 +37,12 @@ export type OrderDraftStored = {
   aiDesignedFileName: string;
   aiDesignError: string;
   designChoice: "ai" | "cad" | "";
+  recordChecklist?: Record<string, boolean>;
 };
 
 type DraftSource = {
   step: number;
+  flowStep?: OrderFlowStep;
   product: { id: string } | null;
   quantity: number;
   shade: string;
@@ -66,6 +72,7 @@ type DraftSource = {
   aiDesignedFileName: string;
   aiDesignError: string;
   designChoice: OrderDraftStored["designChoice"];
+  recordChecklist?: Record<string, boolean>;
 };
 
 export function saveOrderDraft(source: DraftSource) {
@@ -74,6 +81,7 @@ export function saveOrderDraft(source: DraftSource) {
     version: 1,
     savedAt: new Date().toISOString(),
     step: source.step,
+    flowStep: source.flowStep,
     productId: source.product?.id ?? null,
     quantity: source.quantity,
     shade: source.shade,
@@ -103,6 +111,7 @@ export function saveOrderDraft(source: DraftSource) {
     aiDesignedFileName: source.aiDesignedFileName,
     aiDesignError: source.aiDesignError,
     designChoice: source.designChoice,
+    recordChecklist: source.recordChecklist,
   };
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));

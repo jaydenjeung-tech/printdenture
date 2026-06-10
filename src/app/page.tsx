@@ -1,6 +1,7 @@
 import Navbar from "@/components/navbar";
 import Hero from "@/components/hero";
 import VisitComparison from "@/components/visit-comparison";
+import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
 import JBTray from "@/components/jb-tray";
 import JBFork from "@/components/jb-fork";
 import HowItWorks from "@/components/how-it-works";
@@ -14,6 +15,11 @@ export default function Home() {
       <Navbar />
       <Hero />
       <VisitComparison />
+      <section className="py-16 px-6 bg-[#F7FAF9] border-y border-[#E5E7EB]">
+        <div className="max-w-6xl mx-auto">
+          <JbProtocolChooser variant="full" />
+        </div>
+      </section>
       <JBTray />
       <JBFork />
       <HowItWorks />

@@ -41,28 +41,48 @@ export async function POST(req: NextRequest) {
     if (orderId) {
       const { data: order } = await supabase
         .from("orders")
-        .select("product_name, product_id")
+        .select("product_name, product_id, user_id, order_type, notes")
         .eq("id", orderId)
         .single();
 
       const paidAt = new Date(session.created * 1000);
-      const dueDate = calculateDueDate(paidAt, order?.product_name, order?.product_id);
+      const isEquipment =
+        session.metadata?.orderType === "equipment" || order?.order_type === "equipment";
 
-           await supabase
+      const dueDate = isEquipment
+        ? null
+        : calculateDueDate(paidAt, order?.product_name, order?.product_id);
+
+      await supabase
         .from("orders")
         .update({
           status: "received",
           stripe_session_id: session.id,
           paid_at: paidAt.toISOString(),
-          due_date: dueDate.toISOString().split("T")[0],
+          due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
         })
         .eq("id", orderId);
+
+      if (isEquipment && order?.user_id) {
+        const equipmentKind =
+          session.metadata?.equipmentKind ||
+          (order.notes?.includes("jb_tray") ? "jb_tray" : order.notes?.includes("jb_fork") ? "jb_fork" : null);
+
+        const profilePatch: Record<string, string> = {};
+        if (equipmentKind === "jb_tray") profilePatch.jb_tray_status = "ordered";
+        if (equipmentKind === "jb_fork") profilePatch.jb_fork_status = "ordered";
+
+        if (Object.keys(profilePatch).length > 0) {
+          await supabase.from("profiles").update(profilePatch).eq("id", order.user_id);
+        }
+      } else {
         await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notify-new-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId }),
         });
-        }
+      }
+    }
   }
 
   return NextResponse.json({ received: true });

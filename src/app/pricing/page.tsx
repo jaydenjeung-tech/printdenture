@@ -11,6 +11,14 @@ import {
   DENTURE_CATEGORIES,
   filterProductsForSite,
 } from "@/lib/products/site-catalog";
+import {
+  COMPLETE_DENTURE_INTRO,
+} from "@/lib/products/complete-denture-records";
+import {
+  DENTURE_SERVICE_GROUPS,
+  PRODUCT_CATEGORY_SECTION_LABELS,
+} from "@/lib/products/denture-service-groups";
+import { formatPricingCardPrice } from "@/lib/products/arch-pricing";
 
 type Product = {
   id: string;
@@ -54,40 +62,43 @@ const CATEGORY_META: Record<string, {
     features: ["Compatible with major platforms", "Shade matching", "Rush options", "Free remake guarantee"],
   },
   complete: {
-    label: "Complete Dentures",
-    description: "Full-arch dentures from digital records — streamlined for fewer visits.",
-    features: ["JB Fork / JB Tray workflow", "Digital try-in optional", "Shade & tooth setup", "Free remake guarantee"],
+    label: "Complete",
+    description: COMPLETE_DENTURE_INTRO.description,
+    features: ["JB Fork or JB Tray records", "Immediate options", "Lab CAD design", "Free remake guarantee"],
   },
   partial: {
-    label: "Partial Dentures",
-    description: "Metal or flexible partial frameworks with natural tooth arrangement.",
-    features: ["Digital design", "Multiple clasp options", "Rush available", "Free remake guarantee"],
+    label: "Partial",
+    description: "Flexible, cast, removable partials, and temporary flippers for partially edentulous arches.",
+    features: ["Flexible & cast partial", "Removable partial & flipper", "Digital clasp design", "Free remake guarantee"],
   },
   immediate: {
-    label: "Immediate Dentures",
-    description: "Same-day or next-visit delivery dentures after extractions.",
-    features: ["Fast turnaround", "Chairside adjustments", "Follow-up reline ready", "Free remake guarantee"],
+    label: "Immediate",
+    description: "Delivery dentures at or shortly after extraction — included under Complete cases.",
+    features: ["Fast turnaround", "Pre-op scan workflow", "Follow-up reline ready", "Free remake guarantee"],
   },
   overdenture: {
-    label: "Implant Overdentures",
-    description: "Locator or bar-retained overdentures for implant cases.",
-    features: ["Implant-level records", "Bar & locator options", "Soft liner available", "Free remake guarantee"],
+    label: "Overdenture / All-on-X",
+    description: "Locator, bar-retained overdentures, and full-arch All-on-X implant cases.",
+    features: ["Implant-level records", "Bar, locator & All-on-X", "Lab design & fab", "Free remake guarantee"],
   },
   reline: {
-    label: "Reline & Repair",
-    description: "Hard and soft relines, repairs, and additions to existing prosthetics.",
+    label: "Reline / repair",
+    description: "Hard and soft relines, repairs, and adjustments on existing prostheses.",
     features: ["Mail-in or digital", "Same-week options", "Quality check included", "Free remake guarantee"],
   },
   removable: {
-    label: "Removable Prosthetics",
-    description: "Full and partial removable cases from your digital workflow.",
-    features: ["Scan or impression", "Shade & setup", "Rush options", "Free remake guarantee"],
+    label: "Removables",
+    description: "Custom night guards and sports guards from intraoral scans.",
+    features: ["Soft, hard & dual-laminate", "Custom colors", "Digital scan required", "Free remake guarantee"],
   },
-  jb_tray: {
-    label: "JB Tray Cases",
-    description: "JB Tray record cases aligned with your one-visit denture protocol.",
-    features: ["Fork + tray records", "Digital design", "Lab support", "Free remake guarantee"],
-  },
+};
+
+const SERVICE_GROUP_FEATURES: Record<string, string[]> = {
+  complete: CATEGORY_META.complete.features,
+  partial: CATEGORY_META.partial.features,
+  overdenture: CATEGORY_META.overdenture.features,
+  removable: ["Night & sports guards", "Soft, hard & dual-laminate", "Custom colors", "Free remake guarantee"],
+  reline: CATEGORY_META.reline.features,
 };
 
 const CATEGORY_ORDER =
@@ -111,6 +122,14 @@ export default function PricingPage() {
     const supabase = createAppClient();
 
     async function load() {
+      if (CURRENT_SITE === "printdenture") {
+        try {
+          await fetch("/api/catalog/sync", { method: "POST" });
+        } catch {
+          // Best-effort — pricing still loads existing rows.
+        }
+      }
+
       const { data } = await supabase
         .from("products")
         .select("*")
@@ -123,14 +142,38 @@ export default function PricingPage() {
     load();
   }, []);
 
-  const grouped = CATEGORY_ORDER.map((cat) => {
-    const items = products.filter((p) => p.category === cat);
-    return {
-      cat,
-      meta: categoryMeta(cat, items[0]),
-      items,
-    };
-  }).filter((g) => g.items.length > 0);
+  const grouped =
+    CURRENT_SITE === "printdenture"
+      ? DENTURE_SERVICE_GROUPS.map((serviceGroup) => {
+          const sections = serviceGroup.categories
+            .map((cat) => ({
+              label: PRODUCT_CATEGORY_SECTION_LABELS[cat] ?? categoryMeta(cat).label,
+              items: products.filter((p) => p.category === cat),
+            }))
+            .filter((section) => section.items.length > 0);
+
+          if (sections.length === 0) return null;
+
+          return {
+            cat: serviceGroup.id,
+            meta: {
+              label: serviceGroup.label,
+              description: serviceGroup.description,
+              features: SERVICE_GROUP_FEATURES[serviceGroup.id] ?? categoryMeta(serviceGroup.categories[0]).features,
+            },
+            sections: sections.length > 1 ? sections : undefined,
+            items: sections.length === 1 ? sections[0].items : undefined,
+          };
+        }).filter((group): group is NonNullable<typeof group> => group !== null)
+      : CATEGORY_ORDER.map((cat) => {
+          const items = products.filter((p) => p.category === cat);
+          if (items.length === 0) return null;
+          return {
+            cat,
+            meta: categoryMeta(cat, items[0]),
+            items,
+          };
+        }).filter((group): group is NonNullable<typeof group> => group !== null);
 
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
@@ -185,12 +228,12 @@ export default function PricingPage() {
           </div>
         ) : (
           <div className="space-y-16">
-            {grouped.map(({ cat, meta, items }) => (
-              <div key={cat}>
+            {grouped.map((group) => (
+              <div key={group.cat}>
                 <div className="flex items-end justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">{meta.label}</h2>
-                    <p className="text-sm text-[#6B6B6B]">{meta.description}</p>
+                    <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">{group.meta.label}</h2>
+                    <p className="text-sm text-[#6B6B6B]">{group.meta.description}</p>
                   </div>
                   <Link href="/auth?next=%2Forder"
                     className="text-sm text-[#2563EB] hover:underline whitespace-nowrap ml-4">
@@ -198,33 +241,77 @@ export default function PricingPage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {items.map((p) => (
-                    <div key={p.id}
-                      className="bg-white rounded-2xl border border-[#E2E0D8] p-5 hover:border-[#1A1A1A] transition-all">
-                      <div className="w-8 h-1 rounded-full mb-4" style={{ background: p.accent }} />
-                      <h3 className="font-semibold text-[#1A1A1A] mb-1">{p.name}</h3>
-                      <p className="text-xs text-[#9B9B9B] mb-4 leading-relaxed">{p.description}</p>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <span className="text-2xl font-bold text-[#1A1A1A]">${p.price}</span>
-                          <span className="text-sm text-[#6B6B6B] ml-1">/ unit</span>
-                          <p className="text-xs text-[#9B9B9B] mt-0.5">{p.turnaround}</p>
+                {"sections" in group && group.sections ? (
+                  <div className="space-y-8 mb-6">
+                    {group.sections.map((section) => (
+                      <div key={section.label}>
+                        <p className="text-sm font-semibold text-[#4B4B4B] mb-3">{section.label}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {section.items.map((p) => {
+                            const priceDisplay = formatPricingCardPrice(p);
+                            return (
+                            <div key={p.id}
+                              className="bg-white rounded-2xl border border-[#E2E0D8] p-5 hover:border-[#1A1A1A] transition-all">
+                              <div className="w-8 h-1 rounded-full mb-4" style={{ background: p.accent }} />
+                              <h3 className="font-semibold text-[#1A1A1A] mb-1">{p.name}</h3>
+                              <p className="text-xs text-[#9B9B9B] mb-4 leading-relaxed">{p.description}</p>
+                              <div className="flex items-end justify-between">
+                                <div>
+                                  <span className="text-2xl font-bold text-[#1A1A1A]">{priceDisplay.primary}</span>
+                                  {priceDisplay.secondary && (
+                                    <span className="text-sm text-[#6B6B6B] ml-1">{priceDisplay.secondary}</span>
+                                  )}
+                                  <p className="text-xs text-[#9B9B9B] mt-0.5">{p.turnaround}</p>
+                                </div>
+                                <Link href={`/auth?next=${encodeURIComponent(`/order?product=${p.id}`)}`}>
+                                  <button
+                                    className="h-8 px-4 rounded-lg text-white text-xs font-medium transition-all hover:opacity-80"
+                                    style={{ background: p.accent }}>
+                                    Order
+                                  </button>
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                          })}
                         </div>
-                        <Link href={`/auth?next=${encodeURIComponent(`/order?product=${p.id}`)}`}>
-                          <button
-                            className="h-8 px-4 rounded-lg text-white text-xs font-medium transition-all hover:opacity-80"
-                            style={{ background: p.accent }}>
-                            Order
-                          </button>
-                        </Link>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    {group.items?.map((p) => {
+                      const priceDisplay = formatPricingCardPrice(p);
+                      return (
+                      <div key={p.id}
+                        className="bg-white rounded-2xl border border-[#E2E0D8] p-5 hover:border-[#1A1A1A] transition-all">
+                        <div className="w-8 h-1 rounded-full mb-4" style={{ background: p.accent }} />
+                        <h3 className="font-semibold text-[#1A1A1A] mb-1">{p.name}</h3>
+                        <p className="text-xs text-[#9B9B9B] mb-4 leading-relaxed">{p.description}</p>
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <span className="text-2xl font-bold text-[#1A1A1A]">{priceDisplay.primary}</span>
+                            {priceDisplay.secondary && (
+                              <span className="text-sm text-[#6B6B6B] ml-1">{priceDisplay.secondary}</span>
+                            )}
+                            <p className="text-xs text-[#9B9B9B] mt-0.5">{p.turnaround}</p>
+                          </div>
+                          <Link href={`/auth?next=${encodeURIComponent(`/order?product=${p.id}`)}`}>
+                            <button
+                              className="h-8 px-4 rounded-lg text-white text-xs font-medium transition-all hover:opacity-80"
+                              style={{ background: p.accent }}>
+                              Order
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                    })}
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-3">
-                  {meta.features.map((f) => (
+                  {group.meta.features.map((f) => (
                     <span key={f}
                       className="text-xs text-[#6B6B6B] bg-white border border-[#E2E0D8] px-3 py-1.5 rounded-full">
                       {f}

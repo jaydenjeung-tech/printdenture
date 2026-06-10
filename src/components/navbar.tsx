@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import PrintDentureLogo from "@/components/logo";
 import { createClient, getClientUser, isSupabaseConfigured } from "@/lib/supabase";
 
 type Role = "user" | "lab" | "admin";
@@ -15,9 +16,9 @@ type UserState = {
 };
 
 const linkClass =
-  "text-[13px] text-[#7CA0B8] hover:text-white transition-colors whitespace-nowrap";
+  "text-[15px] font-medium text-[#8BB3C8] hover:text-white transition-colors whitespace-nowrap";
 const linkClassAccent =
-  "text-[13px] font-medium text-[#5DCAA5] hover:text-[#9FE1CB] transition-colors whitespace-nowrap";
+  "text-[15px] font-semibold text-[#5DCAA5] hover:text-[#9FE1CB] transition-colors whitespace-nowrap";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -94,11 +95,12 @@ export default function Navbar() {
   }
 
   const marketingLinks = [
-    { label: "JB Tray", href: anchor("#jb-tray") },
-    { label: "JB Fork", href: anchor("#jb-fork") },
+    { label: "JB Tray", href: "/guides/jb-tray" },
+    { label: "JB Fork", href: "/guides/jb-fork" },
     { label: "Workflow", href: anchor("#how-it-works") },
     { label: "Services", href: anchor("#products") },
     { label: "Pricing", href: "/pricing" },
+    { label: "Equipment", href: "/shop" },
   ];
 
   const accountLinks = [
@@ -122,26 +124,14 @@ export default function Navbar() {
 
   function Logo() {
     return (
-      <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0">
-        <div className="w-8 h-8 bg-[#1D9E75] rounded-lg flex items-center justify-center shrink-0">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-            <path
-              d="M2 9.5c1.2-2.8 3.2-4.2 5-4.5 1.8-.3 3.5.5 5 2.5M3 11.5h8"
-              stroke="white"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        <span className="font-semibold text-[16px] lg:text-[17px] text-white tracking-tight">
-          Print<span className="text-[#5DCAA5]">Denture</span>
-        </span>
+      <Link href="/" aria-label="PrintDenture home">
+        <PrintDentureLogo variant="dark" size="md" />
       </Link>
     );
   }
 
   function Separator() {
-    return <span className="w-px h-4 bg-[#1E3347] shrink-0 hidden lg:block" aria-hidden />;
+    return <span className="w-px h-5 bg-[#1E3347] shrink-0 hidden lg:block" aria-hidden />;
   }
 
   function MarketingNav() {
@@ -183,7 +173,7 @@ export default function Navbar() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setAdminOpen(false)}
-                className="block px-4 py-2 text-[13px] text-[#9FE1CB] hover:bg-[#1E3347] hover:text-white transition-colors"
+                className="block px-4 py-2.5 text-[15px] font-medium text-[#9FE1CB] hover:bg-[#1E3347] hover:text-white transition-colors"
               >
                 {l.label}
               </Link>
@@ -197,7 +187,7 @@ export default function Navbar() {
   function DesktopNav() {
     if (user?.role === "lab") {
       return (
-        <div className="flex items-center gap-4 lg:gap-5">
+        <div className="flex items-center gap-5 lg:gap-6">
           {labLinks.map((l) => (
             <Link key={l.href} href={l.href} className={linkClassAccent}>
               {l.label}
@@ -209,7 +199,7 @@ export default function Navbar() {
 
     if (user?.role === "admin") {
       return (
-        <div className="flex items-center gap-3 lg:gap-4 flex-wrap justify-center">
+        <div className="flex items-center gap-4 lg:gap-5 flex-wrap justify-center">
           <MarketingNav />
           <Separator />
           {accountLinks.map((l) => (
@@ -224,7 +214,7 @@ export default function Navbar() {
 
     if (user) {
       return (
-        <div className="flex items-center gap-3 lg:gap-4 flex-wrap justify-center">
+        <div className="flex items-center gap-4 lg:gap-5 flex-wrap justify-center">
           <MarketingNav />
           <Separator />
           {accountLinks.map((l) => (
@@ -237,7 +227,7 @@ export default function Navbar() {
     }
 
     return (
-      <div className="flex items-center gap-3 lg:gap-5 flex-wrap justify-center">
+      <div className="flex items-center gap-4 lg:gap-6 flex-wrap justify-center">
         <MarketingNav />
         <Link href="/support" className={linkClass}>
           Support
@@ -257,13 +247,13 @@ export default function Navbar() {
           <Link href="/auth">
             <Button
               variant="ghost"
-              className="text-[13px] text-[#7CA0B8] hover:text-white hover:bg-white/5 h-9 px-3"
+              className="text-[15px] font-medium text-[#8BB3C8] hover:text-white hover:bg-white/5 h-10 px-4"
             >
               Sign in
             </Button>
           </Link>
           <Link href="/auth?next=%2Forder">
-            <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[13px] px-4 h-9 rounded-lg">
+            <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[15px] font-medium px-5 h-10 rounded-lg">
               Order now
             </Button>
           </Link>
@@ -282,7 +272,7 @@ export default function Navbar() {
     return (
       <div className="flex items-center gap-2 shrink-0">
         <Link href="/order">
-          <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[13px] px-4 h-9 rounded-lg">
+          <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[15px] font-medium px-5 h-10 rounded-lg">
             New order
           </Button>
         </Link>
@@ -304,7 +294,7 @@ export default function Navbar() {
             key={l.href}
             href={l.href}
             onClick={() => setOpen(false)}
-            className={`block text-[15px] font-medium ${accent ? "text-[#5DCAA5]" : "text-white"}`}
+            className={`block text-[16px] font-medium ${accent ? "text-[#5DCAA5]" : "text-white"}`}
           >
             {l.label}
           </Link>
@@ -393,7 +383,7 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 w-full bg-[#0D1B2A]/95 backdrop-blur-md border-b border-[#1E3347]">
-      <div className="w-full flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-10 h-16">
+      <div className="w-full flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-10 h-[4.25rem]">
         <Logo />
 
         {!loading && (
@@ -409,7 +399,7 @@ export default function Navbar() {
         <div className="flex lg:hidden items-center gap-2 shrink-0">
           {!loading && !user && (
             <Link href="/auth?next=%2Forder">
-              <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[12px] px-3 h-8 rounded-lg">
+              <Button className="bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-[14px] font-medium px-3.5 h-9 rounded-lg">
                 Order
               </Button>
             </Link>

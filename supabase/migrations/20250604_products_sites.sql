@@ -1,7 +1,7 @@
 -- Run in Supabase SQL Editor (shared project used by PrintCrown + PrintDenture).
--- Controls which storefront shows each product.
+-- Prerequisite: 20250601_create_products_table.sql (or 20250609 seed file).
 
-ALTER TABLE products
+ALTER TABLE IF EXISTS products
 ADD COLUMN IF NOT EXISTS sites text[] DEFAULT NULL;
 
 COMMENT ON COLUMN products.sites IS

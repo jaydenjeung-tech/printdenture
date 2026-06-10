@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PrintDentureLogo from "@/components/logo";
 
 export default function Footer() {
   return (
@@ -25,20 +26,8 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div className="md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 bg-[#1D9E75] rounded-lg flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                  <path
-                    d="M2 9.5c1.2-2.8 3.2-4.2 5-4.5 1.8-.3 3.5.5 5 2.5M3 11.5h8"
-                    stroke="white"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-              <span className="font-semibold text-[17px]">
-                Print<span className="text-[#5DCAA5]">Denture</span>
-              </span>
+            <div className="mb-4">
+              <PrintDentureLogo variant="dark" size="lg" />
             </div>
             <p className="text-[13px] text-[#7CA0B8] leading-relaxed mb-5">
               Digital denture lab for JB Fork & JB Tray practices — definitive prosthetics from
@@ -57,7 +46,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#jb-fork" className="hover:text-white transition-colors">
+                <Link href="/guides/jb-fork" className="hover:text-white transition-colors">
                   JB Fork Radi+
                 </Link>
               </li>

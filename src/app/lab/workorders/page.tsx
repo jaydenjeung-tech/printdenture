@@ -149,7 +149,7 @@ function WorkOrdersContent() {
         </button>
       </div>
 
-      <div className="no-print max-w-2xl mx-auto pt-16 pb-4 px-10">
+      <div className="no-print max-w-2xl mx-auto pt-[4.25rem] pb-4 px-10">
         <p className="text-sm text-gray-500">{orders.length} work order{orders.length > 1 ? "s" : ""} ready to print</p>
       </div>
 

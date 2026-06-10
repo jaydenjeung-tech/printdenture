@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       mode: "payment",
       line_items: lineItems,
-      metadata: { orderId: order.id, userId: user.id },
+      metadata: { orderId: order.id, userId: user.id, orderType: "lab_case" },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true&orderId=${order.id}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
     });

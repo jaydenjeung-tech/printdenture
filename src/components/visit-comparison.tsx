@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { JB_TRAY_GUIDE_PATH } from "@/lib/guides/jb-tray-guide";
+
 export default function VisitComparison() {
   return (
     <section className="py-16 px-6 bg-white border-y border-[#E5E7EB]">
@@ -11,14 +14,9 @@ export default function VisitComparison() {
           </h2>
           <p className="text-[15px] text-[#6B7280] mt-3 max-w-2xl mx-auto">
             Per the{" "}
-            <a
-              href="https://tomabranding.mycafe24.com/jb-jd/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#0F6E56] font-medium hover:underline"
-            >
-              JB & JD Design
-            </a>{" "}
+            <Link href={JB_TRAY_GUIDE_PATH} className="text-[#0F6E56] font-medium hover:underline">
+              JB Tray clinical guide
+            </Link>{" "}
             protocol, JB Tray can reduce visits from five to three — in some cases two. PrintDenture
             removes the try-in visit by manufacturing from your verified digital record set.
           </p>

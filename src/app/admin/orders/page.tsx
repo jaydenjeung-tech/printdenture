@@ -453,7 +453,7 @@ export default function AdminOrdersPage() {
                               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                                 <input type="text" value={trackingInputs[order.id] || ""}
                                   onChange={e => setTrackingInputs(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                  placeholder="UPS / FedEx number..."
+                                  placeholder="UPS tracking number..."
                                   className="flex-1 h-8 px-2.5 rounded-lg border border-[#E2E0D8] bg-white text-xs text-[#1A1A1A] focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]"
                                 />
                                 <button onClick={e => { e.stopPropagation(); updateTracking(order.id); }}

@@ -53,7 +53,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [trackingInput, setTrackingInput] = useState("");
-  const [carrierInput, setCarrierInput] = useState("FedEx");
+  const [carrierInput, setCarrierInput] = useState("UPS");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [updating, setUpdating] = useState(false);
 
@@ -315,7 +315,7 @@ export default function AdminPage() {
                     </p>
                   )}
                   <div className="flex gap-2 mb-2">
-                    {["FedEx", "UPS", "USPS"].map((c) => (
+                    {["UPS", "USPS"].map((c) => (
                       <button key={c} onClick={() => setCarrierInput(c)}
                         className={`flex-1 h-7 rounded text-xs border transition-all
                           ${carrierInput === c ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#6B6B6B] border-[#E2E0D8]"}`}>

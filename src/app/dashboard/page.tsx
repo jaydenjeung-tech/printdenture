@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { createAppClient } from "@/lib/supabase";
 import { loadOrderDraft, formatDraftSavedAt } from "@/lib/order-draft";
 import Navbar from "@/components/navbar";
+import CompleteProfileModal, { type CompleteProfile } from "@/components/complete-profile-modal";
+import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 import { useSearchParams } from "next/navigation";
+import WorkflowReadinessCard from "@/components/workflow-readiness-card";
 
 type Order = {
   id: string;
@@ -30,6 +33,7 @@ type Order = {
   due_date: string | null;
   is_remake: boolean;
   remake_reason: string | null;
+  order_type?: string | null;
 };
 
 type Profile = {
@@ -45,6 +49,10 @@ type Profile = {
   dentist_name: string | null;
   license_no: string | null;
   license_state: string | null;
+  jb_tray_status?: string | null;
+  jb_fork_status?: string | null;
+  jb_tray_trained?: boolean | null;
+  jb_fork_trained?: boolean | null;
 };
 
 const STATUS_STEPS = ["received", "printing", "qc", "shipped", "delivered"];
@@ -226,6 +234,11 @@ function OrderCard({ order, onReorder }: { order: Order; onReorder: (order: Orde
               {order.paid_at && (
                 <Badge className="text-xs border bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]">Paid</Badge>
               )}
+              {order.order_type === "equipment" && (
+                <Badge className="text-xs border bg-[#E1F5EE] text-[#085041] border-[#9FE1CB]">
+                  Equipment
+                </Badge>
+              )}
               {order.is_remake && (
                 <Badge className="text-xs border bg-red-50 text-red-500 border-red-200">
                   Remake · {REMAKE_REASONS[order.remake_reason || ""] || order.remake_reason}
@@ -396,12 +409,12 @@ function ProfileModal({ profile, onClose, onSave }: {
         </div>
         <div className="space-y-3">
           {[
-            { label: "Practice name", key: "practice_name" as keyof Profile },
-            { label: "Phone",         key: "phone" as keyof Profile },
-            { label: "Address",       key: "address" as keyof Profile },
-            { label: "City",          key: "city" as keyof Profile },
-            { label: "State",         key: "state" as keyof Profile },
-            { label: "ZIP",           key: "zip" as keyof Profile },
+            { label: "Practice name *", key: "practice_name" as keyof Profile },
+            { label: "Phone *",         key: "phone" as keyof Profile },
+            { label: "Address *",       key: "address" as keyof Profile },
+            { label: "City *",          key: "city" as keyof Profile },
+            { label: "State *",         key: "state" as keyof Profile },
+            { label: "ZIP *",           key: "zip" as keyof Profile },
           ].map(field => (
             <div key={field.key}>
               <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
@@ -436,8 +449,10 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [needsPracticeProfile, setNeedsPracticeProfile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "amount" | "status">("newest");
   const [statusFilter, setStatusFilter] = useState<"all" | "inprogress" | "shipped" | "delivered">("all");
@@ -476,11 +491,13 @@ function DashboardContent() {
       const supabase = createAppClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
+      setUserId(user.id);
       const [{ data: profileData }, { data: ordersData }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       if (profileData) setProfile(profileData);
+      setNeedsPracticeProfile(!isPracticeProfileComplete(profileData));
       if (ordersData) setOrders(ordersData);
       setLoading(false);
     }
@@ -499,7 +516,7 @@ function DashboardContent() {
     );
   }
 
-  const nonRemakeOrders = orders.filter(o => !o.is_remake);
+  const nonRemakeOrders = orders.filter(o => !o.is_remake && o.order_type !== "equipment");
   const inProgressOrders = orders.filter(o => ["received", "printing", "qc"].includes(o.status) && !o.is_remake);
   const shippedOrders = orders.filter(o => ["shipped", "delivered"].includes(o.status));
 
@@ -528,9 +545,21 @@ function DashboardContent() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
+  function handlePracticeProfileComplete(updated: CompleteProfile) {
+    setProfile(updated as Profile);
+    setNeedsPracticeProfile(false);
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
+      {needsPracticeProfile && userId && (
+        <CompleteProfileModal
+          profile={profile as CompleteProfile | null}
+          userId={userId}
+          onComplete={handlePracticeProfileComplete}
+        />
+      )}
       {showProfileModal && profile && (
         <ProfileModal
           profile={profile}
@@ -589,6 +618,19 @@ function DashboardContent() {
               </div>
             ))}
           </div>
+        )}
+
+        {profile && userId && (
+          <WorkflowReadinessCard
+            userId={userId}
+            profile={{
+              jb_tray_status: profile.jb_tray_status,
+              jb_fork_status: profile.jb_fork_status,
+              jb_tray_trained: profile.jb_tray_trained,
+              jb_fork_trained: profile.jb_fork_trained,
+            }}
+            onUpdate={(patch) => setProfile((prev) => (prev ? { ...prev, ...patch } : prev))}
+          />
         )}
 
         {profile?.practice_name && (

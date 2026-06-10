@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
+import { isOrderShippingComplete } from "@/lib/profile-requirements";
 import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
 import {
   saveOrderDraft,
@@ -15,6 +16,45 @@ import {
   type OrderDraftStored,
 } from "@/lib/order-draft";
 import { CURRENT_SITE, filterProductsForSite } from "@/lib/products/site-catalog";
+import {
+  DENTURE_SERVICE_GROUPS,
+  isCompleteServiceGroup,
+} from "@/lib/products/denture-service-groups";
+import { JbShopBanner } from "@/components/jb-shop-banner";
+import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
+import { RecordUploadChecklistPanel } from "@/components/record-upload-checklist";
+import { OrderFlowMobileProgress, OrderFlowSidebar } from "@/components/order-flow-sidebar";
+import Link from "next/link";
+import {
+  buildOrderFlow,
+  canSubmitLabCase,
+  canStartJbLabCase,
+  equipmentBlockReason,
+  flowStepToIndex,
+  getEquipmentNoticeForCategory,
+  isJbWorkflowCategory,
+  productRequiresEquipmentCheck,
+  resolveDraftStepIndex,
+  shopHrefForProductCategory,
+  stepIndexToFlowStep,
+  ORDER_FLOW_STEP_LABELS,
+  type EquipmentProfile,
+  type OrderFlowStep,
+} from "@/lib/equipment-requirements";
+import {
+  emptyRecordChecklistForCategory,
+  getRecordUploadChecklist,
+  isRecordChecklistComplete,
+} from "@/lib/products/record-upload-checklist";
+import {
+  ARCH_OPTIONS,
+  formatArchLabel,
+  formatOrderProductName,
+  formatProductPriceHint,
+  productNeedsArchSelection,
+  resolveLegacyProductSelection,
+  resolveLineItemPrice,
+} from "@/lib/products/arch-pricing";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -60,16 +100,30 @@ type OrderData = {
   aiDesignedFileName: string;
   aiDesignError: string;
   designChoice: "ai" | "cad" | "";
+  recordChecklist: Record<string, boolean>;
 };
 
 const CAD_DESIGN_FEE = 5;
 
 function getOrderPricing(data: OrderData) {
   const product = data.product;
-  const subtotal = product ? product.price * data.quantity : 0;
+  const unitPrice = product ? resolveLineItemPrice(product, data.arch) : 0;
+  const subtotal = unitPrice * data.quantity;
   const shipping = SHIPPING_FLAT_RATE;
   const designFee = data.designChoice === "cad" ? CAD_DESIGN_FEE : 0;
-  return { subtotal, shipping, designFee, total: subtotal + shipping + designFee };
+  return { subtotal, shipping, designFee, unitPrice, total: subtotal + shipping + designFee };
+}
+
+function resolveActiveProductSelection(
+  candidate: Product,
+  activeCatalog: Product[]
+): { product: Product; arch: string } {
+  if (activeCatalog.some((p) => p.id === candidate.id)) {
+    return { product: candidate, arch: "" };
+  }
+  const legacy = resolveLegacyProductSelection(candidate, activeCatalog);
+  if (legacy) return { product: legacy.product, arch: legacy.arch };
+  return { product: candidate, arch: "" };
 }
 
 function needsDentbirdDesign(product: Product | null) {
@@ -110,6 +164,7 @@ function draftFieldsFromStored(draft: OrderDraftStored, product: Product): Parti
     aiDesignedFileName: draft.aiDesignedFileName,
     aiDesignError: draft.aiDesignError,
     designChoice: draft.designChoice,
+    recordChecklist: draft.recordChecklist ?? emptyRecordChecklistForCategory(product.category),
   };
 }
 
@@ -124,13 +179,14 @@ const LOWER_TEETH = [32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17];
 
 const CATEGORY_GROUPS =
   CURRENT_SITE === "printdenture"
-    ? [
-        { label: "Dentures", categories: ["complete", "partial", "immediate", "overdenture"] },
-        { label: "Repairs & removable", categories: ["reline", "removable", "jb_tray"] },
-      ]
+    ? DENTURE_SERVICE_GROUPS.map((group) => ({
+        label: group.label,
+        description: group.description,
+        categories: [...group.categories],
+      }))
     : [
-        { label: "Crowns", categories: ["zirconia", "printed", "implant"] },
-        { label: "Guards", categories: ["nightguard", "sportsguard"] },
+        { label: "Crowns", description: "Zirconia, printed & implant crowns", categories: ["zirconia", "printed", "implant"] },
+        { label: "Guards", description: "Night guards & sports guards", categories: ["nightguard", "sportsguard"] },
       ];
 
 const UPPER_RIGHT = UPPER_TEETH.slice(0, 8);
@@ -213,124 +269,153 @@ function ToothSelector({ selected, onChange }: {
   );
 }
 
-// ── Order estimate (steps 2+) ──────────────────────────────────────────────
-function OrderSummaryBar({ data }: { data: OrderData }) {
-  if (!data.product) return null;
-  const p = data.product;
-  const { subtotal, shipping, designFee, total } = getOrderPricing(data);
-
+function EquipmentNoticeCard({
+  notice,
+  onDismiss,
+  compact,
+}: {
+  notice: NonNullable<ReturnType<typeof getEquipmentNoticeForCategory>>;
+  onDismiss?: () => void;
+  compact?: boolean;
+}) {
   return (
-    <div className="mb-6 rounded-xl border border-[#E2E0D8] bg-white px-4 py-3 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div
+      className={`rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/50 ${
+        compact ? "px-3 py-2.5" : "px-4 py-3"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B9B9B]">Order estimate</p>
-          <p className="text-sm font-medium text-[#1A1A1A] truncate">{p.name} × {data.quantity}</p>
-          {data.toothNumbers.length > 0 && (
-            <p className="text-xs text-[#9B9B9B] mt-0.5">
-              Teeth {[...data.toothNumbers].sort((a, b) => a - b).map((n) => `#${n}`).join(", ")}
-            </p>
-          )}
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-xl font-semibold text-[#1A1A1A]">${total}</p>
-          <p className="text-[11px] text-[#9B9B9B]">
-            ${subtotal} product · ${shipping} {SHIPPING_CARRIER}
-            {designFee > 0 ? ` · $${designFee} CAD design` : ""}
+          <p className={`font-semibold text-[#085041] ${compact ? "text-xs" : "text-sm"}`}>
+            {notice.title}
           </p>
+          <p className={`text-[#0F6E56] leading-relaxed mt-1 ${compact ? "text-[11px]" : "text-xs"}`}>
+            {notice.body}
+          </p>
+          <Link
+            href="/shop"
+            className={`inline-block mt-2 font-medium text-[#0F6E56] hover:underline ${
+              compact ? "text-[11px]" : "text-xs"
+            }`}
+          >
+            {notice.shopLabel} →
+          </Link>
         </div>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="shrink-0 w-7 h-7 rounded-full text-[#0F6E56] hover:bg-[#9FE1CB]/40 text-sm"
+            aria-label="Dismiss notice"
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Step Indicator ─────────────────────────────────────────────────────────
-function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
-  return (
-    <div className="flex items-center justify-center gap-0 mb-10 overflow-x-auto px-1">
-      {steps.map((label, i) => {
-        const idx = i + 1;
-        const done = idx < current;
-        const active = idx === current;
-        return (
-          <div key={label} className="flex items-center">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all
-                ${done ? "bg-[#2563EB] text-white" : active ? "bg-[#1A1A1A] text-white" : "bg-[#E2E0D8] text-[#9B9B9B]"}`}>
-                {done ? "✓" : idx}
-              </div>
-              <span className={`text-xs whitespace-nowrap ${active ? "text-[#1A1A1A] font-medium" : "text-[#9B9B9B]"}`}>
-                {label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div className={`w-12 h-px mb-5 mx-1 ${done ? "bg-[#2563EB]" : "bg-[#E2E0D8]"}`} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Step 1 ─────────────────────────────────────────────────────────────────
-function Step1({ products, selectedProduct, onSelect, onContinue }: {
+function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel }: {
   products: Product[];
   selectedProduct: Product | null;
   onSelect: (p: Product) => void;
   onContinue: () => void;
+  flowStepLabel?: string;
 }) {
   const groups = CATEGORY_GROUPS.map((g) => ({
     ...g,
     items: products.filter((p) => g.categories.includes(p.category)),
-  })).filter((g) => g.items.length > 0);
+  }));
+  const visibleGroups =
+    CURRENT_SITE === "printdenture" ? groups : groups.filter((g) => g.items.length > 0);
 
-  const [activeGroup, setActiveGroup] = useState(groups[0]?.label ?? "");
+  const [activeGroup, setActiveGroup] = useState(visibleGroups[0]?.label ?? "");
 
   useEffect(() => {
     if (!selectedProduct) return;
-    const match = groups.find((group) => group.items.some((product) => product.id === selectedProduct.id));
+    const match = visibleGroups.find((group) => group.items.some((product) => product.id === selectedProduct.id));
     if (match) setActiveGroup(match.label);
-  }, [selectedProduct, products]);
+  }, [selectedProduct, products, visibleGroups]);
 
-  const currentGroup = groups.find((group) => group.label === activeGroup) ?? groups[0];
+  const currentGroup = visibleGroups.find((group) => group.label === activeGroup) ?? visibleGroups[0];
+
+  function handleSelect(product: Product) {
+    onSelect(product);
+  }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Choose your product</h2>
-      <p className="text-[#6B6B6B] mb-6">Pick a category, compare options, then continue when you are ready.</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
+        {flowStepLabel ?? "Product"}
+      </p>
+      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">What are you ordering?</h2>
+      <p className="text-[#6B6B6B] mb-6">
+        Pick the prosthesis and record protocol here. You will choose upper, lower, or both arches in case
+        details.
+      </p>
 
-      {groups.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {groups.map((group) => {
+      {visibleGroups.length > 1 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+          {visibleGroups.map((group) => {
             const active = group.label === activeGroup;
             return (
               <button
                 key={group.label}
                 type="button"
                 onClick={() => setActiveGroup(group.label)}
-                className={`h-10 px-4 rounded-xl text-sm font-medium border transition-all
+                className={`rounded-xl border p-4 text-left transition-all
                   ${active
-                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
+                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A] shadow-sm"
                     : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A]/40 hover:text-[#1A1A1A]"}`}
               >
-                {group.label}
-                <span className={`ml-1.5 text-xs ${active ? "text-white/70" : "text-[#9B9B9B]"}`}>
-                  ({group.items.length})
-                </span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">{group.label}</span>
+                  <span className={`text-xs ${active ? "text-white/70" : "text-[#9B9B9B]"}`}>
+                    {group.items.length} items
+                  </span>
+                </div>
+                {"description" in group && group.description && (
+                  <p className={`text-xs mt-1.5 leading-relaxed ${active ? "text-white/75" : "text-[#9B9B9B]"}`}>
+                    {group.description}
+                  </p>
+                )}
               </button>
             );
           })}
         </div>
       )}
 
+      {isCompleteServiceGroup(activeGroup) && (
+        <div className="mb-6 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/60 overflow-hidden">
+          <JbProtocolChooser variant="compact" />
+        </div>
+      )}
+
       <div className="space-y-3 mb-8">
-        {currentGroup?.items.map((product) => {
+        {(currentGroup?.items ?? []).length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#E2E0D8] bg-white px-5 py-8 text-center">
+            <p className="text-sm font-medium text-[#1A1A1A]">No products in this category yet</p>
+            <p className="text-xs text-[#6B6B6B] mt-2 leading-relaxed max-w-md mx-auto">
+              {currentGroup?.label} products will appear here once they are active in the catalog.
+              Contact support if you expected to see options.
+            </p>
+          </div>
+        ) : (
+        <>
+        {(currentGroup?.items ?? [])
+          .sort((a, b) => {
+            const order = currentGroup?.categories ?? [];
+            return order.indexOf(a.category) - order.indexOf(b.category);
+          })
+          .map((product) => {
           const selected = selectedProduct?.id === product.id;
           return (
+            <div key={product.id}>
             <button
-              key={product.id}
               type="button"
-              onClick={() => onSelect(product)}
+              onClick={() => handleSelect(product)}
               aria-pressed={selected}
               className={`w-full text-left rounded-2xl border transition-all
                 ${selected
@@ -344,9 +429,17 @@ function Step1({ products, selectedProduct, onSelect, onContinue }: {
                     <div>
                       <h3 className="text-base font-semibold text-[#1A1A1A]">{product.name}</h3>
                       <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">{product.description}</p>
+                      {productRequiresEquipmentCheck(product.category) ? (
+                        <p className="text-[11px] text-[#6B6B6B] mt-2 leading-relaxed">
+                          {getEquipmentNoticeForCategory(product.category)?.equipmentLabel} starter kit
+                          from PrintDenture — then capture records and submit this case.
+                        </p>
+                      ) : null}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-semibold text-[#1A1A1A]">${product.price}</p>
+                      <p className="text-lg font-semibold text-[#1A1A1A]">
+                        {formatProductPriceHint(product)}
+                      </p>
                       <p className="text-xs text-[#9B9B9B] mt-1">{product.turnaround}</p>
                     </div>
                   </div>
@@ -362,65 +455,137 @@ function Step1({ products, selectedProduct, onSelect, onContinue }: {
                 </span>
               </div>
             </button>
+            </div>
           );
         })}
+        </>
+        )}
       </div>
 
-      <div className="rounded-2xl border border-[#E2E0D8] bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-[#9B9B9B]">Selected product</p>
-          <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
-            {selectedProduct ? selectedProduct.name : "Choose a product to continue"}
-          </p>
-          {selectedProduct && (
-            <p className="text-xs text-[#9B9B9B] mt-1">
-              ${selectedProduct.price} · {selectedProduct.turnaround}
+      <div className="rounded-2xl border border-[#E2E0D8] bg-white p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#9B9B9B]">Selected product</p>
+            <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
+              {selectedProduct ? selectedProduct.name : "Choose a product to continue"}
             </p>
-          )}
+            {selectedProduct && (
+              <p className="text-xs text-[#9B9B9B] mt-1">
+                ${selectedProduct.price} · {selectedProduct.turnaround}
+              </p>
+            )}
+          </div>
+          <Button
+            className="h-12 px-6 rounded-xl bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white w-full sm:w-auto shrink-0"
+            disabled={!selectedProduct}
+            onClick={onContinue}
+          >
+            Continue to case details
+          </Button>
         </div>
-        <Button
-          className="h-12 px-6 rounded-xl bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white w-full sm:w-auto"
-          disabled={!selectedProduct}
-          onClick={onContinue}
-        >
-          Continue to case details
-        </Button>
+        {selectedProduct && productRequiresEquipmentCheck(selectedProduct.category) && (
+          <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-amber-950 leading-relaxed">
+              {getEquipmentNoticeForCategory(selectedProduct.category)?.equipmentLabel} starter kit
+              recommended — order from Shop, or continue to confirm your scan records on the next step.
+            </p>
+            {shopHrefForProductCategory(selectedProduct.category) && (
+              <Link
+                href={shopHrefForProductCategory(selectedProduct.category)!}
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0F6E56] px-4 text-xs font-medium text-white hover:bg-[#085041]"
+              >
+                Open Shop
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ── Step 2 ─────────────────────────────────────────────────────────────────
-function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange }: {
+function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange, flowStepLabel, onChecklistChange, showJbShopBanner }: {
   data: OrderData;
   onNext: () => void;
   onBack: () => void;
   onChange: (k: keyof OrderData, v: string | number) => void;
   onFileChange: (file: File) => void;
   onTeethChange: (teeth: number[]) => void;
+  flowStepLabel?: string;
+  onChecklistChange: (itemId: string, value: boolean) => void;
+  showJbShopBanner: boolean;
 }) {
   const p = data.product!;
   const needsShade = p.fields.includes("shade");
   const needsTooth = p.fields.includes("toothNumber");
   const needsGuard = p.fields.includes("guardType");
   const needsColor = p.fields.includes("color");
+  const needsArch = productNeedsArchSelection(p.fields);
+  const recordChecklistDef = getRecordUploadChecklist(p.category);
+  const checklistComplete = isRecordChecklistComplete(p.category, data.recordChecklist);
+  const linePrice = resolveLineItemPrice(p, data.arch);
   const canProceed = data.fileName &&
+    checklistComplete &&
     (needsShade ? data.shade : true) &&
     (needsTooth ? data.toothNumbers.length > 0 : true) &&
-    (needsGuard ? (data.guardType && data.arch) : true);
+    (needsGuard ? (data.guardType && data.arch) : true) &&
+    (needsArch ? !!data.arch : true);
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Case details</h2>
-      <p className="text-[#6B6B6B] mb-8">Upload your scan and fill in the case information.</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
+        {flowStepLabel ?? "Case details"}
+      </p>
+      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Upload scans & preferences</h2>
+      <p className="text-[#6B6B6B] mb-8">
+        Send your scan files and case details — our lab handles denture design and fabrication.
+      </p>
 
       <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-[#E2E0D8] mb-6">
         <div className="w-2 h-8 rounded-full" style={{ background: p.accent }} />
         <div>
           <p className="font-semibold text-[#1A1A1A] text-sm">{p.name}</p>
-          <p className="text-xs text-[#9B9B9B]">${p.price} · {p.turnaround}</p>
+          <p className="text-xs text-[#9B9B9B]">
+            {data.arch ? `$${linePrice} · ${formatArchLabel(data.arch)}` : formatProductPriceHint(p)}
+            {" · "}{p.turnaround}
+          </p>
         </div>
       </div>
+
+      {showJbShopBanner && <JbShopBanner productCategory={p.category} />}
+
+      {needsArch && !needsGuard && (
+        <div className="mb-5">
+          <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Arch *</label>
+          <p className="text-xs text-[#6B6B6B] mb-3 leading-relaxed">
+            Select which arch(es) this lab case covers. Price updates based on your selection.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ARCH_OPTIONS.map((a) => (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => onChange("arch", a.value)}
+                className={`px-4 h-9 rounded-lg text-sm border transition-all
+                  ${data.arch === a.value
+                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
+                    : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recordChecklistDef && (
+        <RecordUploadChecklistPanel
+          checklist={recordChecklistDef}
+          checked={data.recordChecklist}
+          onChange={onChecklistChange}
+        />
+      )}
 
       {needsTooth && (
         <div className="mb-5">
@@ -525,6 +690,11 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange }: 
       {/* STL Upload */}
       <div className="mb-5">
         <label className="block text-sm font-medium text-[#1A1A1A] mb-2">STL file *</label>
+        {recordChecklistDef && !checklistComplete && (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2 leading-relaxed">
+            Confirm every checklist item above before uploading — incomplete records may require a try-in visit.
+          </p>
+        )}
         <div onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) onFileChange(file); }}
           onClick={() => document.getElementById("stl-input")?.click()}
@@ -566,11 +736,12 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange }: 
 }
 
 // ── Step 3 — Rx ────────────────────────────────────────────────────────────
-function Step3Rx({ data, onNext, onBack, onChange }: {
+function Step3Rx({ data, onNext, onBack, onChange, flowStepLabel }: {
   data: OrderData;
   onNext: () => void;
   onBack: () => void;
   onChange: (k: keyof OrderData, v: string | boolean) => void;
+  flowStepLabel?: string;
 }) {
   const p = data.product!;
   const needsShade = p.fields.includes("shade");
@@ -579,8 +750,11 @@ function Step3Rx({ data, onNext, onBack, onChange }: {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Lab Rx</h2>
-      <p className="text-[#6B6B6B] mb-8">Complete the prescription for this case.</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
+        {flowStepLabel ?? "Rx"}
+      </p>
+      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Prescription & authorization</h2>
+      <p className="text-[#6B6B6B] mb-8">Complete the Rx so our technicians can release the case to production.</p>
 
       <div className="p-4 rounded-xl bg-white border border-[#E2E0D8] mb-6 space-y-1.5">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-2">Case summary</p>
@@ -923,22 +1097,46 @@ function Field({ label, placeholder, half, value, onChange }: {
 }
 
 // ── Step 4 ─────────────────────────────────────────────────────────────────
-function Step4({ data, onBack, onChange, onSubmit, submitting }: {
+function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }: {
   data: OrderData;
   onBack: () => void;
   onChange: (k: keyof OrderData, v: string) => void;
   onSubmit: () => void;
   submitting: boolean;
+  equipmentBlock?: string | null;
 }) {
   const p = data.product!;
   const { subtotal, shipping, designFee, total } = getOrderPricing(data);
   const canSubmit = data.firstName && data.lastName && data.practiceName &&
-    data.address && data.city && data.state && data.zip;
+    data.address && data.city && data.state && data.zip && data.phone && !equipmentBlock;
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Review & shipping</h2>
       <p className="text-[#6B6B6B] mb-8">Confirm your order and enter your shipping address.</p>
+
+      {equipmentBlock && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+          <p className="font-medium mb-1">Starter kit required before checkout</p>
+          <p className="leading-relaxed">{equipmentBlock}</p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+            {shopHrefForProductCategory(p.category) && (
+              <Link
+                href={shopHrefForProductCategory(p.category)!}
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#0F6E56] px-5 text-sm font-medium text-white hover:bg-[#085041]"
+              >
+                Open Shop — order starter kit
+              </Link>
+            )}
+            <Link
+              href="/dashboard"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-5 text-sm font-medium text-amber-950 hover:bg-amber-100/80"
+            >
+              Mark kit received
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="p-5 rounded-xl bg-white border border-[#E2E0D8] mb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-4">Order summary</p>
@@ -955,7 +1153,10 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
             {data.toothNumbers.length > 0 && ` · Tooth ${[...data.toothNumbers].sort((a,b)=>a-b).map(n=>`#${n}`).join(", ")}`}
           </p>
         )}
-        {data.guardType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Guard: {data.guardType} · Arch: {data.arch}</p>}
+        {data.guardType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Guard: {data.guardType} · Arch: {formatArchLabel(data.arch)}</p>}
+        {data.arch && !data.guardType && (
+          <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Arch: {formatArchLabel(data.arch)}</p>
+        )}
         {data.marginType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
         <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
         {data.fileName && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Scan: {data.fileName}</p>}
@@ -1003,7 +1204,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting }: {
           </div>
           <Field label="ZIP" placeholder="90001" half value={data.zip} onChange={(v) => onChange("zip", v)} />
         </div>
-        <Field label="Phone" placeholder="(555) 000-0000" value={data.phone} onChange={(v) => onChange("phone", v)} />
+        <Field label="Phone *" placeholder="(555) 000-0000" value={data.phone} onChange={(v) => onChange("phone", v)} />
       </div>
 
       <div className="flex gap-3">
@@ -1035,9 +1236,12 @@ function OrderContent() {
     dentistName: "", licenseNo: "", licenseState: "", authorized: false,
     aiDesignStatus: "idle", aiDesignApproved: false, aiDesignSummary: "",
     aiDesignedFileName: "", aiDesignError: "", designChoice: "",
+    recordChecklist: {},
   });
-  const [products, setProducts] = useState<Product[]>([]);
+  const [labProducts, setLabProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [equipmentProfile, setEquipmentProfile] = useState<EquipmentProfile | null>(null);
+  const [equipmentBanner, setEquipmentBanner] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [draftPrompt, setDraftPrompt] = useState<{
     savedAt: string;
@@ -1045,6 +1249,7 @@ function OrderContent() {
     needsStlReupload: boolean;
   } | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createAppClient();
@@ -1055,43 +1260,74 @@ function OrderContent() {
         router.replace(`/auth?next=${encodeURIComponent(nextPath)}`);
         return;
       }
+      setUserId(user.id);
+
+      if (CURRENT_SITE === "printdenture") {
+        try {
+          await fetch("/api/catalog/sync", { method: "POST" });
+        } catch {
+          // Catalog sync is best-effort; products load below still works if guards exist.
+        }
+      }
 
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
       const visibleProducts = filterProductsForSite(productData || []);
-      setProducts(visibleProducts);
+      setLabProducts(visibleProducts.filter((p: Product) => p.category !== "equipment"));
       setProductsLoading(false);
 
       const productId = searchParams.get("product");
       const resumeDraft = searchParams.get("resume") === "draft";
       const storedDraft = loadOrderDraft();
 
-      if (productId && visibleProducts.length) {
-        const found = visibleProducts.find((p: Product) => p.id === productId);
-        if (found) {
-          setData((prev) => ({ ...prev, product: found }));
-          setStep(2);
+      const labOnly = visibleProducts.filter((p: Product) => p.category !== "equipment");
+      let deepLinkProduct: Product | null = null;
+      let draftProductForRestore: Product | null = null;
+      let pendingDraftRestore: OrderDraftStored | null = null;
+
+      const allLabProducts = (productData || []).filter(
+        (p: Product) => p.category !== "equipment"
+      );
+
+      if (productId && allLabProducts.length) {
+        const candidate = allLabProducts.find((p: Product) => p.id === productId);
+        if (candidate) {
+          const resolved = resolveActiveProductSelection(candidate, labOnly);
+          deepLinkProduct = resolved.product;
+          setData((prev) => ({
+            ...prev,
+            product: resolved.product,
+            arch: resolved.arch || prev.arch,
+          }));
         }
-      } else if (storedDraft?.productId && visibleProducts.length) {
-        const found = visibleProducts.find((p: Product) => p.id === storedDraft.productId);
-        if (found && storedDraft.step >= 2) {
-          if (resumeDraft) {
-            setData((prev) => ({ ...prev, ...draftFieldsFromStored(storedDraft, found) }));
-            setStep(storedDraft.step);
-            setDraftRestored(true);
-            if (storedDraft.fileName) {
+      } else if (storedDraft?.productId && allLabProducts.length) {
+        const candidate = allLabProducts.find((p: Product) => p.id === storedDraft.productId);
+        if (candidate) {
+          const resolved = resolveActiveProductSelection(candidate, labOnly);
+          if (resolved.product && storedDraft.step >= 2) {
+            draftProductForRestore = resolved.product;
+            if (resumeDraft) {
+              setData((prev) => ({
+                ...prev,
+                ...draftFieldsFromStored(storedDraft, resolved.product),
+                arch: storedDraft.arch || resolved.arch || prev.arch,
+              }));
+              pendingDraftRestore = storedDraft;
+              setDraftRestored(true);
+              if (storedDraft.fileName) {
+                setDraftPrompt({
+                  savedAt: storedDraft.savedAt,
+                  productName: resolved.product.name,
+                  needsStlReupload: true,
+                });
+              }
+            } else {
               setDraftPrompt({
                 savedAt: storedDraft.savedAt,
-                productName: found.name,
-                needsStlReupload: true,
+                productName: resolved.product.name,
+                needsStlReupload: !!storedDraft.fileName,
               });
             }
-          } else {
-            setDraftPrompt({
-              savedAt: storedDraft.savedAt,
-              productName: found.name,
-              needsStlReupload: !!storedDraft.fileName,
-            });
           }
         }
       }
@@ -1099,7 +1335,40 @@ function OrderContent() {
       const { data: profile } = await supabase
         .from("profiles")
         .select("first_name, last_name, practice_name, address, city, state, zip, phone, dentist_name, license_no, license_state")
-        .eq("id", user.id).single();
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const { data: equipmentRow } = await supabase
+        .from("profiles")
+        .select("jb_tray_status, jb_fork_status, jb_tray_trained, jb_fork_trained")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const equipProfile: EquipmentProfile | null = equipmentRow
+        ? {
+            jb_tray_status: equipmentRow.jb_tray_status,
+            jb_fork_status: equipmentRow.jb_fork_status,
+            jb_tray_trained: equipmentRow.jb_tray_trained,
+            jb_fork_trained: equipmentRow.jb_fork_trained,
+          }
+        : null;
+
+      if (equipProfile) setEquipmentProfile(equipProfile);
+
+      if (deepLinkProduct) {
+        const flow = buildOrderFlow(needsDentbirdDesign(deepLinkProduct));
+        setStep(flowStepToIndex(flow, "case"));
+      } else if (pendingDraftRestore && draftProductForRestore) {
+        setStep(
+          resolveDraftStepIndex(
+            pendingDraftRestore.step,
+            pendingDraftRestore.flowStep,
+            draftProductForRestore,
+            equipProfile,
+            needsDentbirdDesign(draftProductForRestore)
+          )
+        );
+      }
 
       if (profile) {
         setData((prev) => ({
@@ -1124,11 +1393,25 @@ function OrderContent() {
   }, [router, searchParams]);
 
   useEffect(() => {
+    if (searchParams.get("equipment") === "ordered") {
+      const kind = searchParams.get("kind");
+      const label = kind === "jb_tray" ? "JB Tray" : kind === "jb_fork" ? "JB Fork" : "Equipment";
+      setEquipmentBanner(
+        `${label} order confirmed. You can continue preparing this case — submit payment after you mark the kit received on your dashboard.`
+      );
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (pageLoading) return;
     if (!data.product && step === 1) return;
     const timer = setTimeout(() => {
+      const showAi = needsDentbirdDesign(data.product);
+      const flow = buildOrderFlow(showAi);
+
       saveOrderDraft({
         step,
+        flowStep: stepIndexToFlowStep(step, flow),
         product: data.product,
         quantity: data.quantity,
         shade: data.shade,
@@ -1158,18 +1441,27 @@ function OrderContent() {
         aiDesignedFileName: data.aiDesignedFileName,
         aiDesignError: data.aiDesignError,
         designChoice: data.designChoice,
+        recordChecklist: data.recordChecklist,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [pageLoading, step, data]);
+  }, [pageLoading, step, data, equipmentProfile]);
 
   function continueFromDraft() {
     const storedDraft = loadOrderDraft();
     if (!storedDraft?.productId) return;
-    const found = products.find((p) => p.id === storedDraft.productId);
+    const found = labProducts.find((p) => p.id === storedDraft.productId);
     if (!found) return;
     setData((prev) => ({ ...prev, ...draftFieldsFromStored(storedDraft, found) }));
-    setStep(storedDraft.step);
+    setStep(
+      resolveDraftStepIndex(
+        storedDraft.step,
+        storedDraft.flowStep,
+        found,
+        equipmentProfile,
+        needsDentbirdDesign(found)
+      )
+    );
     setDraftRestored(true);
     setDraftPrompt(storedDraft.fileName ? {
       savedAt: storedDraft.savedAt,
@@ -1201,9 +1493,39 @@ function OrderContent() {
   }
 
   const showAiDesign = needsDentbirdDesign(data.product);
-  const orderSteps = showAiDesign
-    ? ["Product", "Case details", "Rx", "AI crown", "Review & pay"]
-    : ["Product", "Case details", "Rx", "Review & pay"];
+  const orderFlow = buildOrderFlow(showAiDesign);
+  const activeFlowStep = stepIndexToFlowStep(step, orderFlow);
+  const orderPricing = data.product ? getOrderPricing(data) : null;
+  const flowStepLabel = activeFlowStep
+    ? `Step ${step} of ${orderFlow.length} · ${ORDER_FLOW_STEP_LABELS[activeFlowStep]}`
+    : undefined;
+
+  const equipmentBlock = data.product ? equipmentBlockReason(data.product.category, equipmentProfile) : null;
+
+  function goToFlowStep(target: OrderFlowStep) {
+    setStep(flowStepToIndex(orderFlow, target));
+  }
+
+  function continueFromProduct() {
+    if (!data.product) return;
+    goToFlowStep("case");
+  }
+
+  function handleChecklistChange(itemId: string, value: boolean) {
+    setData((prev) => ({
+      ...prev,
+      recordChecklist: { ...prev.recordChecklist, [itemId]: value },
+    }));
+  }
+
+  function selectProduct(product: Product) {
+    setData((prev) => ({
+      ...prev,
+      product,
+      arch: "",
+      recordChecklist: emptyRecordChecklistForCategory(product.category),
+    }));
+  }
 
   function update(key: keyof OrderData, value: string | number | boolean | number[]) {
     setData((prev) => ({ ...prev, [key]: value }));
@@ -1225,6 +1547,15 @@ function OrderContent() {
 
   async function handleSubmit() {
     if (!data.product || !data.file) return;
+    if (!isOrderShippingComplete(data)) {
+      goToFlowStep("review");
+      alert("Please complete your practice name, phone, and shipping address on the review step.");
+      return;
+    }
+    if (!canSubmitLabCase(data.product.category, equipmentProfile)) {
+      alert(equipmentBlockReason(data.product.category, equipmentProfile) ?? "Complete equipment setup before submitting.");
+      return;
+    }
     if (needsDentbirdDesign(data.product)) {
       if (!data.designChoice) return;
       if (data.designChoice === "ai" && !data.aiDesignApproved) return;
@@ -1241,7 +1572,7 @@ function OrderContent() {
     }
 
     const p = data.product;
-    const { total } = getOrderPricing(data);
+    const { total, unitPrice } = getOrderPricing(data);
 
     // 1. orders 저장
     const { data: order, error: orderError } = await supabase
@@ -1249,9 +1580,9 @@ function OrderContent() {
       .insert({
         user_id: user.id,
         product_id: p.id,
-        product_name: p.name,
+        product_name: formatOrderProductName(p.name, data.arch),
         quantity: data.quantity,
-        unit_price: p.price,
+        unit_price: unitPrice,
         total_price: total,
         shade: data.shade || null,
         tooth_number: data.toothNumbers[0]?.toString() || null,
@@ -1265,6 +1596,7 @@ function OrderContent() {
               : null,
         ].filter(Boolean).join("\n") || null,
         status: "received",
+        order_type: "lab_case",
       })
       .select().single();
 
@@ -1359,7 +1691,15 @@ function OrderContent() {
     <div className="min-h-screen bg-[#F8F7F4]">
       <Navbar />
 
-      <div className={`mx-auto px-6 pt-24 pb-16 ${step === 1 ? "max-w-2xl" : step >= 2 ? "max-w-3xl" : "max-w-xl"}`}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16">
+        <header className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1A1A1A] tracking-tight">New lab case</h1>
+          <p className="text-sm text-[#6B6B6B] mt-1 max-w-2xl">
+            Partial, guards, reline, and immediate cases go straight to scan upload. Complete &
+            overdenture JB cases start with a starter kit from the shop.
+          </p>
+        </header>
+
         {draftPrompt && !draftRestored && (
           <div className="mb-6 rounded-xl border border-[#BFDBFE] bg-[#F0F9FF] px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -1388,53 +1728,98 @@ function OrderContent() {
             </p>
           </div>
         )}
-        <StepIndicator current={step} steps={orderSteps} />
-        {step >= 2 && data.product && <OrderSummaryBar data={data} />}
-        {step === 1 && (
-          productsLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <p className="text-sm text-[#9B9B9B]">Loading products...</p>
-            </div>
-          ) : (
-            <Step1
-              products={products}
-              selectedProduct={data.product}
-              onSelect={(p) => setData((prev) => ({ ...prev, product: p }))}
-              onContinue={() => setStep(2)}
+        {equipmentBanner && (
+          <div className="mb-6 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/50 px-4 py-3 text-sm text-[#085041]">
+            {equipmentBanner}
+          </div>
+        )}
+
+        <OrderFlowMobileProgress
+          step={step}
+          orderFlow={orderFlow}
+          activeFlowStep={activeFlowStep}
+          productName={data.product?.name}
+          total={orderPricing?.total}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-8 items-start">
+          <div className="hidden lg:block">
+            <OrderFlowSidebar
+              step={step}
+              orderFlow={orderFlow}
+              activeFlowStep={activeFlowStep}
+              productCategory={data.product?.category ?? null}
+              productName={data.product?.name ?? null}
+              quantity={data.quantity}
+              pricing={orderPricing}
+              onGoToStep={goToFlowStep}
             />
-          )
-        )}
-        {step === 2 && (
-          <Step2 data={data} onChange={update} onFileChange={handleFileChange}
-            onTeethChange={(teeth) => {
-              setData((prev) => ({
-                ...prev,
-                toothNumbers: teeth,
-                quantity: teeth.length > 0 ? teeth.length : 1,
-              }));
-            }}
-            onBack={() => setStep(1)} onNext={() => setStep(3)} />
-        )}
-        {step === 3 && (
-          <Step3Rx data={data} onChange={update} onBack={() => setStep(2)} onNext={() => setStep(4)} />
-        )}
-        {step === 4 && showAiDesign && (
-          <Step4Dentbird
-            data={data}
-            onBack={() => setStep(3)}
-            onNext={() => setStep(5)}
-            onDesignChange={patchData}
-            onRetry={resetAiDesign}
-          />
-        )}
-        {step === 4 && !showAiDesign && (
-          <Step4 data={data} onChange={(k, v) => update(k, v)} onBack={() => setStep(3)}
-            onSubmit={handleSubmit} submitting={submitting} />
-        )}
-        {step === 5 && showAiDesign && (
-          <Step4 data={data} onChange={(k, v) => update(k, v)} onBack={() => setStep(4)}
-            onSubmit={handleSubmit} submitting={submitting} />
-        )}
+          </div>
+
+          <main className="min-w-0">
+            <div className="rounded-2xl border border-[#E2E0D8] bg-white p-6 sm:p-8 shadow-sm">
+              {step === flowStepToIndex(orderFlow, "product") && (
+                productsLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <p className="text-sm text-[#9B9B9B]">Loading products...</p>
+                  </div>
+                ) : (
+                  <Step1
+                    products={labProducts}
+                    selectedProduct={data.product}
+                    onSelect={selectProduct}
+                    onContinue={continueFromProduct}
+                    flowStepLabel={flowStepLabel}
+                  />
+                )
+              )}
+              {step === flowStepToIndex(orderFlow, "case") && (
+                <Step2 data={data} onChange={update} onFileChange={handleFileChange}
+                  flowStepLabel={flowStepLabel}
+                  showJbShopBanner={
+                    !!data.product &&
+                    isJbWorkflowCategory(data.product.category) &&
+                    !canStartJbLabCase(data.product.category, equipmentProfile)
+                  }
+                  onChecklistChange={handleChecklistChange}
+                  onTeethChange={(teeth) => {
+                    setData((prev) => ({
+                      ...prev,
+                      toothNumbers: teeth,
+                      quantity: teeth.length > 0 ? teeth.length : 1,
+                    }));
+                  }}
+                  onBack={() => goToFlowStep("product")}
+                  onNext={() => goToFlowStep("rx")} />
+              )}
+              {step === flowStepToIndex(orderFlow, "rx") && (
+                <Step3Rx data={data} onChange={update}
+                  flowStepLabel={flowStepLabel}
+                  onBack={() => goToFlowStep("case")}
+                  onNext={() => goToFlowStep(showAiDesign ? "ai" : "review")} />
+              )}
+              {step === flowStepToIndex(orderFlow, "ai") && showAiDesign && (
+                <Step4Dentbird
+                  data={data}
+                  onBack={() => goToFlowStep("rx")}
+                  onNext={() => goToFlowStep("review")}
+                  onDesignChange={patchData}
+                  onRetry={resetAiDesign}
+                />
+              )}
+              {step === flowStepToIndex(orderFlow, "review") && !showAiDesign && (
+                <Step4 data={data} onChange={(k, v) => update(k, v)}
+                  onBack={() => goToFlowStep("rx")}
+                  onSubmit={handleSubmit} submitting={submitting} equipmentBlock={equipmentBlock} />
+              )}
+              {step === flowStepToIndex(orderFlow, "review") && showAiDesign && (
+                <Step4 data={data} onChange={(k, v) => update(k, v)}
+                  onBack={() => goToFlowStep("ai")}
+                  onSubmit={handleSubmit} submitting={submitting} equipmentBlock={equipmentBlock} />
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

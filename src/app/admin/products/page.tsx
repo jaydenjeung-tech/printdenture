@@ -26,18 +26,18 @@ type Product = {
 };
 
 const CATEGORIES = [
+  { value: "complete", label: "Complete (JB Fork)", accent: "#0F6E56", group: "Complete" },
+  { value: "jb_tray", label: "Complete (JB Tray)", accent: "#5DCAA5", group: "Complete" },
+  { value: "immediate", label: "Complete (Immediate)", accent: "#085041", group: "Complete" },
+  { value: "partial", label: "Partial", accent: "#1D9E75", group: "Partial" },
+  { value: "overdenture", label: "Overdenture / All-on-X", accent: "#378ADD", group: "Overdenture" },
+  { value: "reline", label: "Reline / repair", accent: "#1B2B3A", group: "Reline / repair" },
+  { value: "equipment", label: "Chairside Equipment", accent: "#0F6E56", group: "Equipment" },
   { value: "zirconia", label: "Zirconia Crown", accent: "#2563EB", group: "Crown" },
   { value: "printed", label: "Printed Crown", accent: "#16A34A", group: "Crown" },
   { value: "implant", label: "Implant Crown", accent: "#0EA5E9", group: "Crown" },
-  { value: "nightguard", label: "Night Guard", accent: "#D97706", group: "Crown" },
-  { value: "sportsguard", label: "Sports Guard", accent: "#9333EA", group: "Crown" },
-  { value: "complete", label: "Complete Denture", accent: "#0F6E56", group: "Denture" },
-  { value: "partial", label: "Partial Denture", accent: "#1D9E75", group: "Denture" },
-  { value: "immediate", label: "Immediate Denture", accent: "#085041", group: "Denture" },
-  { value: "overdenture", label: "Implant Overdenture", accent: "#378ADD", group: "Denture" },
-  { value: "reline", label: "Reline & Repair", accent: "#1B2B3A", group: "Denture" },
-  { value: "removable", label: "Removable Prosthetic", accent: "#243447", group: "Denture" },
-  { value: "jb_tray", label: "JB Tray Case", accent: "#5DCAA5", group: "Denture" },
+  { value: "nightguard", label: "Night Guard", accent: "#D97706", group: "Guards (shared)" },
+  { value: "sportsguard", label: "Sports Guard", accent: "#9333EA", group: "Guards (shared)" },
 ];
 
 const FIELD_OPTIONS = [
@@ -47,6 +47,12 @@ const FIELD_OPTIONS = [
   { value: "color", label: "Color" },
   { value: "arch", label: "Arch (U/L/Set)" },
   { value: "jawRelation", label: "Jaw relation" },
+  { value: "jbTray", label: "JB Tray (family)" },
+  { value: "jbFork", label: "JB Fork (family)" },
+  { value: "trayBox", label: "JB Tray box (5 sets)" },
+  { value: "forkBox", label: "Fork box (10 EA)" },
+  { value: "popBow", label: "ADD POP Bow (family)" },
+  { value: "popBowPouch", label: "POP Bow pouch (12 sets)" },
 ];
 
 const SITES: SiteId[] = ["printcrown", "printdenture"];
@@ -93,6 +99,8 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMessage, setSeedMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,9 +171,11 @@ export default function AdminProductsPage() {
 
     if (error) {
       setSaveError(
-        error.message.includes("sites")
-          ? "Add the products.sites column in Supabase (see supabase/migrations/20250604_products_sites.sql)."
-          : error.message
+        error.message.includes("relation") && error.message.includes("products")
+          ? "Create the products table in Supabase (run supabase/migrations/20250609_printdenture_products_seed.sql)."
+          : error.message.includes("sites")
+            ? "Add the products.sites column in Supabase (see supabase/migrations/20250604_products_sites.sql)."
+            : error.message
       );
       setSaving(false);
       return;
@@ -187,6 +197,33 @@ export default function AdminProductsPage() {
     await supabase.from("products").delete().eq("id", id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setDeleteConfirm(null);
+  }
+
+  async function handleSeedDentureCatalog() {
+    setSeeding(true);
+    setSeedMessage(null);
+
+    try {
+      const res = await fetch("/api/catalog/sync", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        setSeedMessage(body.error ?? "Catalog sync failed.");
+        setSeeding(false);
+        return;
+      }
+
+      await loadProducts();
+      setSeeding(false);
+      const parts: string[] = [];
+      if (body.updated > 0) parts.push(`Fixed ${body.updated} categor${body.updated === 1 ? "y" : "ies"}`);
+      if (body.inserted > 0) parts.push(`added ${body.inserted} product${body.inserted === 1 ? "" : "s"}`);
+      setSeedMessage(
+        parts.length > 0 ? `${parts.join("; ")}.` : "All PrintDenture default products are already in the catalog."
+      );
+    } catch {
+      setSeedMessage("Catalog sync failed.");
+      setSeeding(false);
+    }
   }
 
   async function handleMoveOrder(p: Product, dir: "up" | "down") {
@@ -257,21 +294,40 @@ export default function AdminProductsPage() {
               <strong>Visible on</strong> to control which site shows each product.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="h-9 px-4 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white text-sm font-medium rounded-lg transition-all shrink-0"
-          >
-            + Add product
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleSeedDentureCatalog}
+              disabled={seeding}
+              className="h-9 px-4 border border-[#0F6E56] text-[#0F6E56] hover:bg-[#E8F5F0] text-sm font-medium rounded-lg transition-all disabled:opacity-50"
+            >
+              {seeding ? "Adding..." : "+ Add denture defaults"}
+            </button>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="h-9 px-4 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white text-sm font-medium rounded-lg transition-all"
+            >
+              + Add product
+            </button>
+          </div>
         </div>
+
+        {seedMessage && (
+          <p className="mb-6 text-sm text-[#0F6E56] bg-[#E8F5F0] border border-[#B8E6D4] rounded-lg px-4 py-3">
+            {seedMessage}
+          </p>
+        )}
 
         <div className="mb-8 flex flex-wrap gap-3 text-[12px]">
           <span className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            PrintCrown — crown, implant, guards
+            PrintCrown — crown, implant
           </span>
           <span className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-            PrintDenture — denture, removable
+            PrintDenture — denture, reline
+          </span>
+          <span className="px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+            Both sites — night & sports guards
           </span>
         </div>
 

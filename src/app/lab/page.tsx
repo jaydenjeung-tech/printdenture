@@ -59,6 +59,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   printed:     { label: "Print Crown",    color: "bg-green-50 text-green-700 border-green-200" },
   nightguard:  { label: "Night Guard",    color: "bg-amber-50 text-amber-700 border-amber-200" },
   sportsguard: { label: "Sports Guard",   color: "bg-purple-50 text-purple-700 border-purple-200" },
+  removable:   { label: "Removable",      color: "bg-amber-50 text-amber-700 border-amber-200" },
 };
 
 const DATE_FILTERS = [
