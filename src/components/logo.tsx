@@ -26,6 +26,7 @@ export function PrintDentureMark({ size = 32, className }: MarkProps) {
   const uid = useId().replace(/:/g, "");
   const bgGrad = `pd-bg-${uid}`;
   const shineGrad = `pd-shine-${uid}`;
+  const innerGrad = `pd-inner-${uid}`;
 
   return (
     <svg
@@ -38,43 +39,63 @@ export function PrintDentureMark({ size = 32, className }: MarkProps) {
       aria-hidden
     >
       <defs>
-        <linearGradient id={bgGrad} x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#26B88A" />
-          <stop offset="0.55" stopColor="#1D9E75" />
-          <stop offset="1" stopColor="#0F6E56" />
+        <linearGradient id={bgGrad} x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#3EE0A8" />
+          <stop offset="0.45" stopColor="#1D9E75" />
+          <stop offset="1" stopColor="#0B5C47" />
         </linearGradient>
-        <linearGradient id={shineGrad} x1="24" y1="4" x2="24" y2="26" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="white" stopOpacity="0.24" />
+        <linearGradient id={shineGrad} x1="24" y1="4" x2="24" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="white" stopOpacity="0.28" />
           <stop offset="1" stopColor="white" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id={innerGrad} x1="18" y1="14" x2="34" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#E8FFF6" />
+          <stop offset="1" stopColor="#B8F0DC" />
         </linearGradient>
       </defs>
 
-      <rect x="2" y="2" width="44" height="44" rx="12" fill={`url(#${bgGrad})`} />
-      <rect x="2" y="2" width="44" height="24" rx="12" fill={`url(#${shineGrad})`} />
+      <rect x="2" y="2" width="44" height="44" rx="13" fill={`url(#${bgGrad})`} />
+      <rect x="2" y="2" width="44" height="22" rx="13" fill={`url(#${shineGrad})`} />
 
       <path
-        d="M24 12C19 12 16.5 15.5 16.5 19.5C16.5 22.8 17.8 25.2 19.8 26.8L17.8 35.2C17.4 37 18.8 38.5 20.8 38.5H27.2C29.2 38.5 30.6 37 30.2 35.2L28.2 26.8C30.2 25.2 31.5 22.8 31.5 19.5C31.5 15.5 29 12 24 12Z"
-        fill="white"
-        fillOpacity="0.96"
-      />
-
-      <path
-        d="M20.5 15.5Q24 13.2 27.5 15.5"
-        stroke="#0F6E56"
-        strokeWidth="1.1"
+        d="M17 13.5V34.5"
+        stroke="white"
+        strokeWidth="3.4"
         strokeLinecap="round"
+      />
+      <path
+        d="M17 13.5H25.2C30.4 13.5 33.8 16.6 33.8 21.2C33.8 25.8 30.4 28.9 25.2 28.9H17"
+        stroke="white"
+        strokeWidth="3.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         fill="none"
-        opacity="0.28"
       />
 
-      <line x1="18" y1="22" x2="30" y2="22" stroke="#0F6E56" strokeWidth="1.35" strokeLinecap="round" opacity="0.38" />
-      <line x1="18.5" y1="27" x2="29.5" y2="27" stroke="#0F6E56" strokeWidth="1.35" strokeLinecap="round" opacity="0.32" />
-      <line x1="19" y1="32" x2="29" y2="32" stroke="#0F6E56" strokeWidth="1.35" strokeLinecap="round" opacity="0.26" />
+      <path
+        d="M21.2 18.8H27.6C29.4 18.8 30.6 19.8 30.6 21.4C30.6 23 29.4 24 27.6 24H21.2"
+        stroke={`url(#${innerGrad})`}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      <path
+        d="M21.4 21.6H26.8"
+        stroke="white"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.42"
+      />
+      <path
+        d="M21.4 24.2H25.6"
+        stroke="white"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.3"
+      />
 
-      <path d="M18 35.5H30" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.45" />
-
-      <circle cx="36.5" cy="11.5" r="2.2" fill="white" fillOpacity="0.18" />
-      <circle cx="36.5" cy="11.5" r="1" fill="white" fillOpacity="0.85" />
+      <circle cx="35.2" cy="12.8" r="1.35" fill="white" fillOpacity="0.92" />
+      <circle cx="35.2" cy="12.8" r="2.6" fill="white" fillOpacity="0.14" />
     </svg>
   );
 }

@@ -98,15 +98,22 @@ export default function Footer() {
             <ul className="space-y-2.5 text-[13px] text-[#7CA0B8]">
               <li>
                 <a
-                  href="https://seilglobal.com/ProstheticDentistry/?bmode=view&idx=130420299"
+                  href="https://add-ondental.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  JB Tray (Seil Global)
+                  Add-on
                 </a>
               </li>
-              <li>hello@printdenture.com</li>
+              <li>
+                <a
+                  href="mailto:infor@printdenture.com"
+                  className="hover:text-white transition-colors"
+                >
+                  infor@printdenture.com
+                </a>
+              </li>
               <li>California, USA</li>
             </ul>
           </div>
