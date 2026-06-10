@@ -49,7 +49,8 @@ export function productUsesArchPricing(category: string, _name?: string): boolea
   return ARCH_PRICED_CATEGORIES.has(category);
 }
 
-export function getArchPricingTier(product: {
+/** Default arch tiers from code — used only to scale bundle price when admin changes per-arch price. */
+function getSeedArchPricingTier(product: {
   category: string;
   name: string;
 }): ArchPricingTier | null {
@@ -59,6 +60,22 @@ export function getArchPricingTier(product: {
     ARCH_PRICING_BY_CATEGORY[product.category] ??
     null
   );
+}
+
+/** Live arch tiers — per-arch price from DB; bundle scales with the seed upper/both ratio. */
+export function getArchPricingTier(product: {
+  category: string;
+  name: string;
+  price: number;
+}): ArchPricingTier | null {
+  const seed = getSeedArchPricingTier(product);
+  if (!seed || seed.upper <= 0) return seed;
+  const ratio = product.price / seed.upper;
+  return {
+    upper: product.price,
+    lower: product.price,
+    both: Math.round(seed.both * ratio),
+  };
 }
 
 export function resolveLineItemPrice(
@@ -98,18 +115,35 @@ export function formatProductPriceHint(product: {
   return `From $${Math.min(tier.upper, tier.lower)}`;
 }
 
+export type PricingCardDisplay = {
+  primary: string;
+  secondary?: string;
+  archTiers?: { label: string; price: number }[];
+  flat: boolean;
+};
+
 export function formatPricingCardPrice(product: {
   category: string;
   name: string;
   price: number;
-}): { primary: string; secondary?: string } {
+}): PricingCardDisplay {
   const tier = getArchPricingTier(product);
   if (!tier) {
-    return { primary: `$${product.price}`, secondary: "per case" };
+    return {
+      primary: `$${product.price}`,
+      secondary: "per case",
+      flat: true,
+    };
   }
   return {
     primary: `$${tier.upper}`,
-    secondary: `per arch · Both $${tier.both}`,
+    secondary: "per arch",
+    flat: false,
+    archTiers: [
+      { label: "Upper", price: tier.upper },
+      { label: "Lower", price: tier.lower },
+      { label: "Both", price: tier.both },
+    ],
   };
 }
 

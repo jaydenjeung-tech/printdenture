@@ -1262,14 +1262,6 @@ function OrderContent() {
       }
       setUserId(user.id);
 
-      if (CURRENT_SITE === "printdenture") {
-        try {
-          await fetch("/api/catalog/sync", { method: "POST" });
-        } catch {
-          // Catalog sync is best-effort; products load below still works if guards exist.
-        }
-      }
-
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
       const visibleProducts = filterProductsForSite(productData || []);

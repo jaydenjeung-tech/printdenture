@@ -3,7 +3,6 @@ import {
   dentureSeedCategoryFixes,
   dentureSeedsToInsert,
   dentureSeedsToRetire,
-  dentureSeedUpdates,
 } from "@/lib/products/denture-seed";
 
 export type CatalogSyncResult = {
@@ -12,7 +11,7 @@ export type CatalogSyncResult = {
   retired: number;
 };
 
-/** Idempotent: align catalog with seed definitions, retire arch-split SKUs, insert missing rows. */
+/** Bootstrap catalog: category fixes, retire legacy SKUs, insert missing seed rows. Does not overwrite admin-edited prices. */
 export async function syncPrintDentureCatalog(
   supabase: SupabaseClient
 ): Promise<CatalogSyncResult> {
@@ -30,25 +29,6 @@ export async function syncPrintDentureCatalog(
       .from("products")
       .update({ category: fix.category })
       .eq("id", fix.id);
-    if (error) throw error;
-    updated += 1;
-  }
-
-  for (const { id, seed } of dentureSeedUpdates(rows)) {
-    const { error } = await supabase
-      .from("products")
-      .update({
-        category: seed.category,
-        description: seed.description,
-        price: seed.price,
-        turnaround: seed.turnaround,
-        accent: seed.accent,
-        fields: seed.fields,
-        active: seed.active,
-        sort_order: seed.sort_order,
-        sites: seed.sites,
-      })
-      .eq("id", id);
     if (error) throw error;
     updated += 1;
   }
