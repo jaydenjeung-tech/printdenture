@@ -179,12 +179,6 @@ export default function PricingPage() {
     const supabase = createAppClient();
 
     async function load() {
-      try {
-        await fetch("/api/catalog/ensure-guards", { method: "POST" });
-      } catch {
-        // Best-effort — restore PrintCrown guard defaults if an admin deleted them.
-      }
-
       const { data } = await supabase
         .from("products")
         .select("*")

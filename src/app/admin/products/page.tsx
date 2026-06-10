@@ -56,6 +56,7 @@ const FIELD_OPTIONS = [
 ];
 
 const SITES: SiteId[] = ["printcrown", "printdenture"];
+const BOTH_SITES: SiteId[] = ["printcrown", "printdenture"];
 
 const EMPTY: Omit<Product, "id"> = {
   category: "complete",
@@ -70,7 +71,19 @@ const EMPTY: Omit<Product, "id"> = {
   sites: ["printdenture"],
 };
 
+function sitesMatch(a: readonly string[], b: readonly string[]) {
+  return a.length === b.length && BOTH_SITES.every((s) => a.includes(s) && b.includes(s));
+}
+
 function SiteBadges({ sites }: { sites: SiteId[] }) {
+  if (sitesMatch(sites, BOTH_SITES)) {
+    return (
+      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+        Both sites
+      </span>
+    );
+  }
+
   return (
     <div className="flex flex-wrap gap-1">
       {sites.map((s) => (
@@ -101,6 +114,7 @@ export default function AdminProductsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,10 +207,23 @@ export default function AdminProductsPage() {
   }
 
   async function handleDelete(id: string) {
-    const supabase = createAppClient();
-    await supabase.from("products").delete().eq("id", id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    setDeleteConfirm(null);
+    setActionError(null);
+
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(typeof body.error === "string" ? body.error : "Delete failed.");
+        setDeleteConfirm(null);
+        return;
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setDeleteConfirm(null);
+    } catch {
+      setActionError("Delete failed. Check your connection and try again.");
+      setDeleteConfirm(null);
+    }
   }
 
   async function handleRestoreGuards() {
@@ -292,6 +319,10 @@ export default function AdminProductsPage() {
     });
   }
 
+  function setBothSites() {
+    updateForm("sites", [...BOTH_SITES]);
+  }
+
   function onCategoryChange(category: string) {
     const cat = CATEGORIES.find((c) => c.value === category);
     updateForm("category", category);
@@ -353,6 +384,12 @@ export default function AdminProductsPage() {
         {seedMessage && (
           <p className="mb-6 text-sm text-[#0F6E56] bg-[#E8F5F0] border border-[#B8E6D4] rounded-lg px-4 py-3">
             {seedMessage}
+          </p>
+        )}
+
+        {actionError && (
+          <p className="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            {actionError}
           </p>
         )}
 
@@ -506,9 +543,20 @@ export default function AdminProductsPage() {
                       {SITE_LABELS[site]}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={setBothSites}
+                    className={`h-9 px-4 rounded-lg text-sm border transition-all ${
+                      sitesMatch(form.sites ?? [], BOTH_SITES)
+                        ? "bg-amber-600 text-white border-amber-600"
+                        : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-amber-400 hover:text-amber-700"
+                    }`}
+                  >
+                    Both sites
+                  </button>
                 </div>
                 <p className="text-[11px] text-[#9B9B9B] mt-1.5">
-                  Category changes apply suggested defaults; you can override either site.
+                  Pick one site, both sites, or toggle individually. Category changes apply suggested defaults.
                 </p>
               </div>
 

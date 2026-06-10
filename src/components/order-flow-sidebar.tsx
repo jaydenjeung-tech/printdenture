@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SHIPPING_CARRIER } from "@/lib/shipping";
+import { SHIPPING_LABEL } from "@/lib/shipping";
 import {
   ORDER_FLOW_STEP_HINTS,
   ORDER_FLOW_STEP_LABELS,
@@ -99,7 +99,7 @@ export function OrderFlowSidebar({
           <p className="text-xs text-[#9B9B9B] mt-1">Qty {quantity}</p>
           <p className="text-2xl font-semibold text-[#1A1A1A] mt-3">${pricing.total}</p>
           <p className="text-[11px] text-[#9B9B9B] mt-1 leading-relaxed">
-            ${pricing.subtotal} product · ${pricing.shipping} {SHIPPING_CARRIER}
+            ${pricing.subtotal} product · ${pricing.shipping} {SHIPPING_LABEL}
             {pricing.designFee > 0 ? ` · $${pricing.designFee} CAD` : ""}
           </p>
         </div>

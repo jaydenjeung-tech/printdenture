@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import Link from "next/link";
 import Navbar from "@/components/navbar";
+import { CaseFilesList } from "@/components/case-files-list";
 
 type Order = {
   id: string;
@@ -21,6 +22,7 @@ type Order = {
   tooth_numbers: number[] | null;
   notes: string | null;
   stl_file_path: string | null;
+  case_files: unknown;
   paid_at: string | null;
   due_date: string | null;  // ← 추가
 };
@@ -200,12 +202,6 @@ export default function LabPage() {
     setSelected(new Set());
     setBatchStatus("");
     setBatchSaving(false);
-  }
-
-  async function downloadStl(filePath: string) {
-    const supabase = createAppClient();
-    const { data } = await supabase.storage.from("stl-files").createSignedUrl(filePath, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 
   function toggleSelect(id: string) {
@@ -544,16 +540,12 @@ export default function LabPage() {
                       </div>
                     )}
 
-                    {/* STL */}
-                
-                        {order.stl_file_path && (
+                    {(order.case_files || order.stl_file_path) && (
                         <div>
-                            <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">STL File</p>
-                            <div className="flex gap-2">
-                            <button onClick={() => downloadStl(order.stl_file_path!)}
-                                className="h-9 px-4 rounded-lg border border-[#2563EB] bg-white text-sm text-[#2563EB] font-medium hover:bg-[#EFF6FF] transition-all">
-                                Download STL
-                            </button>
+                            <p className="text-xs font-semibold text-[#6B6B6B] uppercase tracking-wider mb-2">Case files</p>
+                            <div className="mb-2">
+                              <CaseFilesList caseFiles={order.case_files} stlFilePath={order.stl_file_path} compact />
+                            </div>
                             <Link
                                 href={`/lab/workorders?ids=${order.id}`}
                                 target="_blank"
@@ -561,7 +553,6 @@ export default function LabPage() {
                             >
                                 Print Rx
                             </Link>
-                            </div>
                         </div>
                         )}
                         {/* Work Order - 항상 표시 */}

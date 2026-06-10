@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
 import { Button } from "@/components/ui/button";
 import { createAppClient, getClientUser } from "@/lib/supabase";
-import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
+import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
 import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
 import {
   EQUIPMENT_FAMILIES,
@@ -134,7 +134,7 @@ function ShopContent() {
           <Link href="/order" className="text-[#0F6E56] font-medium hover:underline">
             New lab case
           </Link>
-          . Flat-rate {SHIPPING_CARRIER} shipping (${SHIPPING_FLAT_RATE}).
+          . Flat-rate {SHIPPING_LABEL} shipping (${SHIPPING_FLAT_RATE}).
         </p>
 
         <JbProtocolChooser
@@ -300,7 +300,7 @@ function ShopContent() {
                       <span>${subtotal}</span>
                     </div>
                     <div className="flex justify-between text-[#6B6B6B]">
-                      <span>Shipping ({SHIPPING_CARRIER})</span>
+                      <span>Shipping ({SHIPPING_LABEL})</span>
                       <span>${SHIPPING_FLAT_RATE}</span>
                     </div>
                     <div className="flex justify-between font-bold text-[#1A1A1A] pt-1">

@@ -7,7 +7,7 @@ import { createAppClient, getClientUser } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/navbar";
 import { isOrderShippingComplete } from "@/lib/profile-requirements";
-import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
+import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
 import {
   saveOrderDraft,
   loadOrderDraft,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/products/denture-service-groups";
 import { JbShopBanner } from "@/components/jb-shop-banner";
 import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
+import { CaseFileUploadSection } from "@/components/case-file-upload";
 import { RecordUploadChecklistPanel } from "@/components/record-upload-checklist";
 import { OrderFlowMobileProgress, OrderFlowSidebar } from "@/components/order-flow-sidebar";
 import Link from "next/link";
@@ -43,10 +44,20 @@ import {
   type OrderFlowStep,
 } from "@/lib/equipment-requirements";
 import {
+  buildRecordChecklistSnapshot,
   emptyRecordChecklistForCategory,
   getRecordUploadChecklist,
   isRecordChecklistComplete,
+  recommendedFileKindsForChecklist,
+  requiredFileKindsForChecklist,
 } from "@/lib/products/record-upload-checklist";
+import {
+  CASE_FILE_KIND_META,
+  hasRequiredScan,
+  primaryScanFile,
+  type PendingCaseFile,
+  type StoredCaseFile,
+} from "@/lib/products/case-files";
 import {
   ARCH_OPTIONS,
   formatArchLabel,
@@ -78,6 +89,8 @@ type OrderData = {
   notes: string;
   file: File | null;
   fileName: string;
+  caseFiles: PendingCaseFile[];
+  fileUploadError: string | null;
   firstName: string;
   lastName: string;
   practiceName: string;
@@ -142,6 +155,8 @@ function draftFieldsFromStored(draft: OrderDraftStored, product: Product): Parti
     notes: draft.notes,
     file: null,
     fileName: draft.fileName,
+    caseFiles: [],
+    fileUploadError: null,
     firstName: draft.firstName,
     lastName: draft.lastName,
     practiceName: draft.practiceName,
@@ -506,12 +521,14 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel 
 }
 
 // ── Step 2 ─────────────────────────────────────────────────────────────────
-function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange, flowStepLabel, onChecklistChange, showJbShopBanner }: {
+function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove, onFileUploadError, onTeethChange, flowStepLabel, onChecklistChange, showJbShopBanner }: {
   data: OrderData;
   onNext: () => void;
   onBack: () => void;
   onChange: (k: keyof OrderData, v: string | number) => void;
-  onFileChange: (file: File) => void;
+  onCaseFileAdd: (file: PendingCaseFile) => void;
+  onCaseFileRemove: (id: string) => void;
+  onFileUploadError: (message: string | null) => void;
   onTeethChange: (teeth: number[]) => void;
   flowStepLabel?: string;
   onChecklistChange: (itemId: string, value: boolean) => void;
@@ -524,11 +541,21 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange, fl
   const needsColor = p.fields.includes("color");
   const needsArch = productNeedsArchSelection(p.fields);
   const recordChecklistDef = getRecordUploadChecklist(p.category);
-  const checklistComplete = isRecordChecklistComplete(p.category, data.recordChecklist);
+  const checklistContext = {
+    files: data.caseFiles,
+    shade: data.shade,
+    acknowledgments: data.recordChecklist,
+  };
+  const checklistComplete = isRecordChecklistComplete(p.category, checklistContext);
+  const requiredFileKinds = requiredFileKindsForChecklist(recordChecklistDef);
+  const recommendedFileKinds = recommendedFileKindsForChecklist(recordChecklistDef);
   const linePrice = resolveLineItemPrice(p, data.arch);
-  const canProceed = data.fileName &&
+  const shadeRequired = needsShade && !recordChecklistDef;
+  const shadeSatisfied =
+    !shadeRequired || !!data.shade || data.caseFiles.some((f) => f.kind === "photo");
+  const canProceed = hasRequiredScan(data.caseFiles) &&
     checklistComplete &&
-    (needsShade ? data.shade : true) &&
+    shadeSatisfied &&
     (needsTooth ? data.toothNumbers.length > 0 : true) &&
     (needsGuard ? (data.guardType && data.arch) : true) &&
     (needsArch ? !!data.arch : true);
@@ -578,14 +605,6 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange, fl
             ))}
           </div>
         </div>
-      )}
-
-      {recordChecklistDef && (
-        <RecordUploadChecklistPanel
-          checklist={recordChecklistDef}
-          checked={data.recordChecklist}
-          onChange={onChecklistChange}
-        />
       )}
 
       {needsTooth && (
@@ -688,34 +707,29 @@ function Step2({ data, onNext, onBack, onChange, onFileChange, onTeethChange, fl
         </div>
       )}
 
-      {/* STL Upload */}
-      <div className="mb-5">
-        <label className="block text-sm font-medium text-[#1A1A1A] mb-2">STL file *</label>
-        {recordChecklistDef && !checklistComplete && (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2 leading-relaxed">
-            Confirm every checklist item above before uploading — incomplete records may require a try-in visit.
-          </p>
-        )}
-        <div onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) onFileChange(file); }}
-          onClick={() => document.getElementById("stl-input")?.click()}
-          className={`flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed cursor-pointer transition-all
-            ${data.fileName ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
-          {data.fileName ? (
-            <div className="text-center">
-              <p className="text-sm font-medium text-[#1A1A1A]">{data.fileName}</p>
-              <p className="text-xs text-[#9B9B9B] mt-1">Click to replace</p>
-            </div>
-          ) : (
-            <div className="text-center px-4">
-              <p className="text-sm text-[#6B6B6B]">Drop your STL file here or <span className="text-[#2563EB] font-medium">browse</span></p>
-              <p className="text-xs text-[#9B9B9B] mt-1">Supports .stl · Max 100MB</p>
-            </div>
-          )}
-        </div>
-        <input id="stl-input" type="file" accept=".stl" className="hidden"
-          onChange={(e) => { const file = e.target.files?.[0]; if (file) onFileChange(file); }} />
-      </div>
+      <CaseFileUploadSection
+        requiredKinds={requiredFileKinds}
+        recommendedKinds={recommendedFileKinds}
+        files={data.caseFiles}
+        onAdd={onCaseFileAdd}
+        onRemove={onCaseFileRemove}
+        error={data.fileUploadError}
+        onError={onFileUploadError}
+      />
+
+      {recordChecklistDef && (
+        <RecordUploadChecklistPanel
+          checklist={recordChecklistDef}
+          context={checklistContext}
+          onAcknowledgmentChange={onChecklistChange}
+        />
+      )}
+
+      {recordChecklistDef && !checklistComplete && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-5 leading-relaxed">
+          Confirm the required checklist item to continue. Recommended uploads are optional but reduce try-in risk.
+        </p>
+      )}
 
       {/* Notes */}
       <div className="mb-8">
@@ -1160,7 +1174,18 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         )}
         {data.marginType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
         <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
-        {data.fileName && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Scan: {data.fileName}</p>}
+        {data.caseFiles.length > 0 && (
+          <div className="text-xs text-[#9B9B9B] ml-4 mb-1 space-y-0.5">
+            {data.caseFiles.map((f) => (
+              <p key={f.id}>
+                {CASE_FILE_KIND_META[f.kind].label}: {f.fileName}
+              </p>
+            ))}
+          </div>
+        )}
+        {!data.caseFiles.length && data.fileName && (
+          <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Scan: {data.fileName}</p>
+        )}
         {data.designChoice === "cad" && (
           <p className="text-xs text-[#9B9B9B] ml-4 mb-3">CAD design requested</p>
         )}
@@ -1177,7 +1202,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
             </div>
           )}
           <div className="flex justify-between text-sm text-[#6B6B6B]">
-            <span>Shipping ({SHIPPING_CARRIER})</span><span>${shipping}</span>
+            <span>Shipping ({SHIPPING_LABEL})</span><span>${shipping}</span>
           </div>
           <div className="flex justify-between text-base font-bold text-[#1A1A1A]">
             <span>Total</span><span>${total}</span>
@@ -1230,7 +1255,7 @@ function OrderContent() {
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<OrderData>({
     product: null, quantity: 1, shade: "", toothNumbers: [],
-    notes: "", file: null, fileName: "",
+    notes: "", file: null, fileName: "", caseFiles: [], fileUploadError: null,
     firstName: "", lastName: "", practiceName: "",
     address: "", city: "", state: "", zip: "", phone: "",
     marginType: "", occlusion: "", guardType: "", color: "", arch: "",
@@ -1247,7 +1272,7 @@ function OrderContent() {
   const [draftPrompt, setDraftPrompt] = useState<{
     savedAt: string;
     productName: string;
-    needsStlReupload: boolean;
+    needsFileReupload: boolean;
   } | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -1262,12 +1287,6 @@ function OrderContent() {
         return;
       }
       setUserId(user.id);
-
-      try {
-        await fetch("/api/catalog/ensure-guards", { method: "POST" });
-      } catch {
-        // Best-effort — shared Night/Sports Guard SKUs from PrintCrown catalog.
-      }
 
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
@@ -1313,18 +1332,18 @@ function OrderContent() {
               }));
               pendingDraftRestore = storedDraft;
               setDraftRestored(true);
-              if (storedDraft.fileName) {
+              if (storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0) {
                 setDraftPrompt({
                   savedAt: storedDraft.savedAt,
                   productName: resolved.product.name,
-                  needsStlReupload: true,
+                  needsFileReupload: true,
                 });
               }
             } else {
               setDraftPrompt({
                 savedAt: storedDraft.savedAt,
                 productName: resolved.product.name,
-                needsStlReupload: !!storedDraft.fileName,
+                needsFileReupload: !!storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0,
               });
             }
           }
@@ -1441,6 +1460,11 @@ function OrderContent() {
         aiDesignError: data.aiDesignError,
         designChoice: data.designChoice,
         recordChecklist: data.recordChecklist,
+        caseFilesMeta: data.caseFiles.map((f) => ({
+          id: f.id,
+          kind: f.kind,
+          fileName: f.fileName,
+        })),
       });
     }, 500);
     return () => clearTimeout(timer);
@@ -1462,10 +1486,10 @@ function OrderContent() {
       )
     );
     setDraftRestored(true);
-    setDraftPrompt(storedDraft.fileName ? {
+    setDraftPrompt(storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0 ? {
       savedAt: storedDraft.savedAt,
       productName: found.name,
-      needsStlReupload: true,
+      needsFileReupload: true,
     } : null);
   }
 
@@ -1522,6 +1546,10 @@ function OrderContent() {
       ...prev,
       product,
       arch: "",
+      caseFiles: [],
+      fileUploadError: null,
+      file: null,
+      fileName: "",
       recordChecklist: emptyRecordChecklistForCategory(product.category),
     }));
   }
@@ -1530,22 +1558,51 @@ function OrderContent() {
     setData((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleFileChange(file: File) {
-    setData((prev) => ({
-      ...prev,
-      file,
-      fileName: file.name,
-      aiDesignStatus: "idle",
-      aiDesignApproved: false,
-      aiDesignSummary: "",
-      aiDesignedFileName: "",
-      aiDesignError: "",
-      designChoice: "",
-    }));
+  function syncPrimaryScan(files: PendingCaseFile[]) {
+    const scan = primaryScanFile(files);
+    return {
+      file: scan?.file ?? null,
+      fileName: scan?.fileName ?? "",
+    };
+  }
+
+  function handleCaseFileAdd(pending: PendingCaseFile) {
+    setData((prev) => {
+      const caseFiles = [...prev.caseFiles, pending];
+      return {
+        ...prev,
+        caseFiles,
+        fileUploadError: null,
+        ...syncPrimaryScan(caseFiles),
+        aiDesignStatus: "idle",
+        aiDesignApproved: false,
+        aiDesignSummary: "",
+        aiDesignedFileName: "",
+        aiDesignError: "",
+        designChoice: "",
+      };
+    });
+  }
+
+  function handleCaseFileRemove(id: string) {
+    setData((prev) => {
+      const caseFiles = prev.caseFiles.filter((f) => f.id !== id);
+      return {
+        ...prev,
+        caseFiles,
+        ...syncPrimaryScan(caseFiles),
+        aiDesignStatus: "idle",
+        aiDesignApproved: false,
+        aiDesignSummary: "",
+        aiDesignedFileName: "",
+        aiDesignError: "",
+        designChoice: "",
+      };
+    });
   }
 
   async function handleSubmit() {
-    if (!data.product || !data.file) return;
+    if (!data.product || !hasRequiredScan(data.caseFiles)) return;
     if (!isOrderShippingComplete(data)) {
       goToFlowStep("review");
       alert("Please complete your practice name, phone, and shipping address on the review step.");
@@ -1572,6 +1629,12 @@ function OrderContent() {
 
     const p = data.product;
     const { total, unitPrice } = getOrderPricing(data);
+    const checklistContext = {
+      files: data.caseFiles,
+      shade: data.shade,
+      acknowledgments: data.recordChecklist,
+    };
+    const recordChecklist = buildRecordChecklistSnapshot(p.category, checklistContext);
 
     // 1. orders 저장
     const { data: order, error: orderError } = await supabase
@@ -1596,6 +1659,7 @@ function OrderContent() {
         ].filter(Boolean).join("\n") || null,
         status: "received",
         order_type: "lab_case",
+        record_checklist: recordChecklist,
       })
       .select().single();
 
@@ -1631,19 +1695,40 @@ function OrderContent() {
       await supabase.from("orders").update({ rx_id: rx.id }).eq("id", order.id);
     }
 
-    // 3. STL 업로드
-    const filePath = `${user.id}/${order.id}.stl`;
-    const { error: uploadError } = await supabase.storage
-      .from("stl-files").upload(filePath, data.file, { upsert: true });
+    // 3. Case files 업로드
+    const uploadedFiles: StoredCaseFile[] = [];
+    let primaryScanPath: string | null = null;
 
-    if (uploadError) {
-      console.error("STL upload error:", uploadError);
-      alert("STL file upload failed: " + uploadError.message);
-      setSubmitting(false);
-      return;
+    for (const pending of data.caseFiles) {
+      const ext = pending.fileName.includes(".")
+        ? pending.fileName.split(".").pop()?.toLowerCase() ?? "bin"
+        : "bin";
+      const storagePath = `${user.id}/${order.id}/${pending.kind}/${pending.id}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("stl-files")
+        .upload(storagePath, pending.file, { upsert: true });
+
+      if (uploadError) {
+        console.error("Case file upload error:", uploadError);
+        alert(`File upload failed (${pending.fileName}): ${uploadError.message}`);
+        setSubmitting(false);
+        return;
+      }
+
+      uploadedFiles.push({
+        kind: pending.kind,
+        path: storagePath,
+        fileName: pending.fileName,
+      });
+      if (pending.kind === "scan" && !primaryScanPath) {
+        primaryScanPath = storagePath;
+      }
     }
 
-    await supabase.from("orders").update({ stl_file_path: filePath }).eq("id", order.id);
+    await supabase.from("orders").update({
+      stl_file_path: primaryScanPath,
+      case_files: uploadedFiles,
+    }).eq("id", order.id);
 
     // 4. 프로필 업데이트
     await supabase.from("profiles").update({
@@ -1719,10 +1804,10 @@ function OrderContent() {
             </div>
           </div>
         )}
-        {(draftPrompt?.needsStlReupload && draftRestored) && (
+        {(draftPrompt?.needsFileReupload && draftRestored) && (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <p className="text-sm text-amber-900">
-              Re-upload your STL file on the Case details step to continue
+              Re-upload your case files on the Case details step to continue
               {data.fileName ? ` (previously: ${data.fileName})` : ""}.
             </p>
           </div>
@@ -1773,7 +1858,10 @@ function OrderContent() {
                 )
               )}
               {step === flowStepToIndex(orderFlow, "case") && (
-                <Step2 data={data} onChange={update} onFileChange={handleFileChange}
+                <Step2 data={data} onChange={update}
+                  onCaseFileAdd={handleCaseFileAdd}
+                  onCaseFileRemove={handleCaseFileRemove}
+                  onFileUploadError={(message) => setData((prev) => ({ ...prev, fileUploadError: message }))}
                   flowStepLabel={flowStepLabel}
                   showJbShopBanner={
                     !!data.product &&

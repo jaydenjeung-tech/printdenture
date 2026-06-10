@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { SHIPPING_CARRIER, SHIPPING_FLAT_RATE } from "@/lib/shipping";
+import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
 import {
   equipmentFieldTagForKind,
   type EquipmentKind,
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       {
         price_data: {
           currency: "usd",
-          product_data: { name: `Shipping (${SHIPPING_CARRIER})` },
+          product_data: { name: `Shipping (${SHIPPING_LABEL})` },
           unit_amount: shipping * 100,
         },
         quantity: 1,

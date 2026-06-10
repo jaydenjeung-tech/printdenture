@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 import Link from "next/link";
+import { CaseFilesList } from "@/components/case-files-list";
 
 type Order = {
   id: string;
@@ -22,6 +23,8 @@ type Order = {
   tooth_numbers: number[] | null;
   notes: string | null;
   stl_file_path: string | null;
+  case_files: unknown;
+  record_checklist: unknown;
   paid_at: string | null;
   due_date: string | null;
   is_remake: boolean;
@@ -320,12 +323,6 @@ export default function OrderDetailPage() {
     }
 
     setSubmittingRemake(false);
-  }
-
-  async function downloadStl(filePath: string) {
-    const supabase = createAppClient();
-    const { data } = await supabase.storage.from("stl-files").createSignedUrl(filePath, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
   }
 
   if (loading) {
@@ -691,11 +688,11 @@ export default function OrderDetailPage() {
                   </div>
                 ))}
               </div>
-              {order.stl_file_path && (
-                <button onClick={() => downloadStl(order.stl_file_path!)}
-                  className="w-full mt-4 h-8 rounded-lg border border-[#E2E0D8] text-xs text-[#2563EB] font-medium hover:border-[#2563EB] transition-all">
-                  ↓ Download STL
-                </button>
+              {(order.case_files || order.stl_file_path) && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider mb-2">Case files</p>
+                  <CaseFilesList caseFiles={order.case_files} stlFilePath={order.stl_file_path} />
+                </div>
               )}
             </div>
 

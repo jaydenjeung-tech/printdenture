@@ -215,8 +215,8 @@ export const ORDER_FLOW_STEP_HINTS: Record<OrderFlowStep, OrderFlowStepHint> = {
   },
   case: {
     title: "Upload records & preferences",
-    description: "Confirm the try-in–skip record checklist, then upload scans. No denture design is required in your office.",
-    bullets: ["STL or scanner export from IOS / model scan", "Add clinical notes for the technician"],
+    description: "Upload scans, CBCT, photos, and documents — the checklist tracks what is still needed. No denture design is required in your office.",
+    bullets: ["Scans (STL/PLY/OBJ), CBCT ZIP, shade photos, PDF notes", "Add clinical notes for the technician"],
   },
   rx: {
     title: "Sign the lab prescription",

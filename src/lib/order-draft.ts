@@ -1,4 +1,5 @@
 import type { OrderFlowStep } from "@/lib/equipment-requirements";
+import type { CaseFileDraftMeta } from "@/lib/products/case-files";
 
 const DRAFT_KEY = "printdenture_order_draft_v1";
 
@@ -38,6 +39,7 @@ export type OrderDraftStored = {
   aiDesignError: string;
   designChoice: "ai" | "cad" | "";
   recordChecklist?: Record<string, boolean>;
+  caseFilesMeta?: CaseFileDraftMeta[];
 };
 
 type DraftSource = {
@@ -73,6 +75,7 @@ type DraftSource = {
   aiDesignError: string;
   designChoice: OrderDraftStored["designChoice"];
   recordChecklist?: Record<string, boolean>;
+  caseFilesMeta?: CaseFileDraftMeta[];
 };
 
 export function saveOrderDraft(source: DraftSource) {
@@ -112,6 +115,7 @@ export function saveOrderDraft(source: DraftSource) {
     aiDesignError: source.aiDesignError,
     designChoice: source.designChoice,
     recordChecklist: source.recordChecklist,
+    caseFilesMeta: source.caseFilesMeta,
   };
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
