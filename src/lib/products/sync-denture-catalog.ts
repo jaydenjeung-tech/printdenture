@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { guardCategoryFixes } from "@/lib/products/guard-catalog";
+import { sharedGuardsToInsert } from "@/lib/products/guard-seeds";
 import {
   dentureSeedCategoryFixes,
   dentureSeedsToInsert,
@@ -11,6 +12,22 @@ export type CatalogSyncResult = {
   updated: number;
   retired: number;
 };
+
+/** Restore Night Guard & Sports Guard (PrintCrown catalog defaults, both sites). */
+export async function ensureSharedGuardProducts(supabase: SupabaseClient): Promise<number> {
+  const { data: existing, error: loadError } = await supabase
+    .from("products")
+    .select("category, name");
+
+  if (loadError) throw loadError;
+
+  const pending = sharedGuardsToInsert(existing ?? []);
+  if (pending.length === 0) return 0;
+
+  const { error } = await supabase.from("products").insert(pending);
+  if (error) throw error;
+  return pending.length;
+}
 
 /** Bootstrap catalog: category fixes, retire legacy SKUs, insert missing seed rows. Does not overwrite admin-edited prices. */
 export async function syncPrintDentureCatalog(

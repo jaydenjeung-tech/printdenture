@@ -199,6 +199,32 @@ export default function AdminProductsPage() {
     setDeleteConfirm(null);
   }
 
+  async function handleRestoreGuards() {
+    setSeeding(true);
+    setSeedMessage(null);
+
+    try {
+      const res = await fetch("/api/catalog/ensure-guards", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        setSeedMessage(body.error ?? "Guard restore failed.");
+        setSeeding(false);
+        return;
+      }
+
+      await loadProducts();
+      setSeeding(false);
+      setSeedMessage(
+        body.inserted > 0
+          ? `Restored ${body.inserted} guard product${body.inserted === 1 ? "" : "s"} (Night Guard & Sports Guard, both sites).`
+          : "Night Guard and Sports Guard are already in the catalog."
+      );
+    } catch {
+      setSeedMessage("Guard restore failed.");
+      setSeeding(false);
+    }
+  }
+
   async function handleSeedDentureCatalog() {
     setSeeding(true);
     setSeedMessage(null);
@@ -215,10 +241,13 @@ export default function AdminProductsPage() {
       await loadProducts();
       setSeeding(false);
       const parts: string[] = [];
-      if (body.updated > 0) parts.push(`Fixed ${body.updated} categor${body.updated === 1 ? "y" : "ies"}`);
+      if (body.guardsInserted > 0) {
+        parts.push(`restored ${body.guardsInserted} guard product${body.guardsInserted === 1 ? "" : "s"}`);
+      }
+      if (body.updated > 0) parts.push(`fixed ${body.updated} categor${body.updated === 1 ? "y" : "ies"}`);
       if (body.inserted > 0) parts.push(`added ${body.inserted} product${body.inserted === 1 ? "" : "s"}`);
       setSeedMessage(
-        parts.length > 0 ? `${parts.join("; ")}.` : "All PrintDenture default products are already in the catalog."
+        parts.length > 0 ? `${parts.join("; ")}.` : "Catalog is up to date."
       );
     } catch {
       setSeedMessage("Catalog sync failed.");
@@ -295,6 +324,14 @@ export default function AdminProductsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleRestoreGuards}
+              disabled={seeding}
+              className="h-9 px-4 border border-amber-500 text-amber-800 hover:bg-amber-50 text-sm font-medium rounded-lg transition-all disabled:opacity-50"
+            >
+              {seeding ? "Restoring..." : "Restore guards"}
+            </button>
             <button
               type="button"
               onClick={handleSeedDentureCatalog}

@@ -44,3 +44,22 @@ export const SHARED_GUARD_SEEDS: GuardProductSeed[] = [
 ];
 
 export const SHARED_GUARD_NAMES = SHARED_GUARD_SEEDS.map((s) => s.name);
+
+function guardSeedKey(seed: Pick<GuardProductSeed, "category" | "name">): string {
+  return `${seed.category}:${seed.name}`;
+}
+
+/** Insert PrintCrown-style shared guards when missing (e.g. after admin delete). */
+export function sharedGuardsToInsert(
+  existing: readonly { category: string; name: string }[]
+): GuardProductSeed[] {
+  const exactKeys = new Set(existing.map((p) => `${p.category}:${p.name}`));
+  const names = new Set(existing.map((p) => p.name));
+
+  return SHARED_GUARD_SEEDS.filter((seed) => {
+    if (exactKeys.has(guardSeedKey(seed))) return false;
+    // Legacy row with same name but wrong category — category sync fixes it; don't duplicate.
+    if (names.has(seed.name)) return false;
+    return true;
+  });
+}

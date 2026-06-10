@@ -1263,6 +1263,12 @@ function OrderContent() {
       }
       setUserId(user.id);
 
+      try {
+        await fetch("/api/catalog/ensure-guards", { method: "POST" });
+      } catch {
+        // Best-effort — shared Night/Sports Guard SKUs from PrintCrown catalog.
+      }
+
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
       const visibleProducts = prepareCatalogProducts(productData || []);
