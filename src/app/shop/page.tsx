@@ -139,7 +139,7 @@ function ShopContent() {
 
         <JbProtocolChooser
           variant="shop"
-          activeFamily={activeFamily}
+          activeFamily={activeFamily === "pop_bow" ? undefined : activeFamily}
           onSelectFamily={setActiveFamily}
           className="mb-8"
         />
