@@ -71,7 +71,7 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  if (pathname.startsWith("/auth") && activeUser) {
+  if (pathname.startsWith("/auth") && !pathname.startsWith("/auth/callback") && activeUser) {
     const next = request.nextUrl.searchParams.get("next");
     const destination =
       next?.startsWith("/") && !next.startsWith("//")

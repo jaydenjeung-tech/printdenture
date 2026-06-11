@@ -9,6 +9,7 @@ import {
   SUPABASE_SETUP_MESSAGE,
 } from "@/lib/supabase";
 import Navbar from "@/components/navbar";
+import { getClientAppOrigin } from "@/lib/app-url";
 import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 
 type Mode = "login" | "signup";
@@ -47,6 +48,11 @@ function AuthContent() {
   const configured = isSupabaseConfigured();
 
   useEffect(() => {
+    if (searchParams.get("error") === "oauth") {
+      setError("Google sign-in could not be completed. Please try again.");
+      setCheckingSession(false);
+      return;
+    }
     if (!configured) {
       setCheckingSession(false);
       return;
@@ -64,7 +70,7 @@ function AuthContent() {
       }
       setCheckingSession(false);
     })();
-  }, [configured, postAuthPath, router]);
+  }, [configured, postAuthPath, router, searchParams]);
 
   async function handleGoogleSignIn() {
     if (!configured) {
@@ -79,10 +85,11 @@ function AuthContent() {
       setGoogleLoading(false);
       return;
     }
+    const callbackUrl = `${getClientAppOrigin()}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}${postAuthPath}`,
+        redirectTo: callbackUrl,
       },
     });
     if (oauthError) {
