@@ -1,32 +1,66 @@
 "use client";
 
-import { useId } from "react";
-
 export type LogoVariant = "dark" | "light";
 export type LogoSize = "sm" | "md" | "lg";
 
 const MARK_SIZES: Record<LogoSize, number> = {
-  sm: 28,
-  md: 32,
-  lg: 40,
+  sm: 32,
+  md: 40,
+  lg: 48,
 };
 
 const WORDMARK_SIZES: Record<LogoSize, string> = {
-  sm: "text-[14px]",
-  md: "text-[16px] lg:text-[17px]",
-  lg: "text-[20px]",
+  sm: "text-[15px]",
+  md: "text-[18px] lg:text-[19px]",
+  lg: "text-[22px] lg:text-[24px]",
 };
+
+const MARK_COLORS: Record<LogoVariant, string> = {
+  dark: "#5DCAA5",
+  light: "#0F6E56",
+};
+
+/** Tray arch nestles into wordmark — tight lockup like seating a JB Tray. */
+const LOGO_LOCKUP: Record<
+  LogoSize,
+  { gap: string; markClass: string; wordmarkClass: string }
+> = {
+  sm: {
+    gap: "gap-0",
+    markClass: "-mr-1.5",
+    wordmarkClass: "-ml-1 translate-y-px",
+  },
+  md: {
+    gap: "gap-0",
+    markClass: "-mr-2.5",
+    wordmarkClass: "-ml-1.5 translate-y-[2px]",
+  },
+  lg: {
+    gap: "gap-0",
+    markClass: "-mr-3",
+    wordmarkClass: "-ml-2 translate-y-[2.5px]",
+  },
+};
+
+function resolveLockup(size: LogoSize | number, markSize: number) {
+  if (typeof size !== "number") return LOGO_LOCKUP[size];
+  if (markSize <= 32) return LOGO_LOCKUP.sm;
+  if (markSize <= 40) return LOGO_LOCKUP.md;
+  return LOGO_LOCKUP.lg;
+}
 
 type MarkProps = {
   size?: number;
+  variant?: LogoVariant;
   className?: string;
 };
 
-export function PrintDentureMark({ size = 32, className }: MarkProps) {
-  const uid = useId().replace(/:/g, "");
-  const bgGrad = `pd-bg-${uid}`;
-  const shineGrad = `pd-shine-${uid}`;
-  const innerGrad = `pd-inner-${uid}`;
+/**
+ * PrintDenture mark — abstract JB Tray (Just Border) silhouette.
+ * Outer rim + inner basin + anterior handle. Monoline, optical 48×48 grid.
+ */
+export function PrintDentureMark({ size = 32, variant = "dark", className }: MarkProps) {
+  const stroke = MARK_COLORS[variant];
 
   return (
     <svg
@@ -35,67 +69,40 @@ export function PrintDentureMark({ size = 32, className }: MarkProps) {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={`shrink-0 ${className ?? ""}`}
       aria-hidden
     >
-      <defs>
-        <linearGradient id={bgGrad} x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#3EE0A8" />
-          <stop offset="0.45" stopColor="#1D9E75" />
-          <stop offset="1" stopColor="#0B5C47" />
-        </linearGradient>
-        <linearGradient id={shineGrad} x1="24" y1="4" x2="24" y2="22" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="white" stopOpacity="0.28" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id={innerGrad} x1="18" y1="14" x2="34" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#E8FFF6" />
-          <stop offset="1" stopColor="#B8F0DC" />
-        </linearGradient>
-      </defs>
-
-      <rect x="2" y="2" width="44" height="44" rx="13" fill={`url(#${bgGrad})`} />
-      <rect x="2" y="2" width="44" height="22" rx="13" fill={`url(#${shineGrad})`} />
-
-      <path
-        d="M17 13.5V34.5"
-        stroke="white"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M17 13.5H25.2C30.4 13.5 33.8 16.6 33.8 21.2C33.8 25.8 30.4 28.9 25.2 28.9H17"
-        stroke="white"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-
-      <path
-        d="M21.2 18.8H27.6C29.4 18.8 30.6 19.8 30.6 21.4C30.6 23 29.4 24 27.6 24H21.2"
-        stroke={`url(#${innerGrad})`}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        opacity="0.9"
-      />
-      <path
-        d="M21.4 21.6H26.8"
-        stroke="white"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity="0.42"
-      />
-      <path
-        d="M21.4 24.2H25.6"
-        stroke="white"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity="0.3"
-      />
-
-      <circle cx="35.2" cy="12.8" r="1.35" fill="white" fillOpacity="0.92" />
-      <circle cx="35.2" cy="12.8" r="2.6" fill="white" fillOpacity="0.14" />
+      {/* Horizontal — arch right, handle left (180° flip from prior orientation) */}
+      <g transform="rotate(90 24 24)">
+        <path
+          d="M11.75 10.5V16.25C11.75 16.25 12 26.75 24 27.5C36 26.75 36.25 16.25 36.25 16.25V10.5"
+          stroke={stroke}
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M15.75 13.25V16.75C15.75 16.75 15.9 23.25 24 23.85C32.1 23.25 32.25 16.75 32.25 16.75V13.25"
+          stroke={stroke}
+          strokeWidth="2.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.38"
+        />
+        <path
+          d="M24 27.5V35.25"
+          stroke={stroke}
+          strokeWidth="3.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M19.75 35.75Q24 38.25 28.25 35.75"
+          stroke={stroke}
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          opacity="0.88"
+        />
+      </g>
     </svg>
   );
 }
@@ -114,11 +121,11 @@ export function PrintDentureWordmark({ variant = "dark", size = "md", className 
 
   return (
     <span
-      className={`font-semibold tracking-[-0.02em] leading-none ${sizeClass} ${className ?? ""}`}
+      className={`font-logo tracking-[-0.06em] leading-none select-none inline-flex items-center ${sizeClass} ${className ?? ""}`}
       style={fontSize}
     >
-      <span className={printColor}>Print</span>
-      <span className={dentureColor}>Denture</span>
+      <span className={`${printColor} font-medium`}>Print</span>
+      <span className={`${dentureColor} font-extrabold`}>Denture</span>
     </span>
   );
 }
@@ -137,11 +144,22 @@ export default function PrintDentureLogo({
   className,
 }: LogoProps) {
   const markSize = typeof size === "number" ? size : MARK_SIZES[size];
+  const lockup = resolveLockup(size, markSize);
 
   return (
-    <div className={`flex items-center gap-2.5 shrink-0 min-w-0 ${className ?? ""}`}>
-      <PrintDentureMark size={markSize} />
-      {showWordmark && <PrintDentureWordmark variant={variant} size={size} />}
+    <div
+      className={`flex items-center shrink-0 min-w-0 ${lockup.gap} ${className ?? ""}`}
+    >
+      <span className={`inline-flex shrink-0 items-center ${lockup.markClass}`}>
+        <PrintDentureMark size={markSize} variant={variant} />
+      </span>
+      {showWordmark && (
+        <PrintDentureWordmark
+          variant={variant}
+          size={size}
+          className={lockup.wordmarkClass}
+        />
+      )}
     </div>
   );
 }
