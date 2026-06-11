@@ -3,15 +3,16 @@
 export type LogoVariant = "dark" | "light";
 export type LogoSize = "sm" | "md" | "lg";
 
+/** Integer sizes aligned to the 48×48 viewBox for crisp SVG strokes. */
 const MARK_SIZES: Record<LogoSize, number> = {
   sm: 32,
-  md: 40,
+  md: 48,
   lg: 48,
 };
 
 const WORDMARK_SIZES: Record<LogoSize, string> = {
   sm: "text-[15px]",
-  md: "text-[18px] lg:text-[19px]",
+  md: "text-[18px]",
   lg: "text-[22px] lg:text-[24px]",
 };
 
@@ -32,21 +33,20 @@ const LOGO_LOCKUP: Record<
   },
   md: {
     gap: "gap-0",
-    markClass: "-mr-2.5",
-    wordmarkClass: "-ml-1.5 translate-y-[2px]",
+    markClass: "-mr-3",
+    wordmarkClass: "-ml-2 translate-y-[2px]",
   },
   lg: {
     gap: "gap-0",
     markClass: "-mr-3",
-    wordmarkClass: "-ml-2 translate-y-[2.5px]",
+    wordmarkClass: "-ml-2 translate-y-[2px]",
   },
 };
 
 function resolveLockup(size: LogoSize | number, markSize: number) {
   if (typeof size !== "number") return LOGO_LOCKUP[size];
   if (markSize <= 32) return LOGO_LOCKUP.sm;
-  if (markSize <= 40) return LOGO_LOCKUP.md;
-  return LOGO_LOCKUP.lg;
+  return LOGO_LOCKUP[markSize <= 48 ? "md" : "lg"];
 }
 
 type MarkProps = {
@@ -69,7 +69,8 @@ export function PrintDentureMark({ size = 32, variant = "dark", className }: Mar
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={`shrink-0 ${className ?? ""}`}
+      shapeRendering="geometricPrecision"
+      className={`block shrink-0 ${className ?? ""}`}
       aria-hidden
     >
       {/* Horizontal — arch right, handle left (180° flip from prior orientation) */}
@@ -121,7 +122,7 @@ export function PrintDentureWordmark({ variant = "dark", size = "md", className 
 
   return (
     <span
-      className={`font-logo tracking-[-0.06em] leading-none select-none inline-flex items-center ${sizeClass} ${className ?? ""}`}
+      className={`font-logo tracking-[-0.06em] leading-none select-none inline-flex items-center subpixel-antialiased ${sizeClass} ${className ?? ""}`}
       style={fontSize}
     >
       <span className={`${printColor} font-medium`}>Print</span>
@@ -148,7 +149,7 @@ export default function PrintDentureLogo({
 
   return (
     <div
-      className={`flex items-center shrink-0 min-w-0 ${lockup.gap} ${className ?? ""}`}
+      className={`relative isolate flex items-center shrink-0 min-w-0 ${lockup.gap} ${className ?? ""}`}
     >
       <span className={`inline-flex shrink-0 items-center ${lockup.markClass}`}>
         <PrintDentureMark size={markSize} variant={variant} />

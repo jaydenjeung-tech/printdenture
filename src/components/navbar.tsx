@@ -382,8 +382,12 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 w-full bg-[#0D1B2A]/95 backdrop-blur-md border-b border-[#1E3347]">
-      <div className="w-full flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-10 h-[4.25rem]">
+    <nav className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#1E3347]">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[#0D1B2A]/95 backdrop-blur-md"
+        aria-hidden
+      />
+      <div className="relative w-full flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-10 h-[4.25rem]">
         <Logo />
 
         {!loading && (
