@@ -148,6 +148,23 @@
   background-size: 48px 48px;
 }
 
+.pd-hero-base {
+  background: linear-gradient(
+    152deg,
+    #132638 0%,
+    var(--pd-navy) 38%,
+    #0a1520 100%
+  );
+}
+
+.pd-hero-vignette {
+  background: radial-gradient(
+    ellipse 120% 90% at 50% -10%,
+    transparent 42%,
+    rgba(0, 0, 0, 0.28) 100%
+  );
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

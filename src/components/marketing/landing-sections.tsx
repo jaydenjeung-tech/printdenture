@@ -8,16 +8,16 @@ import {
   TrustIcon,
 } from "@/components/marketing/primitives";
 import { HeroVideoPanel } from "@/components/marketing/hero-video-panel";
+import { HeroBackdrop } from "@/components/marketing/hero-backdrop";
 
 export function HeroSection() {
   return (
     <section className="relative bg-[var(--pd-navy)] text-white overflow-hidden">
-      <div className="absolute inset-0 pd-grid-bg opacity-[0.07]" aria-hidden />
-      <div className="absolute top-0 right-0 w-1/2 h-full border-l border-white/10 hidden lg:block" aria-hidden />
+      <HeroBackdrop />
 
-      <div className="relative max-w-7xl mx-auto px-6 lg:px-10 pt-32 pb-16 lg:pt-36 lg:pb-24">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 pt-32 pb-16 lg:pt-36 lg:pb-24">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div>
+          <div className="relative">
             <SectionEyebrow className="text-[var(--pd-teal-light)]">
               Clinically-developed denture workflow
             </SectionEyebrow>
@@ -45,7 +45,9 @@ export function HeroSection() {
             </ul>
           </div>
 
-          <HeroVideoPanel />
+          <div className="relative min-w-0">
+            <HeroVideoPanel />
+          </div>
         </div>
       </div>
     </section>
