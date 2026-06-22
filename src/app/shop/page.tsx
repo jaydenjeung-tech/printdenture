@@ -85,12 +85,6 @@ function ShopContent() {
   useEffect(() => {
     async function load() {
       const supabase = createAppClient();
-      const { user } = await getClientUser(supabase);
-      if (!user) {
-        router.replace("/auth?next=%2Fshop");
-        return;
-      }
-
       const { data } = await supabase
         .from("products")
         .select("id, name, description, price, turnaround, accent, fields")
@@ -102,7 +96,7 @@ function ShopContent() {
       setLoading(false);
     }
     void load();
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const list = grouped[activeFamily];
@@ -133,6 +127,15 @@ function ShopContent() {
 
   async function handleCheckout() {
     if (!cartItems.length) return;
+
+    const supabase = createAppClient();
+    const { user } = await getClientUser(supabase);
+    if (!user) {
+      const next = `/shop${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+      router.replace(`/auth?next=${encodeURIComponent(next)}`);
+      return;
+    }
+
     setCheckingOut(true);
     try {
       const res = await fetch("/api/equipment-checkout", {

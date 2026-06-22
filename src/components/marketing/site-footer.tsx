@@ -36,7 +36,7 @@ export default function SiteFooter() {
             </p>
             <ul className="space-y-2.5 text-[13px] text-[#8BB3C8]">
               <li>
-                <Link href="/login" className="hover:text-white transition-colors">
+                <Link href="/auth" className="hover:text-white transition-colors">
                   Provider login
                 </Link>
               </li>

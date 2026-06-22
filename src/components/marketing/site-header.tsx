@@ -16,9 +16,8 @@ type UserState = {
   role: Role;
 };
 
-const APP_LINKS = [
+const ACCOUNT_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "New case", href: "/order" },
   { label: "Support", href: "/support" },
 ];
 
@@ -131,20 +130,67 @@ export default function SiteHeader() {
       : "text-[14px] font-medium text-white/80 hover:text-white transition-colors";
 
   function NavLinks({ mobile = false }: { mobile?: boolean }) {
-    const links = user?.role === "lab" ? LAB_LINKS : user ? APP_LINKS : NAV_LINKS;
-    return (
-      <>
-        {links.map((l) => (
+    const itemClass = mobile ? "block text-[16px] font-medium py-1" : linkClass;
+
+    function renderLink(l: { label: string; href: string }) {
+      return (
+        <Link
+          key={l.href}
+          href={l.href}
+          onClick={() => mobile && setOpen(false)}
+          className={itemClass}
+        >
+          {l.label}
+        </Link>
+      );
+    }
+
+    if (user?.role === "lab") {
+      return <>{LAB_LINKS.map(renderLink)}</>;
+    }
+
+    if (!user) {
+      return <>{NAV_LINKS.map(renderLink)}</>;
+    }
+
+    if (mobile) {
+      return (
+        <>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)]">
+            Site
+          </p>
+          {NAV_LINKS.map(renderLink)}
+          <hr className="border-[var(--pd-border)]" />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)]">
+            Account
+          </p>
+          {ACCOUNT_LINKS.map(renderLink)}
           <Link
-            key={l.href}
-            href={l.href}
-            onClick={() => mobile && setOpen(false)}
-            className={mobile ? "block text-[16px] font-medium py-1" : linkClass}
+            href="/order"
+            onClick={() => setOpen(false)}
+            className="block text-[16px] font-medium py-1 text-[var(--pd-teal-dark)]"
           >
-            {l.label}
+            New case
           </Link>
-        ))}
-      </>
+          {user.role === "admin" && (
+            <>
+              <hr className="border-[var(--pd-border)]" />
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)]">
+                Admin
+              </p>
+              {ADMIN_LINKS.map(renderLink)}
+            </>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-5 lg:gap-6 flex-wrap justify-center">
+        {NAV_LINKS.map(renderLink)}
+        <span className="w-px h-4 bg-current opacity-20 shrink-0 hidden xl:block" aria-hidden />
+        {ACCOUNT_LINKS.map(renderLink)}
+      </div>
     );
   }
 
@@ -194,9 +240,6 @@ export default function SiteHeader() {
       return (
         <div className="flex items-center gap-4">
           {user.role === "admin" && <AdminDropdown />}
-          <Link href="/dashboard" className={loginClass}>
-            Dashboard
-          </Link>
           <Link href="/order">
             <span className="inline-flex h-10 items-center px-5 bg-[var(--pd-teal)] text-white text-[14px] font-medium hover:bg-[var(--pd-teal-dark)] transition-colors">
               New case
@@ -211,7 +254,7 @@ export default function SiteHeader() {
 
     return (
       <div className="flex items-center gap-4">
-        <Link href="/login" className={loginClass}>
+        <Link href="/auth" className={loginClass}>
           Provider login
         </Link>
         <CtaLink href="/providers#demo" className="h-10 px-5 text-[14px]">
@@ -258,7 +301,7 @@ export default function SiteHeader() {
                 <hr className="border-[var(--pd-border)]" />
                 {!loading && !user && (
                   <>
-                    <Link href="/login" onClick={() => setOpen(false)} className="text-[16px] font-medium">
+                    <Link href="/auth" onClick={() => setOpen(false)} className="text-[16px] font-medium">
                       Provider login
                     </Link>
                     <Link href="/providers#demo" onClick={() => setOpen(false)}>

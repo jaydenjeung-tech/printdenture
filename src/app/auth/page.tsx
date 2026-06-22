@@ -98,6 +98,7 @@ function AuthContent() {
     void (async () => {
       const { user } = await getClientUser(supabase);
       if (user) {
+        router.refresh();
         router.replace(postAuthPath);
         return;
       }
@@ -168,6 +169,7 @@ function AuthContent() {
             return;
           }
         }
+        router.refresh();
         router.push(postAuthPath);
       }
     } else {
@@ -202,6 +204,7 @@ function AuthContent() {
           account_status: "approved",
         });
         if (data.session) {
+          router.refresh();
           router.push(postAuthPath);
         } else {
           setSuccess("Account created. Check your email to confirm, then sign in to start submitting cases.");

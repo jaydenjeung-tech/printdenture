@@ -97,7 +97,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/auth") && !pathname.startsWith("/auth/callback") && activeUser) {
+  if (
+    (pathname === "/login" || pathname === "/signup" || pathname.startsWith("/auth")) &&
+    !pathname.startsWith("/auth/callback") &&
+    activeUser
+  ) {
     const next = request.nextUrl.searchParams.get("next");
     const destination =
       next?.startsWith("/") && !next.startsWith("//")
