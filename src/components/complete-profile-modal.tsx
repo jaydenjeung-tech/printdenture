@@ -96,98 +96,87 @@ export default function CompleteProfileModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden />
-      <div className="relative bg-white rounded-2xl border border-[#E2E0D8] p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <h3 className="text-lg font-bold text-[#1A1A1A] mb-1">{title}</h3>
-        <p className="text-sm text-[#6B6B6B] mb-5 leading-relaxed">{description}</p>
+      <div className="relative bg-white border border-[var(--pd-border)] p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-teal-dark)] mb-2">
+          Provider portal
+        </p>
+        <h3 className="text-lg font-semibold text-[var(--pd-navy)] mb-1">{title}</h3>
+        <p className="text-[14px] text-[var(--pd-slate)] mb-5 leading-relaxed">{description}</p>
 
         <div className="space-y-3">
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-                First name
-              </label>
+              <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">First name</label>
               <input
                 type="text"
                 value={form.first_name}
                 onChange={(e) => update("first_name", e.target.value)}
                 placeholder="John"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+                className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
               />
             </div>
             <div className="flex-1">
-              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-                Last name
-              </label>
+              <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">Last name</label>
               <input
                 type="text"
                 value={form.last_name}
                 onChange={(e) => update("last_name", e.target.value)}
                 placeholder="Smith"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+                className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-              Practice name *
-            </label>
+            <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">Practice name *</label>
             <input
               type="text"
               value={form.practice_name}
               onChange={(e) => update("practice_name", e.target.value)}
               placeholder="Smith Family Dentistry"
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+              className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-              Phone *
-            </label>
+            <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">Phone *</label>
             <input
               type="tel"
               value={form.phone}
               onChange={(e) => update("phone", e.target.value)}
               placeholder="(555) 000-0000"
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+              className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-              Street address *
-            </label>
+            <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">Street address *</label>
             <input
               type="text"
               value={form.address}
               onChange={(e) => update("address", e.target.value)}
               placeholder="123 Main St"
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+              className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
             />
           </div>
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-                City *
-              </label>
+              <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">City *</label>
               <input
                 type="text"
                 value={form.city}
                 onChange={(e) => update("city", e.target.value)}
                 placeholder="Los Angeles"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+                className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
               />
             </div>
             <div className="w-24">
-              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-                State *
-              </label>
+              <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">State *</label>
               <select
                 value={form.state}
                 onChange={(e) => update("state", e.target.value)}
-                className="w-full h-10 px-2 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+                className="w-full h-10 px-2 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
               >
                 <option value="">—</option>
                 {US_STATES.map((s) => (
@@ -198,33 +187,29 @@ export default function CompleteProfileModal({
               </select>
             </div>
             <div className="w-24">
-              <label className="text-xs font-semibold text-[#9B9B9B] uppercase tracking-wider block mb-1">
-                ZIP *
-              </label>
+              <label className="block text-[13px] font-medium text-[var(--pd-navy)] mb-1.5">ZIP *</label>
               <input
                 type="text"
                 value={form.zip}
                 onChange={(e) => update("zip", e.target.value)}
                 placeholder="90001"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm focus:outline-none focus:border-[#0F6E56]"
+                className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] focus:outline-none focus:border-[var(--pd-teal)]"
               />
             </div>
           </div>
         </div>
 
         {error && (
-          <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </p>
+          <p className="mt-4 text-[13px] text-red-700 bg-red-50 border border-red-200 px-3 py-2">{error}</p>
         )}
 
         <button
           type="button"
           onClick={handleSave}
           disabled={saving || !complete}
-          className="mt-5 w-full h-11 rounded-xl bg-[#0F6E56] hover:bg-[#085041] text-white text-sm font-semibold disabled:opacity-40 transition-colors"
+          className="mt-5 w-full h-11 bg-[var(--pd-teal)] hover:bg-[var(--pd-teal-dark)] text-white text-[14px] font-medium disabled:opacity-40 transition-colors"
         >
-          {saving ? "Saving..." : "Save & continue"}
+          {saving ? "Saving…" : "Save & continue"}
         </button>
       </div>
     </div>

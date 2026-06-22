@@ -7,7 +7,49 @@ import {
   equipmentFieldTagForKind,
   type EquipmentKind,
 } from "@/lib/equipment-requirements";
-import { getVariantShortLabel, SHOP_QUANTITY_MAX, SHOP_QUANTITY_MIN } from "@/lib/equipment-shop";
+import {
+  clampShopQuantity,
+  getVariantShortLabel,
+  SHOP_QUANTITY_MIN,
+} from "@/lib/equipment-shop";
+
+type CheckoutLineInput = {
+  productId: string;
+  quantity?: number;
+};
+
+type ResolvedCheckoutLine = {
+  product: {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    fields: string[] | null;
+    category: string;
+  };
+  quantity: number;
+  equipmentKind: EquipmentKind | null;
+};
+
+function equipmentKindFromFields(fields: string[] | null | undefined): EquipmentKind | null {
+  if (fields?.includes("jbTray")) return "jb_tray";
+  if (fields?.includes("jbFork")) return "jb_fork";
+  return null;
+}
+
+function normalizeCheckoutLines(body: {
+  productId?: string;
+  quantity?: number;
+  items?: CheckoutLineInput[];
+}): CheckoutLineInput[] {
+  if (Array.isArray(body.items) && body.items.length > 0) {
+    return body.items.filter((item) => item?.productId);
+  }
+  if (body.productId) {
+    return [{ productId: body.productId, quantity: body.quantity }];
+  }
+  return [];
+}
 
 export async function POST(req: NextRequest) {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -17,9 +59,10 @@ export async function POST(req: NextRequest) {
   const stripe = new Stripe(stripeKey);
 
   try {
-    const { productId, quantity = 1, returnTo } = await req.json();
-    if (!productId) {
-      return NextResponse.json({ error: "productId is required" }, { status: 400 });
+    const body = await req.json();
+    const requestedLines = normalizeCheckoutLines(body);
+    if (!requestedLines.length) {
+      return NextResponse.json({ error: "At least one product is required" }, { status: 400 });
     }
 
     const cookieStore = await cookies();
@@ -38,90 +81,118 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: product } = await supabase
+    const productIds = [...new Set(requestedLines.map((line) => line.productId))];
+    const { data: products } = await supabase
       .from("products")
       .select("*")
-      .eq("id", productId)
+      .in("id", productIds)
       .eq("active", true)
-      .single();
+      .eq("category", "equipment");
 
-    if (!product || product.category !== "equipment") {
-      return NextResponse.json({ error: "Equipment product not found" }, { status: 404 });
+    if (!products?.length || products.length !== productIds.length) {
+      return NextResponse.json({ error: "One or more equipment products were not found" }, { status: 404 });
     }
 
-    const qty = Math.max(SHOP_QUANTITY_MIN, Math.min(SHOP_QUANTITY_MAX, Number(quantity) || 1));
-    const subtotal = product.price * qty;
+    const productById = new Map(products.map((product) => [product.id, product]));
+    const resolvedLines: ResolvedCheckoutLine[] = requestedLines.map((line) => {
+      const product = productById.get(line.productId)!;
+      return {
+        product,
+        quantity: clampShopQuantity(Number(line.quantity) || SHOP_QUANTITY_MIN),
+        equipmentKind: equipmentKindFromFields(product.fields),
+      };
+    });
+
+    const isMultiItem = resolvedLines.length > 1;
     const shipping = SHIPPING_FLAT_RATE;
-    const total = subtotal + shipping;
+    const subtotal = resolvedLines.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+    const checkoutTotal = subtotal + shipping;
 
-    const equipmentKind: EquipmentKind | null = product.fields?.includes("jbTray")
-      ? "jb_tray"
-      : product.fields?.includes("jbFork")
-        ? "jb_fork"
-        : null;
+    const orderIds: string[] = [];
+    const equipmentKinds = new Set<EquipmentKind>();
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        product_id: product.id,
-        product_name: product.name,
-        quantity: qty,
-        unit_price: product.price,
-        total_price: total,
-        status: "pending_payment",
-        order_type: "equipment",
-        notes: [
-          equipmentKind ? `equipment_kind:${equipmentKind}` : null,
-          `variant:${getVariantShortLabel(product.fields ?? [])}`,
-        ].filter(Boolean).join(" · ") || null,
-      })
-      .select()
-      .single();
+    for (const line of resolvedLines) {
+      const lineSubtotal = line.product.price * line.quantity;
+      const orderTotal = isMultiItem ? lineSubtotal : checkoutTotal;
 
-    if (orderError || !order) {
-      return NextResponse.json({ error: orderError?.message ?? "Could not create order" }, { status: 500 });
+      if (line.equipmentKind) equipmentKinds.add(line.equipmentKind);
+
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          product_id: line.product.id,
+          product_name: line.product.name,
+          quantity: line.quantity,
+          unit_price: line.product.price,
+          total_price: orderTotal,
+          status: "pending_payment",
+          order_type: "equipment",
+          notes: [
+            line.equipmentKind ? `equipment_kind:${line.equipmentKind}` : null,
+            `variant:${getVariantShortLabel(line.product.fields ?? [])}`,
+            isMultiItem ? "checkout_batch:true" : null,
+          ].filter(Boolean).join(" · ") || null,
+        })
+        .select()
+        .single();
+
+      if (orderError || !order) {
+        return NextResponse.json({ error: orderError?.message ?? "Could not create order" }, { status: 500 });
+      }
+
+      orderIds.push(order.id);
     }
 
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: qty > 1 ? `${product.name} × ${qty}` : product.name,
-            description: [
-              getVariantShortLabel(product.fields ?? []),
-              product.description || undefined,
-            ].filter(Boolean).join(" — ") || undefined,
-          },
-          unit_amount: product.price * 100,
+    const stripeLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = resolvedLines.map((line) => ({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: line.quantity > 1 ? `${line.product.name} × ${line.quantity}` : line.product.name,
+          description: [
+            getVariantShortLabel(line.product.fields ?? []),
+            line.product.description || undefined,
+          ].filter(Boolean).join(" — ") || undefined,
         },
-        quantity: qty,
+        unit_amount: line.product.price * 100,
       },
-      {
-        price_data: {
-          currency: "usd",
-          product_data: { name: `Shipping (${SHIPPING_LABEL})` },
-          unit_amount: shipping * 100,
-        },
-        quantity: 1,
-      },
-    ];
+      quantity: line.quantity,
+    }));
 
-    const safeReturn = typeof returnTo === "string" && returnTo.startsWith("/") ? returnTo : "/shop";
-    const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}${safeReturn}${safeReturn.includes("?") ? "&" : "?"}equipment=ordered${equipmentKind ? `&kind=${equipmentKind}` : ""}`;
+    stripeLineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: { name: `Shipping (${SHIPPING_LABEL})` },
+        unit_amount: shipping * 100,
+      },
+      quantity: 1,
+    });
+
+    const safeReturn = typeof body.returnTo === "string" && body.returnTo.startsWith("/") ? body.returnTo : "/shop";
+    const successParams = new URLSearchParams({ equipment: "ordered" });
+    if (isMultiItem) {
+      successParams.set("count", String(resolvedLines.length));
+    } else {
+      const kind = resolvedLines[0]?.equipmentKind;
+      if (kind) successParams.set("kind", kind);
+    }
+    const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}${safeReturn}${safeReturn.includes("?") ? "&" : "?"}${successParams.toString()}`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}${safeReturn}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: lineItems,
+      line_items: stripeLineItems,
       metadata: {
-        orderId: order.id,
+        orderId: orderIds[0],
+        orderIds: orderIds.join(","),
         userId: user.id,
         orderType: "equipment",
-        equipmentKind: equipmentKind ?? "",
-        equipmentField: equipmentKind ? equipmentFieldTagForKind(equipmentKind) : "",
+        equipmentKind: resolvedLines[0]?.equipmentKind ?? "",
+        equipmentKinds: [...equipmentKinds].join(","),
+        equipmentField: resolvedLines[0]?.equipmentKind
+          ? equipmentFieldTagForKind(resolvedLines[0].equipmentKind)
+          : "",
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -130,9 +201,9 @@ export async function POST(req: NextRequest) {
     await supabase
       .from("orders")
       .update({ stripe_session_id: session.id })
-      .eq("id", order.id);
+      .in("id", orderIds);
 
-    return NextResponse.json({ url: session.url, orderId: order.id });
+    return NextResponse.json({ url: session.url, orderId: orderIds[0], orderIds });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Checkout failed";
     return NextResponse.json({ error: message }, { status: 500 });

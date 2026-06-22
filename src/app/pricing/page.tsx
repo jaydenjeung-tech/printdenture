@@ -1,33 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
-import { createAppClient } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { createAppClient, getClientUser } from "@/lib/supabase";
+import { useState, useEffect, useMemo } from "react";
 import { CURRENT_SITE, CROWN_CATEGORIES } from "@/lib/products/site-catalog";
 import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import { COMPLETE_DENTURE_INTRO } from "@/lib/products/complete-denture-records";
+import { formatPricingCardPrice } from "@/lib/products/arch-pricing";
 import {
-  DENTURE_SERVICE_GROUPS,
-  PRODUCT_CATEGORY_SECTION_LABELS,
-} from "@/lib/products/denture-service-groups";
-import { formatPricingCardPrice, type PricingCardDisplay } from "@/lib/products/arch-pricing";
-
-type Product = {
-  id: string;
-  category: string;
-  name: string;
-  description: string;
-  price: number;
-  turnaround: string;
-  accent: string;
-  sites?: string[] | null;
-};
-
-const BRAND = CURRENT_SITE === "printdenture"
-  ? { accent: "#0F6E56", accentLight: "#E1F5EE", hero: "#0D1B2A", tag: "#5DCAA5" }
-  : { accent: "#2563EB", accentLight: "#EFF6FF", hero: "#0F172A", tag: "#93C5FD" };
+  orderProductHref,
+  orderServiceGroupAuthHref,
+  orderServiceGroupHref,
+} from "@/lib/products/order-product-link";
+import {
+  buildDevicePricingGroups,
+  buildLabPricingGroups,
+  buildPricingNav,
+  splitPricingProducts,
+  type PricingProduct,
+} from "@/lib/products/pricing-page";
+import { MarketingShell, PageHero } from "@/components/marketing/marketing-shell";
+import { CtaLink } from "@/components/marketing/primitives";
+import {
+  PricingDeviceCard,
+  PricingProductCard,
+  PricingSectionNav,
+  PricingLoadingSkeleton,
+  PricingTierHeader,
+} from "@/components/marketing/pricing-ui";
 
 const GROUP_ACCENTS: Record<string, string> = {
   complete: "#0F6E56",
@@ -50,7 +50,7 @@ const CATEGORY_META: Record<string, { label: string; description: string; featur
   },
   printed: {
     label: "Printed Crowns",
-    description: "3D-printed resin crowns for fast, cost-effective restorations.",
+    description: "3D-printed resin crowns for fast turnaround restorations.",
     features: ["SLA printed", "Temporary & permanent", "Same-day dispatch", "Free remake guarantee"],
   },
   nightguard: {
@@ -71,7 +71,7 @@ const CATEGORY_META: Record<string, { label: string; description: string; featur
   complete: {
     label: "Complete",
     description: COMPLETE_DENTURE_INTRO.description,
-    features: ["JB Fork or JB Tray records", "Immediate options", "Lab CAD design", "Free remake guarantee"],
+    features: ["JB Fork or JB Tray records", "Printed try-in included", "Lab CAD design", "Free remake guarantee"],
   },
   partial: {
     label: "Partial",
@@ -95,15 +95,21 @@ const CATEGORY_META: Record<string, { label: string; description: string; featur
   },
 };
 
-const SERVICE_GROUP_FEATURES: Record<string, string[]> = {
-  complete: CATEGORY_META.complete.features,
-  partial: CATEGORY_META.partial.features,
-  overdenture: CATEGORY_META.overdenture.features,
-  removable: ["Night & sports guards", "Soft, hard & dual-laminate", "Custom colors", "Free remake guarantee"],
-  reline: CATEGORY_META.reline.features,
-};
+const DEVICE_INCLUDES = [
+  "One-time chairside purchase",
+  "Ships in 3–5 business days",
+  "Use with PrintDenture lab cases",
+  "POP Bow sold separately",
+];
 
-function categoryMeta(cat: string, sample?: Product) {
+const LAB_INCLUDES = [
+  "Printed try-in included",
+  "Lab-controlled QC",
+  "Free remake guarantee",
+  "No setup fees",
+];
+
+function categoryMeta(cat: string, sample?: PricingProduct) {
   return (
     CATEGORY_META[cat] ?? {
       label: sample?.name ?? cat,
@@ -113,313 +119,284 @@ function categoryMeta(cat: string, sample?: Product) {
   );
 }
 
-function PricingProductCard({ product, priceDisplay }: { product: Product; priceDisplay: PricingCardDisplay }) {
+function LabGroupSection({
+  group,
+  isAuthenticated,
+}: {
+  group: ReturnType<typeof buildLabPricingGroups>[number];
+  isAuthenticated: boolean;
+}) {
+  const orderTypeHref = isAuthenticated
+    ? orderServiceGroupHref(group.id)
+    : orderServiceGroupAuthHref(group.id);
+
   return (
-    <div className="group flex flex-col rounded-2xl border border-[#E2E0D8] bg-white p-5 transition-all hover:border-[#1A1A1A]/25 hover:shadow-md">
-      <div className="flex items-start gap-3 mb-3">
-        <div
-          className="w-1 self-stretch min-h-[2.5rem] rounded-full shrink-0"
-          style={{ background: product.accent }}
-        />
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-[#1A1A1A] leading-snug">{product.name}</h3>
-          <p className="text-xs text-[#9B9B9B] mt-1 leading-relaxed line-clamp-3">{product.description}</p>
+    <section id={`pricing-${group.id}`} className="scroll-mt-28">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 pb-6 border-b border-[var(--pd-border)]">
+        <div className="flex items-start gap-4">
+          <div className="w-1 h-14 shrink-0 mt-0.5" style={{ background: group.accent }} />
+          <div>
+            <h3 className="text-[clamp(1.25rem,2.5vw,1.5rem)] font-semibold text-[var(--pd-navy)] tracking-[-0.02em]">
+              {group.label}
+            </h3>
+            <p className="text-[14px] text-[var(--pd-slate)] mt-2 max-w-xl leading-relaxed">{group.description}</p>
+          </div>
         </div>
+        <Link
+          href={orderTypeHref}
+          className="text-[14px] font-medium text-[var(--pd-teal-dark)] whitespace-nowrap shrink-0 hover:underline"
+        >
+          Order this type →
+        </Link>
       </div>
 
-      <div className="mt-auto pt-4 border-t border-[#F0EEE8]">
-        {priceDisplay.flat ? (
-          <div className="mb-3">
-            <span className="text-2xl font-bold text-[#1A1A1A]">{priceDisplay.primary}</span>
-            {priceDisplay.secondary && (
-              <span className="text-sm text-[#6B6B6B] ml-1.5">{priceDisplay.secondary}</span>
-            )}
-          </div>
-        ) : (
-          <div className="mb-3">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B9B9B] mb-2">
-              Arch pricing
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {priceDisplay.archTiers?.map((tier) => (
-                <span
-                  key={tier.label}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#F8F7F4] border border-[#E2E0D8] px-2.5 py-1.5 text-xs"
-                >
-                  <span className="text-[#6B6B6B]">{tier.label}</span>
-                  <span className="font-semibold text-[#1A1A1A]">${tier.price}</span>
-                </span>
-              ))}
+      {group.sections ? (
+        <div className="space-y-10">
+          {group.sections.map((section) => (
+            <div key={section.label}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)] mb-4">
+                {section.label}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {section.items.map((p) => (
+                  <PricingProductCard
+                    key={p.id}
+                    product={p}
+                    priceDisplay={formatPricingCardPrice(p)}
+                    orderHref={isAuthenticated ? orderProductHref(p.id) : undefined}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-[#9B9B9B]">{product.turnaround}</p>
-          <Link href={`/auth?next=${encodeURIComponent(`/order?product=${product.id}`)}`}>
-            <button
-              type="button"
-              className="h-8 px-4 rounded-lg text-white text-xs font-medium transition-all hover:opacity-90"
-              style={{ background: product.accent }}
-            >
-              Order
-            </button>
-          </Link>
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {group.items?.map((p) => (
+            <PricingProductCard
+              key={p.id}
+              product={p}
+              priceDisplay={formatPricingCardPrice(p)}
+              orderHref={isAuthenticated ? orderProductHref(p.id) : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 mt-6 pt-6 border-t border-[var(--pd-border)]">
+        {group.features.map((f) => (
+          <span
+            key={f}
+            className="text-[12px] text-[var(--pd-slate)] border border-[var(--pd-border)] bg-white px-3 py-1.5"
+          >
+            {f}
+          </span>
+        ))}
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function PricingPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<PricingProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const supabase = createAppClient();
 
     async function load() {
-      const { data } = await supabase
-        .from("products")
-        .select("*")
-        .eq("active", true)
-        .order("sort_order");
-      setProducts(prepareCatalogProducts(data || []));
+      const [{ data }, { user }] = await Promise.all([
+        supabase.from("products").select("*").eq("active", true).order("sort_order"),
+        getClientUser(supabase),
+      ]);
+      setProducts(prepareCatalogProducts(data || []) as PricingProduct[]);
+      setIsAuthenticated(!!user);
       setLoading(false);
     }
 
-    load();
+    void load();
   }, []);
 
-  const grouped =
-    CURRENT_SITE === "printdenture"
-      ? DENTURE_SERVICE_GROUPS.map((serviceGroup) => {
-          const sections = serviceGroup.categories
-            .map((cat) => ({
-              label: PRODUCT_CATEGORY_SECTION_LABELS[cat] ?? categoryMeta(cat).label,
-              items: products.filter((p) => p.category === cat),
-            }))
-            .filter((section) => section.items.length > 0);
+  const { deviceGroups, labGroups, navItems, isPrintDenture } = useMemo(() => {
+    if (CURRENT_SITE !== "printdenture") {
+      const crownGroups = CROWN_CATEGORIES.map((cat) => {
+        const items = products.filter((p) => p.category === cat);
+        if (items.length === 0) return null;
+        const meta = categoryMeta(cat, items[0]);
+        return {
+          id: cat,
+          label: meta.label,
+          description: meta.description,
+          features: meta.features,
+          accent: GROUP_ACCENTS[cat] ?? "#2563EB",
+          items,
+        };
+      }).filter((g): g is NonNullable<typeof g> => g !== null);
 
-          if (sections.length === 0) return null;
+      return {
+        deviceGroups: [],
+        labGroups: crownGroups,
+        navItems: crownGroups.map((g) => ({ id: g.id, label: g.label, accent: g.accent, tier: "lab" as const })),
+        isPrintDenture: false,
+      };
+    }
 
-          return {
-            id: serviceGroup.id,
-            cat: serviceGroup.id,
-            meta: {
-              label: serviceGroup.label,
-              description: serviceGroup.description,
-              features: SERVICE_GROUP_FEATURES[serviceGroup.id] ?? categoryMeta(serviceGroup.categories[0]).features,
-            },
-            accent: GROUP_ACCENTS[serviceGroup.id] ?? BRAND.accent,
-            sections: sections.length > 1 ? sections : undefined,
-            items: sections.length === 1 ? sections[0].items : undefined,
-          };
-        }).filter((group): group is NonNullable<typeof group> => group !== null)
-      : CROWN_CATEGORIES.map((cat) => {
-          const items = products.filter((p) => p.category === cat);
-          if (items.length === 0) return null;
-          return {
-            id: cat,
-            cat,
-            meta: categoryMeta(cat, items[0]),
-            accent: GROUP_ACCENTS[cat] ?? BRAND.accent,
-            items,
-          };
-        }).filter((group): group is NonNullable<typeof group> => group !== null);
+    const { equipment, lab: labProducts } = splitPricingProducts(products);
+    const devices = buildDevicePricingGroups(equipment);
+    const labBuilt = buildLabPricingGroups(labProducts, categoryMeta);
+
+    return {
+      deviceGroups: devices,
+      labGroups: labBuilt,
+      navItems: buildPricingNav(devices, labBuilt),
+      isPrintDenture: true,
+    };
+  }, [products]);
+
+  const hasContent = deviceGroups.length > 0 || labGroups.length > 0;
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4]">
-      <Navbar />
+    <MarketingShell>
+      <PageHero
+        eyebrow="Pricing"
+        title={isPrintDenture ? "Capture devices & lab services" : "Lab pricing"}
+        lead={
+          isPrintDenture
+            ? "Purchase the JB capture system once, then send cases through our lab — design, printed try-in, QC, and finishing included on every prosthesis."
+            : "Transparent pricing from our live catalog."
+        }
+      />
 
-      {/* Hero */}
-      <section className="pt-28 pb-12 px-6" style={{ background: BRAND.hero }}>
-        <div className="max-w-6xl mx-auto">
-          <p className="text-[11px] font-medium uppercase tracking-[0.1em] mb-3" style={{ color: BRAND.tag }}>
-            Lab pricing
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4 max-w-2xl">
-            Transparent pricing from our live catalog
-          </h1>
-          <p className="text-[15px] text-[#94A3B8] max-w-xl leading-relaxed mb-8">
-            Prices reflect what you see in Admin — no hidden tiers. Choose arch at checkout for
-            complete, partial, and implant cases.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {[
-              "Free shipping over $300",
-              "Free remake guarantee",
-              "HIPAA compliant",
-              "No setup fees",
-            ].map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center gap-2 rounded-full border border-[#1E3347] bg-[#132337]/80 px-3.5 py-1.5 text-xs text-[#CBD5E1]"
-              >
-                <span className="text-[#5DCAA5]">✓</span>
-                {item}
-              </span>
-            ))}
-          </div>
-          {CURRENT_SITE === "printcrown" && (
-            <p className="text-xs text-[#64748B] mt-6">
-              Crown cases may include an optional CAD design fee ($5) if you skip AI approval.
-            </p>
-          )}
-        </div>
-      </section>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-14 lg:py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10 lg:gap-14">
+          {!loading && navItems.length > 0 && <PricingSectionNav groups={navItems} />}
 
-      <div className="max-w-6xl mx-auto px-6 py-14">
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-10 lg:gap-14">
-          {/* Section nav */}
-          {!loading && grouped.length > 0 && (
-            <nav className="hidden lg:block">
-              <div className="sticky top-28 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3 px-2">
-                  Jump to
-                </p>
-                {grouped.map((group) => (
-                  <a
-                    key={group.id}
-                    href={`#pricing-${group.id}`}
-                    className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-[#6B6B6B] hover:bg-white hover:text-[#1A1A1A] transition-colors"
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: group.accent }}
-                    />
-                    {group.meta.label}
-                  </a>
-                ))}
-              </div>
-            </nav>
-          )}
-
-          {/* Catalog sections */}
           <div>
             {loading ? (
-              <div className="space-y-12">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="w-40 h-6 bg-[#E2E0D8] rounded mb-4" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {[...Array(2)].map((_, j) => (
-                        <div key={j} className="h-48 bg-[#E2E0D8] rounded-2xl" />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : grouped.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[#E2E0D8] bg-white p-12 text-center">
-                <p className="text-[#6B6B6B]">No active products for this site yet.</p>
-                <Link href="/auth?next=%2Forder" className="text-sm font-medium mt-3 inline-block" style={{ color: BRAND.accent }}>
-                  Start an order →
+              <PricingLoadingSkeleton />
+            ) : !hasContent ? (
+              <div className="border border-dashed border-[var(--pd-border-strong)] bg-white p-12 text-center">
+                <p className="text-[var(--pd-muted)]">No active products for this site yet.</p>
+                <Link
+                  href="/signup"
+                  className="text-sm font-medium text-[var(--pd-teal-dark)] mt-3 inline-block hover:underline"
+                >
+                  Register your practice →
                 </Link>
               </div>
             ) : (
-              <div className="space-y-14">
-                {grouped.map((group) => (
-                  <section key={group.id} id={`pricing-${group.id}`} className="scroll-mt-28">
-                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className="w-1 h-12 rounded-full shrink-0 mt-0.5"
-                          style={{ background: group.accent }}
-                        />
-                        <div>
-                          <h2 className="text-xl font-bold text-[#1A1A1A]">{group.meta.label}</h2>
-                          <p className="text-sm text-[#6B6B6B] mt-1 max-w-xl leading-relaxed">
-                            {group.meta.description}
-                          </p>
-                        </div>
-                      </div>
-                      <Link
-                        href="/auth?next=%2Forder"
-                        className="text-sm font-medium whitespace-nowrap shrink-0 hover:underline"
-                        style={{ color: BRAND.accent }}
-                      >
-                        Order this type →
-                      </Link>
-                    </div>
+              <div className="space-y-20">
+                {isPrintDenture && deviceGroups.length > 0 && (
+                  <div id="pricing-devices" className="scroll-mt-28">
+                    <PricingTierHeader
+                      eyebrow="One-time purchase"
+                      title="Capture devices"
+                      description="Clinically-developed JB Tray, JB Fork Radi+, and ADD POP Bow — the chairside capture system used with the two-visit workflow. Order kits through our equipment shop."
+                    />
 
-                    {"sections" in group && group.sections ? (
-                      <div className="space-y-8">
-                        {group.sections.map((section) => (
-                          <div key={section.label}>
-                            <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">
-                              {section.label}
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {section.items.map((p) => (
-                                <PricingProductCard
-                                  key={p.id}
-                                  product={p}
-                                  priceDisplay={formatPricingCardPrice(p)}
-                                />
-                              ))}
-                            </div>
+                    <div className="border-y border-[var(--pd-border)] bg-white mb-10">
+                      <div className="grid grid-cols-2 lg:grid-cols-4">
+                        {DEVICE_INCLUDES.map((item, i) => (
+                          <div
+                            key={item}
+                            className={`px-5 py-4 flex items-center gap-2 text-[13px] text-[var(--pd-slate)] ${
+                              i > 0 ? "border-l border-[var(--pd-border)]" : ""
+                            } ${i >= 2 ? "border-t lg:border-t-0 border-[var(--pd-border)]" : ""}`}
+                          >
+                            <span className="text-[var(--pd-teal)] font-medium">✓</span>
+                            {item}
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {group.items?.map((p) => (
-                          <PricingProductCard
-                            key={p.id}
-                            product={p}
-                            priceDisplay={formatPricingCardPrice(p)}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+                      {deviceGroups.map((group) =>
+                        group.items.map((product) => (
+                          <PricingDeviceCard
+                            key={product.id}
+                            label={group.label}
+                            description={group.description}
+                            image={group.image}
+                            imageAlt={group.label}
+                            product={product}
                           />
-                        ))}
-                      </div>
+                        ))
+                      )}
+                    </div>
+
+                    <p className="text-[13px] text-[var(--pd-muted)]">
+                      Need help choosing Tray vs Fork?{" "}
+                      <Link href="/the-system" className="text-[var(--pd-teal-dark)] hover:underline">
+                        Compare the capture system →
+                      </Link>
+                    </p>
+                  </div>
+                )}
+
+                {labGroups.length > 0 && (
+                  <div>
+                    {isPrintDenture && (
+                      <>
+                        <PricingTierHeader
+                          eyebrow="Per case"
+                          title="Lab services"
+                          description="Send scans after chairside capture — we design, print a try-in, and deliver the finished prosthesis. Pricing at checkout matches what you see here."
+                        />
+                        <div className="border-y border-[var(--pd-border)] bg-white mb-12">
+                          <div className="grid grid-cols-2 lg:grid-cols-4">
+                            {LAB_INCLUDES.map((item, i) => (
+                              <div
+                                key={item}
+                                className={`px-5 py-4 flex items-center gap-2 text-[13px] text-[var(--pd-slate)] ${
+                                  i > 0 ? "border-l border-[var(--pd-border)]" : ""
+                                } ${i >= 2 ? "border-t lg:border-t-0 border-[var(--pd-border)]" : ""}`}
+                              >
+                                <span className="text-[var(--pd-teal)] font-medium">✓</span>
+                                {item}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
                     )}
 
-                    <div className="flex flex-wrap gap-2 mt-5">
-                      {group.meta.features.map((f) => (
-                        <span
-                          key={f}
-                          className="text-xs text-[#6B6B6B] bg-white border border-[#E2E0D8] px-3 py-1.5 rounded-full"
-                        >
-                          {f}
-                        </span>
+                    <div className="space-y-16">
+                      {labGroups.map((group) => (
+                        <LabGroupSection key={group.id} group={group} isAuthenticated={isAuthenticated} />
                       ))}
                     </div>
-                  </section>
-                ))}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* CTA */}
-            <div
-              className="mt-16 rounded-2xl border p-8 md:p-10 text-center"
-              style={{ borderColor: `${BRAND.accent}33`, background: BRAND.accentLight }}
-            >
-              <h3 className="text-xl font-bold text-[#1A1A1A] mb-2">Ready to place a case?</h3>
-              <p className="text-sm text-[#6B6B6B] mb-6 max-w-md mx-auto leading-relaxed">
-                Create a free account to order, track cases, and upload scans. Pricing at checkout
-                matches what you see here.
-              </p>
-              <div className="flex gap-3 justify-center flex-wrap">
-                <Link href="/auth">
-                  <button className="h-11 px-6 rounded-xl border border-[#E2E0D8] bg-white text-sm text-[#6B6B6B] hover:bg-[#F8F7F4] transition-all">
-                    Create account
-                  </button>
-                </Link>
-                <Link href="/auth?next=%2Forder">
-                  <button
-                    className="h-11 px-6 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90"
-                    style={{ background: BRAND.accent }}
+            <section className="mt-16 lg:mt-20 py-12 px-6 bg-[var(--pd-navy)] text-white text-center relative overflow-hidden">
+              <div className="absolute inset-0 pd-grid-bg opacity-[0.06]" aria-hidden />
+              <div className="relative max-w-lg mx-auto">
+                <h3 className="text-[clamp(1.25rem,2.5vw,1.75rem)] font-semibold tracking-[-0.02em] mb-3">
+                  Ready to get started?
+                </h3>
+                <p className="text-[15px] text-[#A8C4D4] mb-8 leading-relaxed">
+                  Register your practice, order capture devices, and submit your first lab case when
+                  you are ready.
+                </p>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  <CtaLink href="/signup">Register practice</CtaLink>
+                  <CtaLink
+                    href="/providers#demo"
+                    variant="secondary"
+                    className="border-white/30 text-white hover:bg-white hover:text-[var(--pd-navy)]"
                   >
-                    Start an order
-                  </button>
-                </Link>
+                    Request a demo
+                  </CtaLink>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>
-
-      <Footer />
-    </div>
+    </MarketingShell>
   );
 }

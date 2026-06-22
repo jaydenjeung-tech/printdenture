@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "PrintDenture — JB Fork digital dentures without try-in",
+  title: "PrintDenture — Full dentures in 2 visits",
   description:
-    "Scan JB Fork & JB Tray records, order online, and receive definitive dentures from our California lab — fewer patient visits and less chair time, no try-in required.",
+    "A clinically-developed capture workflow that cuts denture chair time in half. Single-appointment impression, bite, and occlusal plane — developed by university prosthodontics faculty.",
 };
 
 export default function RootLayout({
@@ -26,9 +32,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col bg-[#F8F7F4] text-[#1A1A1A] font-sans">
+      <body className="min-h-full flex flex-col bg-[var(--pd-bg)] text-[var(--pd-navy)] font-sans">
         {children}
       </body>
     </html>

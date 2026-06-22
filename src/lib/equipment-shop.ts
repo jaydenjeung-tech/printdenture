@@ -128,3 +128,59 @@ export function parseShopFamilyParam(value: string | null): EquipmentFamilyId | 
 
 export const SHOP_QUANTITY_MIN = 1;
 export const SHOP_QUANTITY_MAX = 20;
+
+export type ShopCartLine = {
+  productId: string;
+  quantity: number;
+};
+
+export type ShopCartItem = ShopCartLine & {
+  product: ShopProduct;
+};
+
+export function clampShopQuantity(quantity: number): number {
+  return Math.max(SHOP_QUANTITY_MIN, Math.min(SHOP_QUANTITY_MAX, Math.floor(quantity) || SHOP_QUANTITY_MIN));
+}
+
+export function resolveCartItems(lines: ShopCartLine[], products: ShopProduct[]): ShopCartItem[] {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  return lines
+    .map((line) => {
+      const product = byId.get(line.productId);
+      if (!product) return null;
+      return { ...line, quantity: clampShopQuantity(line.quantity), product };
+    })
+    .filter((item): item is ShopCartItem => item !== null);
+}
+
+export function addCartLine(lines: ShopCartLine[], productId: string, quantity: number): ShopCartLine[] {
+  const qty = clampShopQuantity(quantity);
+  const existing = lines.find((line) => line.productId === productId);
+  if (!existing) return [...lines, { productId, quantity: qty }];
+  return lines.map((line) =>
+    line.productId === productId
+      ? { ...line, quantity: clampShopQuantity(line.quantity + qty) }
+      : line
+  );
+}
+
+export function updateCartLineQuantity(lines: ShopCartLine[], productId: string, quantity: number): ShopCartLine[] {
+  const qty = clampShopQuantity(quantity);
+  return lines.map((line) => (line.productId === productId ? { ...line, quantity: qty } : line));
+}
+
+export function removeCartLine(lines: ShopCartLine[], productId: string): ShopCartLine[] {
+  return lines.filter((line) => line.productId !== productId);
+}
+
+export function cartSubtotal(items: ShopCartItem[]): number {
+  return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+}
+
+export function cartTotal(items: ShopCartItem[], shipping: number): number {
+  return cartSubtotal(items) + shipping;
+}
+
+export function cartItemCount(items: ShopCartItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity, 0);
+}

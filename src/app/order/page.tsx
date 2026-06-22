@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createAppClient, getClientUser } from "@/lib/supabase";
-import { useSearchParams } from "next/navigation";
-import Navbar from "@/components/navbar";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
+import {
+  ORDER_BTN_BACK,
+  ORDER_BTN_NAVY,
+  ORDER_BTN_PRIMARY,
+  ORDER_INPUT_CLASS,
+  ORDER_LABEL_CLASS,
+  ORDER_TEXTAREA_CLASS,
+  OrderNoticeBanner,
+  OrderPageHeader,
+  OrderStepHeader,
+  chipClass,
+} from "@/components/marketing/order-ui";
+import { shopFamilyTabClass, shopVariantClass } from "@/components/marketing/shop-ui";
 import { isOrderShippingComplete } from "@/lib/profile-requirements";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
 import {
@@ -18,9 +29,11 @@ import {
 import { CURRENT_SITE } from "@/lib/products/site-catalog";
 import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import {
-  DENTURE_SERVICE_GROUPS,
+  ORDER_DENTURE_SERVICE_GROUPS,
   isCompleteServiceGroup,
 } from "@/lib/products/denture-service-groups";
+import { ORDER_FLOW_CATEGORIES } from "@/lib/products/site-catalog";
+import { resolveOrderProductSelection } from "@/lib/products/order-product-link";
 import { JbShopBanner } from "@/components/jb-shop-banner";
 import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
 import { CaseFileUploadSection } from "@/components/case-file-upload";
@@ -128,18 +141,6 @@ function getOrderPricing(data: OrderData) {
   return { subtotal, shipping, designFee, unitPrice, total: subtotal + shipping + designFee };
 }
 
-function resolveActiveProductSelection(
-  candidate: Product,
-  activeCatalog: Product[]
-): { product: Product; arch: string } {
-  if (activeCatalog.some((p) => p.id === candidate.id)) {
-    return { product: candidate, arch: "" };
-  }
-  const legacy = resolveLegacyProductSelection(candidate, activeCatalog);
-  if (legacy) return { product: legacy.product, arch: legacy.arch };
-  return { product: candidate, arch: "" };
-}
-
 function needsDentbirdDesign(product: Product | null) {
   return !!product
     && ["zirconia", "printed"].includes(product.category)
@@ -195,15 +196,26 @@ const LOWER_TEETH = [32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17];
 
 const CATEGORY_GROUPS =
   CURRENT_SITE === "printdenture"
-    ? DENTURE_SERVICE_GROUPS.map((group) => ({
+    ? ORDER_DENTURE_SERVICE_GROUPS.map((group) => ({
         label: group.label,
+        shortLabel: group.shortLabel,
         description: group.description,
         categories: [...group.categories],
       }))
     : [
-        { label: "Crowns", description: "Zirconia, printed & implant crowns", categories: ["zirconia", "printed", "implant"] },
-        { label: "Guards", description: "Night guards & sports guards", categories: ["nightguard", "sportsguard"] },
+        { label: "Crowns", shortLabel: "Crowns", description: "Zirconia, printed & implant crowns", categories: ["zirconia", "printed", "implant"] },
+        { label: "Guards", shortLabel: "Guards", description: "Night guards & sports guards", categories: ["nightguard", "sportsguard"] },
       ];
+
+function isOrderLabProduct(product: Product) {
+  return ORDER_FLOW_CATEGORIES.includes(product.category);
+}
+
+function serviceGroupLabelFromParam(value: string | null): string | null {
+  if (!value) return null;
+  const match = ORDER_DENTURE_SERVICE_GROUPS.find((g) => g.id === value);
+  return match?.label ?? null;
+}
 
 const UPPER_RIGHT = UPPER_TEETH.slice(0, 8);
 const UPPER_LEFT = UPPER_TEETH.slice(8);
@@ -229,10 +241,10 @@ function ToothSelector({ selected, onChange }: {
         aria-pressed={isSelected}
         className={`flex h-9 w-8 shrink-0 flex-col items-center justify-center rounded-md border text-[10px] font-semibold transition-all
           ${isSelected
-            ? "bg-[#1A1A1A] border-[#1A1A1A] text-white shadow-sm"
-            : "bg-white border-[#E2E0D8] text-[#6B6B6B] hover:border-[#1A1A1A]"}`}
+            ? "bg-[var(--pd-navy)] border-[var(--pd-navy)] text-white shadow-sm"
+            : "bg-white border-[var(--pd-border)] text-[var(--pd-slate)] hover:border-[var(--pd-navy)]"}`}
       >
-        <span className={`mb-0.5 h-1.5 w-3 rounded-sm ${isSelected ? "bg-white/35" : "bg-[#E2E0D8]"}`} />
+        <span className={`mb-0.5 h-1.5 w-3 rounded-sm ${isSelected ? "bg-white/35" : "bg-[var(--pd-border)]"}`} />
         <span>{n}</span>
       </button>
     );
@@ -245,13 +257,13 @@ function ToothSelector({ selected, onChange }: {
   }) {
     return (
       <div>
-        <p className="mb-2 text-center text-xs font-medium text-[#6B6B6B]">{label}</p>
+        <p className="mb-2 text-center text-xs font-medium text-[var(--pd-slate)]">{label}</p>
         <div className="-mx-1 overflow-x-auto px-1">
           <div className="mx-auto flex w-max items-center gap-2 px-1">
             <div className="flex gap-1">
               {rightTeeth.map((n) => <ToothBtn key={n} n={n} />)}
             </div>
-            <div className="h-9 w-px shrink-0 bg-[#E2E0D8]" aria-hidden="true" />
+            <div className="h-9 w-px shrink-0 bg-[var(--pd-border)]" aria-hidden="true" />
             <div className="flex gap-1">
               {leftTeeth.map((n) => <ToothBtn key={n} n={n} />)}
             </div>
@@ -263,21 +275,21 @@ function ToothSelector({ selected, onChange }: {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between px-1 text-xs text-[#9B9B9B]">
+      <div className="flex justify-between px-1 text-xs text-[var(--pd-muted)]">
         <span>Patient right</span>
         <span>Patient left</span>
       </div>
 
       <ArchRow label="Upper" rightTeeth={UPPER_RIGHT} leftTeeth={UPPER_LEFT} />
 
-      <div className="border-t border-dashed border-[#E2E0D8]" />
+      <div className="border-t border-dashed border-[var(--pd-border)]" />
 
       <ArchRow label="Lower" rightTeeth={LOWER_RIGHT} leftTeeth={LOWER_LEFT} />
 
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {[...selected].sort((a, b) => a - b).map((n) => (
-            <span key={n} className="px-2 py-0.5 rounded-full bg-[#1A1A1A] text-white text-xs">#{n}</span>
+            <span key={n} className="px-2 py-0.5 rounded-full bg-[var(--pd-navy)] text-white text-xs">#{n}</span>
           ))}
         </div>
       )}
@@ -296,21 +308,21 @@ function EquipmentNoticeCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/50 ${
+      className={`border border-[#9FE1CB] bg-[#E1F5EE]/40 ${
         compact ? "px-3 py-2.5" : "px-4 py-3"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className={`font-semibold text-[#085041] ${compact ? "text-xs" : "text-sm"}`}>
+          <p className={`font-semibold text-[var(--pd-teal-dark)] ${compact ? "text-xs" : "text-sm"}`}>
             {notice.title}
           </p>
-          <p className={`text-[#0F6E56] leading-relaxed mt-1 ${compact ? "text-[11px]" : "text-xs"}`}>
+          <p className={`text-[var(--pd-teal-dark)] leading-relaxed mt-1 ${compact ? "text-[11px]" : "text-xs"}`}>
             {notice.body}
           </p>
           <Link
             href="/shop"
-            className={`inline-block mt-2 font-medium text-[#0F6E56] hover:underline ${
+            className={`inline-block mt-2 font-medium text-[var(--pd-teal-dark)] hover:underline ${
               compact ? "text-[11px]" : "text-xs"
             }`}
           >
@@ -321,7 +333,7 @@ function EquipmentNoticeCard({
           <button
             type="button"
             onClick={onDismiss}
-            className="shrink-0 w-7 h-7 rounded-full text-[#0F6E56] hover:bg-[#9FE1CB]/40 text-sm"
+            className="shrink-0 w-7 h-7 rounded-full text-[var(--pd-teal-dark)] hover:bg-[#9FE1CB]/40 text-sm"
             aria-label="Dismiss notice"
           >
             ✕
@@ -333,12 +345,13 @@ function EquipmentNoticeCard({
 }
 
 // ── Step 1 ─────────────────────────────────────────────────────────────────
-function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel }: {
+function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel, preferredGroupLabel }: {
   products: Product[];
   selectedProduct: Product | null;
   onSelect: (p: Product) => void;
   onContinue: () => void;
   flowStepLabel?: string;
+  preferredGroupLabel?: string | null;
 }) {
   const groups = CATEGORY_GROUPS.map((g) => ({
     ...g,
@@ -347,13 +360,32 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel 
   const visibleGroups =
     CURRENT_SITE === "printdenture" ? groups : groups.filter((g) => g.items.length > 0);
 
-  const [activeGroup, setActiveGroup] = useState(visibleGroups[0]?.label ?? "");
+  const [activeGroup, setActiveGroup] = useState(
+    preferredGroupLabel && visibleGroups.some((g) => g.label === preferredGroupLabel)
+      ? preferredGroupLabel
+      : visibleGroups[0]?.label ?? ""
+  );
 
   useEffect(() => {
-    if (!selectedProduct) return;
-    const match = visibleGroups.find((group) => group.items.some((product) => product.id === selectedProduct.id));
+    if (preferredGroupLabel && visibleGroups.some((g) => g.label === preferredGroupLabel)) {
+      setActiveGroup(preferredGroupLabel);
+    }
+  }, [preferredGroupLabel, visibleGroups]);
+
+  const lastSyncedProductId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedProduct) {
+      lastSyncedProductId.current = null;
+      return;
+    }
+    if (lastSyncedProductId.current === selectedProduct.id) return;
+    lastSyncedProductId.current = selectedProduct.id;
+    const match = visibleGroups.find((group) =>
+      group.items.some((product) => product.id === selectedProduct.id)
+    );
     if (match) setActiveGroup(match.label);
-  }, [selectedProduct, products, visibleGroups]);
+  }, [selectedProduct, visibleGroups]);
 
   const currentGroup = visibleGroups.find((group) => group.label === activeGroup) ?? visibleGroups[0];
 
@@ -363,17 +395,22 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel 
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
-        {flowStepLabel ?? "Product"}
-      </p>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">What are you ordering?</h2>
-      <p className="text-[#6B6B6B] mb-6">
-        Pick the prosthesis and record protocol here. You will choose upper, lower, or both arches in case
-        details.
-      </p>
+      <OrderStepHeader
+        eyebrow={flowStepLabel ?? "Product"}
+        title="What are you ordering?"
+        lead="Pick the prosthesis and record protocol here. You will choose upper, lower, or both arches in case details."
+      />
 
       {visibleGroups.length > 1 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+        <div
+          className={`grid gap-px bg-[var(--pd-border)] border border-[var(--pd-border)] mb-6 ${
+            visibleGroups.length === 4
+              ? "grid-cols-2 lg:grid-cols-4"
+              : visibleGroups.length === 3
+                ? "grid-cols-1 sm:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2"
+          }`}
+        >
           {visibleGroups.map((group) => {
             const active = group.label === activeGroup;
             return (
@@ -381,19 +418,16 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel 
                 key={group.label}
                 type="button"
                 onClick={() => setActiveGroup(group.label)}
-                className={`rounded-xl border p-4 text-left transition-all
-                  ${active
-                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A] shadow-sm"
-                    : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A]/40 hover:text-[#1A1A1A]"}`}
+                className={shopFamilyTabClass(active)}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold">{group.label}</span>
-                  <span className={`text-xs ${active ? "text-white/70" : "text-[#9B9B9B]"}`}>
-                    {group.items.length} items
+                  <span className="text-[14px] font-semibold leading-snug">{group.label}</span>
+                  <span className={`text-[12px] shrink-0 ${active ? "text-white/75" : "text-[var(--pd-muted)]"}`}>
+                    {group.items.length}
                   </span>
                 </div>
                 {"description" in group && group.description && (
-                  <p className={`text-xs mt-1.5 leading-relaxed ${active ? "text-white/75" : "text-[#9B9B9B]"}`}>
+                  <p className={`text-[12px] mt-1.5 leading-relaxed line-clamp-3 ${active ? "text-white/75" : "text-[var(--pd-muted)]"}`}>
                     {group.description}
                   </p>
                 )}
@@ -403,112 +437,103 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel 
         </div>
       )}
 
-      {isCompleteServiceGroup(activeGroup) && (
-        <div className="mb-6 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/60 overflow-hidden">
-          <JbProtocolChooser variant="compact" />
-        </div>
-      )}
-
-      <div className="space-y-3 mb-8">
+      <div className="mb-8">
         {(currentGroup?.items ?? []).length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#E2E0D8] bg-white px-5 py-8 text-center">
-            <p className="text-sm font-medium text-[#1A1A1A]">No products in this category yet</p>
-            <p className="text-xs text-[#6B6B6B] mt-2 leading-relaxed max-w-md mx-auto">
+          <div className="border border-dashed border-[var(--pd-border-strong)] bg-white px-5 py-8 text-center">
+            <p className="text-[14px] font-medium text-[var(--pd-navy)]">No products in this category yet</p>
+            <p className="text-[13px] text-[var(--pd-slate)] mt-2 leading-relaxed max-w-md mx-auto">
               {currentGroup?.label} products will appear here once they are active in the catalog.
               Contact support if you expected to see options.
             </p>
           </div>
         ) : (
-        <>
-        {(currentGroup?.items ?? [])
-          .sort((a, b) => {
-            const order = currentGroup?.categories ?? [];
-            return order.indexOf(a.category) - order.indexOf(b.category);
-          })
-          .map((product) => {
-          const selected = selectedProduct?.id === product.id;
-          return (
-            <div key={product.id}>
-            <button
-              type="button"
-              onClick={() => handleSelect(product)}
-              aria-pressed={selected}
-              className={`w-full text-left rounded-2xl border transition-all
-                ${selected
-                  ? "border-[#1A1A1A] bg-white shadow-sm ring-2 ring-[#1A1A1A]/10"
-                  : "border-[#E2E0D8] bg-white hover:border-[#1A1A1A]/40"}`}
-            >
-              <div className="flex items-start gap-4 p-4 sm:p-5">
-                <div className="w-1.5 self-stretch rounded-full shrink-0" style={{ background: product.accent }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-base font-semibold text-[#1A1A1A]">{product.name}</h3>
-                      <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">{product.description}</p>
-                      {productRequiresEquipmentCheck(product.category) ? (
-                        <p className="text-[11px] text-[#6B6B6B] mt-2 leading-relaxed">
-                          {getEquipmentNoticeForCategory(product.category)?.equipmentLabel} starter kit
-                          from PrintDenture — then capture records and submit this case.
-                        </p>
-                      ) : null}
+          <div className="border border-[var(--pd-border)] divide-y divide-[var(--pd-border)]">
+            {(currentGroup?.items ?? [])
+              .sort((a, b) => {
+                const order = currentGroup?.categories ?? [];
+                return order.indexOf(a.category) - order.indexOf(b.category);
+              })
+              .map((product) => {
+                const selected = selectedProduct?.id === product.id;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleSelect(product)}
+                    aria-pressed={selected}
+                    className={shopVariantClass(selected)}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="w-0.5 self-stretch min-h-[3rem] shrink-0"
+                        style={{ background: selected ? "var(--pd-teal)" : product.accent }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-[15px] font-semibold text-[var(--pd-navy)]">{product.name}</h3>
+                            <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">{product.description}</p>
+                            {productRequiresEquipmentCheck(product.category) ? (
+                              <p className="text-[12px] text-[var(--pd-muted)] mt-2 leading-relaxed">
+                                {getEquipmentNoticeForCategory(product.category)?.equipmentLabel} starter kit
+                                from PrintDenture — then capture records and submit this case.
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-lg font-semibold text-[var(--pd-navy)]">
+                              {formatProductPriceHint(product)}
+                            </p>
+                            <p className="text-[12px] text-[var(--pd-muted)] mt-1">{product.turnaround}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-lg font-semibold text-[#1A1A1A]">
-                        {formatProductPriceHint(product)}
-                      </p>
-                      <p className="text-xs text-[#9B9B9B] mt-1">{product.turnaround}</p>
-                    </div>
-                  </div>
-                </div>
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm shrink-0 transition-all
-                    ${selected
-                      ? "border-[#1A1A1A] bg-[#1A1A1A] text-white"
-                      : "border-[#E2E0D8] bg-[#F8F7F4] text-transparent"}`}
-                  aria-hidden="true"
-                >
-                  ✓
-                </span>
-              </div>
-            </button>
-            </div>
-          );
-        })}
-        </>
+                  </button>
+                );
+              })}
+          </div>
         )}
       </div>
 
-      <div className="rounded-2xl border border-[#E2E0D8] bg-white p-4 sm:p-5 space-y-4">
+      {isCompleteServiceGroup(activeGroup) && (
+        <section className="mb-8 pt-8 border-t border-[var(--pd-border)]">
+          <JbProtocolChooser variant="compact" />
+        </section>
+      )}
+
+      <div className="border border-[var(--pd-border)] bg-white p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-[#9B9B9B]">Selected product</p>
-            <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
+            <p className="text-xs font-medium uppercase tracking-widest text-[var(--pd-muted)]">Selected product</p>
+            <p className="text-sm font-semibold text-[var(--pd-navy)] mt-1">
               {selectedProduct ? selectedProduct.name : "Choose a product to continue"}
             </p>
             {selectedProduct && (
-              <p className="text-xs text-[#9B9B9B] mt-1">
+              <p className="text-xs text-[var(--pd-muted)] mt-1">
                 ${selectedProduct.price} · {selectedProduct.turnaround}
               </p>
             )}
           </div>
-          <Button
-            className="h-12 px-6 rounded-xl bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white w-full sm:w-auto shrink-0"
+          <button
+            type="button"
+            className={`${ORDER_BTN_NAVY} h-12 px-6 w-full sm:w-auto shrink-0`}
             disabled={!selectedProduct}
             onClick={onContinue}
           >
             Continue to case details
-          </Button>
+          </button>
         </div>
         {selectedProduct && productRequiresEquipmentCheck(selectedProduct.category) && (
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-xs text-amber-950 leading-relaxed">
+          <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[12px] text-amber-950 leading-relaxed">
               {getEquipmentNoticeForCategory(selectedProduct.category)?.equipmentLabel} starter kit
               recommended — order from Shop, or continue to confirm your scan records on the next step.
             </p>
             {shopHrefForProductCategory(selectedProduct.category) && (
               <Link
                 href={shopHrefForProductCategory(selectedProduct.category)!}
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0F6E56] px-4 text-xs font-medium text-white hover:bg-[#085041]"
+                className={`${ORDER_BTN_PRIMARY} h-9 px-4 text-[12px] shrink-0`}
               >
                 Open Shop
               </Link>
@@ -562,19 +587,17 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
-        {flowStepLabel ?? "Case details"}
-      </p>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Upload scans & preferences</h2>
-      <p className="text-[#6B6B6B] mb-8">
-        Send your scan files and case details — our lab handles denture design and fabrication.
-      </p>
+      <OrderStepHeader
+        eyebrow={flowStepLabel ?? "Case details"}
+        title="Upload scans & preferences"
+        lead="Send your scan files and case details — our lab handles denture design and fabrication."
+      />
 
-      <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-[#E2E0D8] mb-6">
-        <div className="w-2 h-8 rounded-full" style={{ background: p.accent }} />
+      <div className="flex items-center gap-3 p-4 border border-[var(--pd-border)] bg-white mb-6">
+        <div className="w-0.5 h-8 shrink-0" style={{ background: p.accent }} />
         <div>
-          <p className="font-semibold text-[#1A1A1A] text-sm">{p.name}</p>
-          <p className="text-xs text-[#9B9B9B]">
+          <p className="font-semibold text-[var(--pd-navy)] text-sm">{p.name}</p>
+          <p className="text-xs text-[var(--pd-muted)]">
             {data.arch ? `$${linePrice} · ${formatArchLabel(data.arch)}` : formatProductPriceHint(p)}
             {" · "}{p.turnaround}
           </p>
@@ -585,8 +608,8 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
 
       {needsArch && !needsGuard && (
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Arch *</label>
-          <p className="text-xs text-[#6B6B6B] mb-3 leading-relaxed">
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Arch *</label>
+          <p className="text-xs text-[var(--pd-slate)] mb-3 leading-relaxed">
             Select which arch(es) this lab case covers. Price updates based on your selection.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -595,10 +618,7 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
                 key={a.value}
                 type="button"
                 onClick={() => onChange("arch", a.value)}
-                className={`px-4 h-9 rounded-lg text-sm border transition-all
-                  ${data.arch === a.value
-                    ? "bg-[#1A1A1A] text-white border-[#1A1A1A]"
-                    : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}
+                className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}
               >
                 {a.label}
               </button>
@@ -609,20 +629,20 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
 
       {needsTooth && (
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-3">Tooth chart *</label>
-          <p className="text-sm text-[#6B6B6B] mb-3">Tap teeth on the chart. Quantity updates with your selection.</p>
-          <div className="p-4 rounded-xl bg-white border border-[#E2E0D8]">
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-3">Tooth chart *</label>
+          <p className="text-sm text-[var(--pd-slate)] mb-3">Tap teeth on the chart. Quantity updates with your selection.</p>
+          <div className="p-4 border border-[var(--pd-border)] bg-white">
             <ToothSelector selected={data.toothNumbers} onChange={onTeethChange} />
           </div>
         </div>
       )}
 
       <div className="mb-5">
-        <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Quantity</label>
+        <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Quantity</label>
         {needsTooth ? (
-          <div className="rounded-xl border border-[#E2E0D8] bg-[#F8F7F4] px-4 py-3">
-            <p className="text-2xl font-semibold text-[#1A1A1A]">{data.toothNumbers.length}</p>
-            <p className="text-sm text-[#6B6B6B] mt-1">
+          <div className="border border-[var(--pd-border)] bg-[var(--pd-surface)] px-4 py-3">
+            <p className="text-2xl font-semibold text-[var(--pd-navy)]">{data.toothNumbers.length}</p>
+            <p className="text-sm text-[var(--pd-slate)] mt-1">
               {data.toothNumbers.length === 0
                 ? "Select teeth on the chart to set quantity."
                 : data.toothNumbers.length === 1
@@ -633,10 +653,10 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
         ) : (
           <div className="flex items-center gap-3">
             <button onClick={() => onChange("quantity", Math.max(1, data.quantity - 1))}
-              className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">−</button>
-            <span className="w-8 text-center font-semibold text-[#1A1A1A]">{data.quantity}</span>
+              className="w-9 h-9 rounded-lg border border-[var(--pd-border)] bg-white text-[var(--pd-navy)] font-semibold hover:bg-[var(--pd-surface)]">−</button>
+            <span className="w-8 text-center font-semibold text-[var(--pd-navy)]">{data.quantity}</span>
             <button onClick={() => onChange("quantity", data.quantity + 1)}
-              className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] font-semibold hover:bg-[#F8F7F4]">+</button>
+              className="w-9 h-9 rounded-lg border border-[var(--pd-border)] bg-white text-[var(--pd-navy)] font-semibold hover:bg-[var(--pd-surface)]">+</button>
           </div>
         )}
       </div>
@@ -644,12 +664,11 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
       {/* Shade */}
       {needsShade && (
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Shade *</label>
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Shade *</label>
           <div className="flex flex-wrap gap-2">
             {SHADES.map((s) => (
               <button key={s} onClick={() => onChange("shade", s)}
-                className={`px-3 h-8 rounded-lg text-sm border transition-all
-                  ${data.shade === s ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                className={chipClass(data.shade === s, "px-3 h-8 text-sm")}>
                 {s}
               </button>
             ))}
@@ -661,19 +680,18 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
       {needsGuard && (
         <>
           <div className="mb-5">
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Guard type *</label>
+            <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Guard type *</label>
             <div className="flex gap-2">
               {GUARD_TYPES.map((g) => (
                 <button key={g} onClick={() => onChange("guardType", g)}
-                  className={`px-4 h-9 rounded-lg text-sm border transition-all
-                    ${data.guardType === g ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                  className={chipClass(data.guardType === g, "px-4 h-9 text-sm")}>
                   {g}
                 </button>
               ))}
             </div>
           </div>
           <div className="mb-5">
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Arch *</label>
+            <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Arch *</label>
             <div className="flex gap-2">
               {[
                 { value: "upper", label: "Upper" },
@@ -681,8 +699,7 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
                 { value: "both", label: "Both" },
               ].map((a) => (
                 <button key={a.value} onClick={() => onChange("arch", a.value)}
-                  className={`px-4 h-9 rounded-lg text-sm border transition-all
-                    ${data.arch === a.value ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                  className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}>
                   {a.label}
                 </button>
               ))}
@@ -694,12 +711,11 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
       {/* Color */}
       {needsColor && (
         <div className="mb-5">
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Color</label>
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Color</label>
           <div className="flex flex-wrap gap-2">
             {COLORS.map((c) => (
               <button key={c} onClick={() => onChange("color", c)}
-                className={`px-3 h-8 rounded-lg text-sm border transition-all
-                  ${data.color === c ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                className={chipClass(data.color === c, "px-3 h-8 text-sm")}>
                 {c}
               </button>
             ))}
@@ -726,25 +742,31 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
       )}
 
       {recordChecklistDef && !checklistComplete && (
-        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-5 leading-relaxed">
+        <p className="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mb-5 leading-relaxed">
           Confirm the required checklist item to continue. Recommended uploads are optional but reduce try-in risk.
         </p>
       )}
 
       {/* Notes */}
       <div className="mb-8">
-        <label className="block text-sm font-medium text-[#1A1A1A] mb-2">
-          Notes <span className="text-[#9B9B9B] font-normal">(optional)</span>
+        <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">
+          Notes <span className="text-[var(--pd-muted)] font-normal">(optional)</span>
         </label>
         <textarea value={data.notes} onChange={(e) => onChange("notes", e.target.value)}
           placeholder="Any special instructions for the lab..." rows={3}
-          className="w-full px-3 py-2.5 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm resize-none focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]" />
+          className={ORDER_TEXTAREA_CLASS} />
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" className="h-12 px-6 rounded-xl border-[#E2E0D8] text-[#6B6B6B]" onClick={onBack}>Back</Button>
-        <Button className="flex-1 h-12 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white rounded-xl text-base"
-          disabled={!canProceed} onClick={onNext}>Continue</Button>
+        <button type="button" className={`${ORDER_BTN_BACK} h-12 px-6`} onClick={onBack}>Back</button>
+        <button
+          type="button"
+          className={`${ORDER_BTN_NAVY} flex-1 h-12 text-base`}
+          disabled={!canProceed}
+          onClick={onNext}
+        >
+          Continue
+        </button>
       </div>
     </div>
   );
@@ -765,51 +787,71 @@ function Step3Rx({ data, onNext, onBack, onChange, flowStepLabel }: {
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F6E56] mb-2">
-        {flowStepLabel ?? "Rx"}
-      </p>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Prescription & authorization</h2>
-      <p className="text-[#6B6B6B] mb-8">Complete the Rx so our technicians can release the case to production.</p>
+      <OrderStepHeader
+        eyebrow={flowStepLabel ?? "Rx"}
+        title="Prescription & authorization"
+        lead="Complete the Rx so our technicians can release the case to production."
+      />
 
-      <div className="p-4 rounded-xl bg-white border border-[#E2E0D8] mb-6 space-y-1.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-2">Case summary</p>
-        <div className="flex gap-6 text-sm">
-          <div><span className="text-[#9B9B9B]">Product </span><span className="font-medium text-[#1A1A1A]">{p.name}</span></div>
+      <div className="flex items-center gap-3 p-4 border border-[var(--pd-border)] bg-white mb-6">
+        <div className="w-0.5 h-8 shrink-0" style={{ background: p.accent }} />
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[14px]">
+          <div>
+            <span className="text-[var(--pd-muted)]">Product </span>
+            <span className="font-medium text-[var(--pd-navy)]">{p.name}</span>
+          </div>
           {needsTooth && data.toothNumbers.length > 0 && (
             <div>
-              <span className="text-[#9B9B9B]">Tooth </span>
-              <span className="font-medium text-[#1A1A1A]">
+              <span className="text-[var(--pd-muted)]">Tooth </span>
+              <span className="font-medium text-[var(--pd-navy)]">
                 {[...data.toothNumbers].sort((a, b) => a - b).map((n) => `#${n}`).join(", ")}
               </span>
             </div>
           )}
           {needsShade && data.shade && (
-            <div><span className="text-[#9B9B9B]">Shade </span><span className="font-medium text-[#1A1A1A]">{data.shade}</span></div>
+            <div>
+              <span className="text-[var(--pd-muted)]">Shade </span>
+              <span className="font-medium text-[var(--pd-navy)]">{data.shade}</span>
+            </div>
           )}
         </div>
       </div>
 
       {needsTooth && (
-        <div className="grid grid-cols-2 gap-4 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Margin type</label>
-            <div className="flex flex-col gap-1.5">
+            <label className={ORDER_LABEL_CLASS}>Margin type</label>
+            <div className="flex flex-col gap-px border border-[var(--pd-border)] bg-[var(--pd-border)]">
               {MARGIN_TYPES.map((m) => (
-                <button key={m} onClick={() => onChange("marginType", m)}
-                  className={`h-9 rounded-lg text-sm border transition-all px-3 text-left
-                    ${data.marginType === m ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onChange("marginType", m)}
+                  className={`h-10 text-[14px] border-0 px-3 text-left transition-colors ${
+                    data.marginType === m
+                      ? "bg-[var(--pd-navy)] text-white"
+                      : "bg-white text-[var(--pd-slate)] hover:bg-[var(--pd-surface)]"
+                  }`}
+                >
                   {m}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-2">Occlusion</label>
-            <div className="flex flex-col gap-1.5">
+            <label className={ORDER_LABEL_CLASS}>Occlusion</label>
+            <div className="flex flex-col gap-px border border-[var(--pd-border)] bg-[var(--pd-border)]">
               {OCCLUSIONS.map((o) => (
-                <button key={o} onClick={() => onChange("occlusion", o)}
-                  className={`h-9 rounded-lg text-sm border transition-all px-3 text-left
-                    ${data.occlusion === o ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-[#4B4B4B] border-[#E2E0D8] hover:border-[#1A1A1A]"}`}>
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => onChange("occlusion", o)}
+                  className={`h-10 text-[14px] border-0 px-3 text-left transition-colors ${
+                    data.occlusion === o
+                      ? "bg-[var(--pd-navy)] text-white"
+                      : "bg-white text-[var(--pd-slate)] hover:bg-[var(--pd-surface)]"
+                  }`}
+                >
                   {o}
                 </button>
               ))}
@@ -818,50 +860,85 @@ function Step3Rx({ data, onNext, onBack, onChange, flowStepLabel }: {
         </div>
       )}
 
-      <div className="space-y-3 mb-5">
+      <div className="space-y-4 mb-6">
         <div>
-          <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Dentist name *</label>
-          <input type="text" value={data.dentistName} onChange={(e) => onChange("dentistName", e.target.value)}
+          <label className={ORDER_LABEL_CLASS}>Dentist name *</label>
+          <input
+            type="text"
+            value={data.dentistName}
+            onChange={(e) => onChange("dentistName", e.target.value)}
             placeholder="Dr. Jane Smith"
-            className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]" />
+            className={ORDER_INPUT_CLASS}
+          />
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">License # *</label>
-            <input type="text" value={data.licenseNo} onChange={(e) => onChange("licenseNo", e.target.value)}
+            <label className={ORDER_LABEL_CLASS}>License # *</label>
+            <input
+              type="text"
+              value={data.licenseNo}
+              onChange={(e) => onChange("licenseNo", e.target.value)}
               placeholder="D12345"
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]" />
+              className={ORDER_INPUT_CLASS}
+            />
           </div>
-          <div className="w-28">
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">State *</label>
-            <select value={data.licenseState} onChange={(e) => onChange("licenseState", e.target.value)}
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:border-[#1A1A1A]">
+          <div className="w-full sm:w-28">
+            <label className={ORDER_LABEL_CLASS}>State *</label>
+            <select
+              value={data.licenseState}
+              onChange={(e) => onChange("licenseState", e.target.value)}
+              className={ORDER_INPUT_CLASS}
+            >
               <option value="">—</option>
-              {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </div>
         </div>
       </div>
 
-      <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all mb-8
-        ${data.authorized ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
-        <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
-          ${data.authorized ? "bg-[#1A1A1A] border-[#1A1A1A]" : "bg-white border-[#C8C6BE]"}`}>
-          {data.authorized && <span className="text-white text-xs">✓</span>}
+      <label
+        className={`flex gap-3 p-4 border cursor-pointer transition-colors mb-8 ${
+          data.authorized
+            ? "border-[var(--pd-teal)] bg-[#E1F5EE]/30 ring-1 ring-[var(--pd-teal)]/20"
+            : "border-[var(--pd-border)] bg-[var(--pd-surface)] hover:border-[var(--pd-navy)]/30"
+        }`}
+      >
+        <div
+          className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 border transition-colors ${
+            data.authorized
+              ? "bg-[var(--pd-navy)] border-[var(--pd-navy)]"
+              : "bg-white border-[var(--pd-border)]"
+          }`}
+        >
+          {data.authorized && <span className="text-white text-xs leading-none">✓</span>}
         </div>
-        <input type="checkbox" className="hidden" checked={data.authorized}
-          onChange={(e) => onChange("authorized", e.target.checked)} />
-        <p className="text-sm text-[#4B4B4B] leading-relaxed">
-          I, <strong>{data.dentistName || "the undersigned dentist"}</strong>, License #{data.licenseNo || "___"} ({data.licenseState || "State"}),
+        <input
+          type="checkbox"
+          className="hidden"
+          checked={data.authorized}
+          onChange={(e) => onChange("authorized", e.target.checked)}
+        />
+        <p className="text-[14px] text-[var(--pd-slate)] leading-relaxed">
+          I, <strong className="font-medium text-[var(--pd-navy)]">{data.dentistName || "the undersigned dentist"}</strong>, License #{data.licenseNo || "___"} ({data.licenseState || "State"}),
           hereby authorize the fabrication of the dental restoration described above in accordance with this prescription.
           This constitutes my electronic signature under the E-SIGN Act.
         </p>
       </label>
 
       <div className="flex gap-3">
-        <Button variant="outline" className="h-12 px-6 rounded-xl border-[#E2E0D8] text-[#6B6B6B]" onClick={onBack}>Back</Button>
-        <Button className="flex-1 h-12 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white rounded-xl text-base"
-          disabled={!canProceed} onClick={onNext}>Continue</Button>
+        <button type="button" className={`${ORDER_BTN_BACK} h-12 px-6`} onClick={onBack}>Back</button>
+        <button
+          type="button"
+          className={`${ORDER_BTN_NAVY} flex-1 h-12 text-base`}
+          disabled={!canProceed}
+          onClick={onNext}
+        >
+          Continue
+        </button>
       </div>
     </div>
   );
@@ -933,44 +1010,44 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">AI crown design review</h2>
-      <p className="text-[#6B6B6B] mb-8">
+      <h2 className="text-2xl font-bold text-[var(--pd-navy)] mb-1">AI crown design review</h2>
+      <p className="text-[var(--pd-slate)] mb-8">
         Dentbird generates a crown proposal from your scan. Approve it or request CAD design instead.
       </p>
 
       <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] mb-6">
-        <div className="rounded-xl border border-[#E2E0D8] bg-white overflow-hidden">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] px-4 pt-4 pb-2">Your scan</p>
+        <div className="border border-[var(--pd-border)] bg-white overflow-hidden">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] px-4 pt-4 pb-2">Your scan</p>
           <div className="mx-4 mb-4 aspect-[4/3] rounded-xl bg-gradient-to-br from-[#F8F7F4] to-[#E8E6DE] border border-dashed border-[#C8C6BE] flex flex-col items-center justify-center text-center px-4">
-            <svg className="w-10 h-10 text-[#9B9B9B] mb-2" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
+            <svg className="w-10 h-10 text-[var(--pd-muted)] mb-2" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
             </svg>
-            <p className="text-sm font-medium text-[#1A1A1A] break-all">{data.fileName || "No STL"}</p>
-            <p className="text-[11px] text-[#9B9B9B] mt-1">Intraoral STL upload</p>
+            <p className="text-sm font-medium text-[var(--pd-navy)] break-all">{data.fileName || "No STL"}</p>
+            <p className="text-[11px] text-[var(--pd-muted)] mt-1">Intraoral STL upload</p>
           </div>
           <div className="px-4 pb-4 space-y-1">
-            <p className="text-xs text-[#9B9B9B]">Teeth: {teeth}</p>
-            {data.shade && <p className="text-xs text-[#9B9B9B]">Shade: {data.shade}</p>}
-            {data.marginType && <p className="text-xs text-[#9B9B9B]">Margin: {data.marginType}</p>}
+            <p className="text-xs text-[var(--pd-muted)]">Teeth: {teeth}</p>
+            {data.shade && <p className="text-xs text-[var(--pd-muted)]">Shade: {data.shade}</p>}
+            {data.marginType && <p className="text-xs text-[var(--pd-muted)]">Margin: {data.marginType}</p>}
           </div>
         </div>
 
         <div className="hidden md:flex items-center justify-center text-[#C8C6BE] text-2xl font-light">→</div>
 
-        <div className="rounded-xl border border-[#E2E0D8] bg-white overflow-hidden">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] px-4 pt-4 pb-2">Dentbird proposal</p>
+        <div className="border border-[var(--pd-border)] bg-white overflow-hidden">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] px-4 pt-4 pb-2">Dentbird proposal</p>
           <div className="mx-4 mb-4 aspect-[4/3] rounded-xl bg-gradient-to-br from-[#F0F9FF] to-[#E1F5EE] border border-[#BFDBFE] flex flex-col items-center justify-center text-center px-4">
             {data.aiDesignStatus === "processing" && (
               <>
                 <div className="w-8 h-8 rounded-full border-2 border-[#378ADD] border-t-transparent animate-spin mb-3" />
-                <p className="text-sm text-[#085041]">Generating crown design…</p>
+                <p className="text-sm text-[var(--pd-teal-dark)]">Generating crown design…</p>
               </>
             )}
             {data.aiDesignStatus === "failed" && (
               <>
                 <p className="text-sm text-red-600">{data.aiDesignError || "Design failed."}</p>
                 <button type="button" onClick={() => { requestStarted.current = false; onRetry(); }}
-                  className="mt-3 text-sm font-medium text-[#2563EB] hover:underline">
+                  className="mt-3 text-sm font-medium text-[var(--pd-teal)] hover:underline">
                   Try again
                 </button>
               </>
@@ -980,32 +1057,32 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
                 <svg className="w-10 h-10 text-[#378ADD] mb-2" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
                 </svg>
-                <p className="text-sm font-medium text-[#1A1A1A] break-all">{data.aiDesignedFileName}</p>
+                <p className="text-sm font-medium text-[var(--pd-navy)] break-all">{data.aiDesignedFileName}</p>
                 <p className="text-[11px] text-[#378ADD] mt-1">AI crown proposal ready</p>
               </>
             )}
             {data.aiDesignStatus === "idle" && (
-              <p className="text-sm text-[#6B6B6B]">Waiting for design…</p>
+              <p className="text-sm text-[var(--pd-slate)]">Waiting for design…</p>
             )}
           </div>
           {data.aiDesignStatus === "ready" && data.aiDesignSummary && (
             <div className="px-4 pb-4">
-              <p className="text-sm text-[#4B4B4B] leading-relaxed">{data.aiDesignSummary}</p>
+              <p className="text-sm text-[var(--pd-slate)] leading-relaxed">{data.aiDesignSummary}</p>
             </div>
           )}
         </div>
       </div>
 
       {data.aiDesignStatus === "ready" && (
-        <p className="text-xs text-[#6B6B6B] bg-[#F8F7F4] border border-[#E2E0D8] rounded-lg px-3 py-2 mb-6 leading-relaxed">
+        <p className="text-xs text-[var(--pd-slate)] bg-[var(--pd-surface)] border border-[var(--pd-border)] rounded-lg px-3 py-2 mb-6 leading-relaxed">
           Interactive 3D preview is coming soon. For now, review the proposal summary and tooth parameters above before approving.
         </p>
       )}
 
-      <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">Design path</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-3">Design path</p>
       <div className="grid gap-3 mb-6">
-        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
-          ${data.designChoice === "ai" ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+        <label className={`flex gap-3 p-4 border cursor-pointer transition-colors
+          ${data.designChoice === "ai" ? "border-[var(--pd-navy)] bg-white" : "border-[var(--pd-border)] bg-[var(--pd-surface)] hover:border-[#C8C6BE]"}`}>
           <input
             type="radio"
             name="designChoice"
@@ -1014,19 +1091,19 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
             onChange={() => onDesignChange({ designChoice: "ai", aiDesignApproved: false })}
           />
           <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
-            ${data.designChoice === "ai" ? "border-[#1A1A1A]" : "border-[#C8C6BE] bg-white"}`}>
-            {data.designChoice === "ai" && <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />}
+            ${data.designChoice === "ai" ? "border-[var(--pd-navy)]" : "border-[#C8C6BE] bg-white"}`}>
+            {data.designChoice === "ai" && <span className="w-2.5 h-2.5 rounded-full bg-[var(--pd-navy)]" />}
           </div>
           <div>
-            <p className="text-sm font-medium text-[#1A1A1A]">Approve the AI crown design</p>
-            <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">
+            <p className="text-sm font-medium text-[var(--pd-navy)]">Approve the AI crown design</p>
+            <p className="text-sm text-[var(--pd-slate)] mt-1 leading-relaxed">
               Continue with the Dentbird proposal. No additional design fee.
             </p>
           </div>
         </label>
 
-        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all
-          ${data.designChoice === "cad" ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+        <label className={`flex gap-3 p-4 border cursor-pointer transition-colors
+          ${data.designChoice === "cad" ? "border-[var(--pd-navy)] bg-white" : "border-[var(--pd-border)] bg-[var(--pd-surface)] hover:border-[#C8C6BE]"}`}>
           <input
             type="radio"
             name="designChoice"
@@ -1035,12 +1112,12 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
             onChange={() => onDesignChange({ designChoice: "cad", aiDesignApproved: false })}
           />
           <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
-            ${data.designChoice === "cad" ? "border-[#1A1A1A]" : "border-[#C8C6BE] bg-white"}`}>
-            {data.designChoice === "cad" && <span className="w-2.5 h-2.5 rounded-full bg-[#1A1A1A]" />}
+            ${data.designChoice === "cad" ? "border-[var(--pd-navy)]" : "border-[#C8C6BE] bg-white"}`}>
+            {data.designChoice === "cad" && <span className="w-2.5 h-2.5 rounded-full bg-[var(--pd-navy)]" />}
           </div>
           <div>
-            <p className="text-sm font-medium text-[#1A1A1A]">Request CAD design instead</p>
-            <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">
+            <p className="text-sm font-medium text-[var(--pd-navy)]">Request CAD design instead</p>
+            <p className="text-sm text-[var(--pd-slate)] mt-1 leading-relaxed">
               If the AI proposal is not right for this case, our team will design the crown in CAD.
               A ${CAD_DESIGN_FEE} design fee is added at checkout.
             </p>
@@ -1049,10 +1126,10 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
       </div>
 
       {data.designChoice === "ai" && (
-        <label className={`flex gap-3 p-4 rounded-xl border cursor-pointer transition-all mb-8
-          ${data.aiDesignApproved ? "border-[#1A1A1A] bg-white" : "border-[#E2E0D8] bg-[#F8F7F4] hover:border-[#C8C6BE]"}`}>
+        <label className={`flex gap-3 p-4 border cursor-pointer transition-colors mb-8
+          ${data.aiDesignApproved ? "border-[var(--pd-navy)] bg-white" : "border-[var(--pd-border)] bg-[var(--pd-surface)] hover:border-[#C8C6BE]"}`}>
           <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border transition-all
-            ${data.aiDesignApproved ? "bg-[#1A1A1A] border-[#1A1A1A]" : "bg-white border-[#C8C6BE]"}`}>
+            ${data.aiDesignApproved ? "bg-[var(--pd-navy)] border-[var(--pd-navy)]" : "bg-white border-[#C8C6BE]"}`}>
             {data.aiDesignApproved && <span className="text-white text-xs">✓</span>}
           </div>
           <input
@@ -1062,15 +1139,15 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
             disabled={data.aiDesignStatus !== "ready"}
             onChange={(e) => onDesignChange({ aiDesignApproved: e.target.checked })}
           />
-          <p className="text-sm text-[#4B4B4B] leading-relaxed">
+          <p className="text-sm text-[var(--pd-slate)] leading-relaxed">
             I reviewed the Dentbird crown design and approve it for this case.
           </p>
         </label>
       )}
 
       {data.designChoice === "cad" && (
-        <div className="rounded-xl border border-[#E2E0D8] bg-white p-4 mb-8">
-          <p className="text-sm text-[#4B4B4B] leading-relaxed">
+        <div className="border border-[var(--pd-border)] bg-white p-4 mb-8">
+          <p className="text-sm text-[var(--pd-slate)] leading-relaxed">
             CAD design will be prepared from your scan and Rx after checkout. The ${CAD_DESIGN_FEE} design fee
             appears on the review step before payment.
           </p>
@@ -1080,9 +1157,10 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
       {data.designChoice === "" && <div className="mb-8" />}
 
       <div className="flex gap-3">
-        <Button variant="outline" className="h-12 px-6 rounded-xl border-[#E2E0D8] text-[#6B6B6B]" onClick={onBack}>Back</Button>
-        <Button
-          className="flex-1 h-12 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-white rounded-xl text-base"
+        <button type="button" className={`${ORDER_BTN_BACK} h-12 px-6`} onClick={onBack}>Back</button>
+        <button
+          type="button"
+          className={`${ORDER_BTN_NAVY} flex-1 h-12 text-base`}
           disabled={
             data.designChoice === ""
             || (data.designChoice === "ai" && (data.aiDesignStatus !== "ready" || !data.aiDesignApproved))
@@ -1091,7 +1169,7 @@ function Step4Dentbird({ data, onBack, onNext, onDesignChange, onRetry }: {
           onClick={onNext}
         >
           Continue to review
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -1104,9 +1182,9 @@ function Field({ label, placeholder, half, value, onChange }: {
 }) {
   return (
     <div className={half ? "flex-1" : "w-full"}>
-      <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">{label}</label>
+      <label className={ORDER_LABEL_CLASS}>{label}</label>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]" />
+        className={ORDER_INPUT_CLASS} />
     </div>
   );
 }
@@ -1127,25 +1205,25 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Review & shipping</h2>
-      <p className="text-[#6B6B6B] mb-8">Confirm your order and enter your shipping address.</p>
+      <h2 className="text-2xl font-bold text-[var(--pd-navy)] mb-1">Review & shipping</h2>
+      <p className="text-[var(--pd-slate)] mb-8">Confirm your order and enter your shipping address.</p>
 
       {equipmentBlock && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+        <div className="mb-6 border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
           <p className="font-medium mb-1">Starter kit required before checkout</p>
           <p className="leading-relaxed">{equipmentBlock}</p>
           <div className="mt-4 flex flex-col sm:flex-row gap-2">
             {shopHrefForProductCategory(p.category) && (
               <Link
                 href={shopHrefForProductCategory(p.category)!}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-[#0F6E56] px-5 text-sm font-medium text-white hover:bg-[#085041]"
+                className={`${ORDER_BTN_PRIMARY} h-10 px-5 text-sm`}
               >
                 Open Shop — order starter kit
               </Link>
             )}
             <Link
               href="/dashboard"
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-white px-5 text-sm font-medium text-amber-950 hover:bg-amber-100/80"
+              className={`${ORDER_BTN_BACK} h-10 px-5 text-sm text-amber-950 border-amber-300 hover:bg-amber-100/80`}
             >
               Mark kit received
             </Link>
@@ -1153,29 +1231,29 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         </div>
       )}
 
-      <div className="p-5 rounded-xl bg-white border border-[#E2E0D8] mb-6">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-4">Order summary</p>
+      <div className="p-5 border border-[var(--pd-border)] bg-white mb-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-4">Order summary</p>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-5 rounded-full" style={{ background: p.accent }} />
-            <span className="text-sm text-[#1A1A1A]">{p.name} × {data.quantity}</span>
+            <span className="text-sm text-[var(--pd-navy)]">{p.name} × {data.quantity}</span>
           </div>
-          <span className="text-sm font-medium text-[#1A1A1A]">${subtotal}</span>
+          <span className="text-sm font-medium text-[var(--pd-navy)]">${subtotal}</span>
         </div>
         {data.shade && (
-          <p className="text-xs text-[#9B9B9B] ml-4 mb-1">
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">
             Shade: {data.shade}
             {data.toothNumbers.length > 0 && ` · Tooth ${[...data.toothNumbers].sort((a,b)=>a-b).map(n=>`#${n}`).join(", ")}`}
           </p>
         )}
-        {data.guardType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Guard: {data.guardType} · Arch: {formatArchLabel(data.arch)}</p>}
+        {data.guardType && <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Guard: {data.guardType} · Arch: {formatArchLabel(data.arch)}</p>}
         {data.arch && !data.guardType && (
-          <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Arch: {formatArchLabel(data.arch)}</p>
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Arch: {formatArchLabel(data.arch)}</p>
         )}
-        {data.marginType && <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
-        <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
+        {data.marginType && <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
+        <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
         {data.caseFiles.length > 0 && (
-          <div className="text-xs text-[#9B9B9B] ml-4 mb-1 space-y-0.5">
+          <div className="text-xs text-[var(--pd-muted)] ml-4 mb-1 space-y-0.5">
             {data.caseFiles.map((f) => (
               <p key={f.id}>
                 {CASE_FILE_KIND_META[f.kind].label}: {f.fileName}
@@ -1184,33 +1262,33 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
           </div>
         )}
         {!data.caseFiles.length && data.fileName && (
-          <p className="text-xs text-[#9B9B9B] ml-4 mb-1">Scan: {data.fileName}</p>
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Scan: {data.fileName}</p>
         )}
         {data.designChoice === "cad" && (
-          <p className="text-xs text-[#9B9B9B] ml-4 mb-3">CAD design requested</p>
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-3">CAD design requested</p>
         )}
         {data.designChoice === "ai" && data.aiDesignApproved && data.aiDesignedFileName && (
-          <p className="text-xs text-[#9B9B9B] ml-4 mb-3">Dentbird design: {data.aiDesignedFileName}</p>
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-3">Dentbird design: {data.aiDesignedFileName}</p>
         )}
         {data.designChoice !== "cad" && !(data.aiDesignApproved && data.aiDesignedFileName) && data.fileName && (
           <div className="mb-3" />
         )}
         <div className="border-t border-[#F0EEE8] pt-3 space-y-1.5">
           {designFee > 0 && (
-            <div className="flex justify-between text-sm text-[#6B6B6B]">
+            <div className="flex justify-between text-sm text-[var(--pd-slate)]">
               <span>CAD design fee</span><span>${designFee}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm text-[#6B6B6B]">
+          <div className="flex justify-between text-sm text-[var(--pd-slate)]">
             <span>Shipping ({SHIPPING_LABEL})</span><span>${shipping}</span>
           </div>
-          <div className="flex justify-between text-base font-bold text-[#1A1A1A]">
+          <div className="flex justify-between text-base font-bold text-[var(--pd-navy)]">
             <span>Total</span><span>${total}</span>
           </div>
         </div>
       </div>
 
-      <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-4">Shipping address</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-4">Shipping address</p>
       <div className="space-y-3 mb-8">
         <div className="flex gap-3">
           <Field label="First name" placeholder="John" half value={data.firstName} onChange={(v) => onChange("firstName", v)} />
@@ -1221,9 +1299,9 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         <div className="flex gap-3">
           <Field label="City" placeholder="Los Angeles" half value={data.city} onChange={(v) => onChange("city", v)} />
           <div className="flex-1">
-            <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">State</label>
+            <label className="block text-sm font-medium text-[var(--pd-navy)] mb-1.5">State</label>
             <select value={data.state} onChange={(e) => onChange("state", e.target.value)}
-              className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm focus:outline-none focus:border-[#1A1A1A]">
+              className="w-full h-10 px-3 rounded-lg border border-[var(--pd-border)] bg-white text-[var(--pd-navy)] text-sm focus:outline-none focus:border-[var(--pd-navy)]">
               <option value="">State</option>
               {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -1234,13 +1312,17 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" className="h-12 px-6 rounded-xl border-[#E2E0D8] text-[#6B6B6B]" onClick={onBack}>Back</Button>
-        <Button className="flex-1 h-12 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-base font-semibold"
-          disabled={!canSubmit || submitting} onClick={onSubmit}>
+        <button type="button" className={`${ORDER_BTN_BACK} h-12 px-6`} onClick={onBack}>Back</button>
+        <button
+          type="button"
+          className={`${ORDER_BTN_PRIMARY} flex-1 h-12 text-base font-semibold`}
+          disabled={!canSubmit || submitting}
+          onClick={onSubmit}
+        >
           {submitting ? "Placing order..." : `Place order · $${total}`}
-        </Button>
+        </button>
       </div>
-      <p className="text-xs text-center text-[#9B9B9B] mt-4">
+      <p className="text-xs text-center text-[var(--pd-muted)] mt-4">
         Secure checkout · HIPAA compliant · Free remake guarantee
       </p>
     </div>
@@ -1291,61 +1373,92 @@ function OrderContent() {
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
       const visibleProducts = prepareCatalogProducts(productData || []);
-      setLabProducts(visibleProducts.filter((p: Product) => p.category !== "equipment"));
+      const labOnly = visibleProducts.filter(isOrderLabProduct);
+      const visibleLab = visibleProducts.filter((p) => p.category !== "equipment");
+      setLabProducts(labOnly);
       setProductsLoading(false);
 
       const productId = searchParams.get("product");
+      const reorderId = searchParams.get("reorder");
       const resumeDraft = searchParams.get("resume") === "draft";
       const storedDraft = loadOrderDraft();
 
-      const labOnly = visibleProducts.filter((p: Product) => p.category !== "equipment");
-      let deepLinkProduct: Product | null = null;
+      let linkedProduct: { product: Product; arch: string } | null = null;
       let draftProductForRestore: Product | null = null;
       let pendingDraftRestore: OrderDraftStored | null = null;
 
-      const allLabProducts = (productData || []).filter(
-        (p: Product) => p.category !== "equipment"
-      );
+      if (productId) {
+        linkedProduct = resolveOrderProductSelection(productId, labOnly, visibleLab);
+      } else if (reorderId) {
+        const { data: prevOrder } = await supabase
+          .from("orders")
+          .select("id, product_id, quantity, shade, tooth_numbers")
+          .eq("id", reorderId)
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (productId && allLabProducts.length) {
-        const candidate = allLabProducts.find((p: Product) => p.id === productId);
-        if (candidate) {
-          const resolved = resolveActiveProductSelection(candidate, labOnly);
-          deepLinkProduct = resolved.product;
-          setData((prev) => ({
-            ...prev,
-            product: resolved.product,
-            arch: resolved.arch || prev.arch,
-          }));
+        if (prevOrder?.product_id) {
+          linkedProduct = resolveOrderProductSelection(prevOrder.product_id, labOnly, visibleLab);
+          if (linkedProduct) {
+            const { data: prevRx } = await supabase
+              .from("rx")
+              .select("arch, guard_type, color, margin_type, occlusion")
+              .eq("order_id", prevOrder.id)
+              .maybeSingle();
+
+            setData((prev) => ({
+              ...prev,
+              product: linkedProduct!.product,
+              arch: prevRx?.arch || linkedProduct!.arch || prev.arch,
+              quantity: prevOrder.quantity || prev.quantity,
+              shade: prevOrder.shade || prev.shade,
+              toothNumbers: prevOrder.tooth_numbers || prev.toothNumbers,
+              guardType: prevRx?.guard_type || prev.guardType,
+              color: prevRx?.color || prev.color,
+              marginType: prevRx?.margin_type || prev.marginType,
+              occlusion: prevRx?.occlusion || prev.occlusion,
+              caseFiles: [],
+              file: null,
+              fileName: "",
+              notes: "",
+              recordChecklist: emptyRecordChecklistForCategory(linkedProduct!.product.category),
+            }));
+          }
         }
-      } else if (storedDraft?.productId && allLabProducts.length) {
-        const candidate = allLabProducts.find((p: Product) => p.id === storedDraft.productId);
-        if (candidate) {
-          const resolved = resolveActiveProductSelection(candidate, labOnly);
-          if (resolved.product && storedDraft.step >= 2) {
-            draftProductForRestore = resolved.product;
-            if (resumeDraft) {
-              setData((prev) => ({
-                ...prev,
-                ...draftFieldsFromStored(storedDraft, resolved.product),
-                arch: storedDraft.arch || resolved.arch || prev.arch,
-              }));
-              pendingDraftRestore = storedDraft;
-              setDraftRestored(true);
-              if (storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0) {
-                setDraftPrompt({
-                  savedAt: storedDraft.savedAt,
-                  productName: resolved.product.name,
-                  needsFileReupload: true,
-                });
-              }
-            } else {
+      }
+
+      if (linkedProduct && !reorderId) {
+        setData((prev) => ({
+          ...prev,
+          product: linkedProduct!.product,
+          arch: linkedProduct!.arch || prev.arch,
+          recordChecklist: emptyRecordChecklistForCategory(linkedProduct!.product.category),
+        }));
+      } else if (!reorderId && storedDraft?.productId) {
+        const resolved = resolveOrderProductSelection(storedDraft.productId, labOnly, visibleLab);
+        if (resolved?.product && storedDraft.step >= 2) {
+          draftProductForRestore = resolved.product;
+          if (resumeDraft) {
+            setData((prev) => ({
+              ...prev,
+              ...draftFieldsFromStored(storedDraft, resolved.product),
+              arch: storedDraft.arch || resolved.arch || prev.arch,
+            }));
+            pendingDraftRestore = storedDraft;
+            setDraftRestored(true);
+            if (storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0) {
               setDraftPrompt({
                 savedAt: storedDraft.savedAt,
                 productName: resolved.product.name,
-                needsFileReupload: !!storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0,
+                needsFileReupload: true,
               });
             }
+          } else {
+            setDraftPrompt({
+              savedAt: storedDraft.savedAt,
+              productName: resolved.product.name,
+              needsFileReupload: !!storedDraft.fileName || (storedDraft.caseFilesMeta?.length ?? 0) > 0,
+            });
           }
         }
       }
@@ -1373,10 +1486,7 @@ function OrderContent() {
 
       if (equipProfile) setEquipmentProfile(equipProfile);
 
-      if (deepLinkProduct) {
-        const flow = buildOrderFlow(needsDentbirdDesign(deepLinkProduct));
-        setStep(flowStepToIndex(flow, "case"));
-      } else if (pendingDraftRestore && draftProductForRestore) {
+      if (pendingDraftRestore && draftProductForRestore) {
         setStep(
           resolveDraftStepIndex(
             pendingDraftRestore.step,
@@ -1473,7 +1583,9 @@ function OrderContent() {
   function continueFromDraft() {
     const storedDraft = loadOrderDraft();
     if (!storedDraft?.productId) return;
-    const found = labProducts.find((p) => p.id === storedDraft.productId);
+    const found =
+      labProducts.find((p) => p.id === storedDraft.productId) ??
+      resolveOrderProductSelection(storedDraft.productId, labProducts, labProducts)?.product;
     if (!found) return;
     setData((prev) => ({ ...prev, ...draftFieldsFromStored(storedDraft, found) }));
     setStep(
@@ -1765,57 +1877,47 @@ function OrderContent() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-        <p className="text-sm text-[#9B9B9B]">Loading...</p>
-      </div>
+      <MarketingShell>
+        <div className="min-h-[50vh] flex items-center justify-center">
+          <p className="text-[14px] text-[var(--pd-muted)]">Loading order flow…</p>
+        </div>
+      </MarketingShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4]">
-      <Navbar />
+    <MarketingShell>
+      <OrderPageHeader />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16">
-        <header className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#1A1A1A] tracking-tight">New lab case</h1>
-          <p className="text-sm text-[#6B6B6B] mt-1 max-w-2xl">
-            Partial, guards, reline, and immediate cases go straight to scan upload. Complete &
-            overdenture JB cases start with a starter kit from the shop.
-          </p>
-        </header>
-
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-10 pb-16">
         {draftPrompt && !draftRestored && (
-          <div className="mb-6 rounded-xl border border-[#BFDBFE] bg-[#F0F9FF] px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-[#1A1A1A]">Resume your saved order?</p>
-              <p className="text-xs text-[#6B6B6B] mt-1">
-                {draftPrompt.productName} · saved {formatDraftSavedAt(draftPrompt.savedAt)}
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <Button variant="outline" className="h-9 rounded-lg border-[#BFDBFE] text-[#6B6B6B]"
-                onClick={discardDraft}>
-                Discard
-              </Button>
-              <Button className="h-9 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
-                onClick={continueFromDraft}>
-                Continue
-              </Button>
-            </div>
-          </div>
-        )}
-        {(draftPrompt?.needsFileReupload && draftRestored) && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-sm text-amber-900">
-              Re-upload your case files on the Case details step to continue
-              {data.fileName ? ` (previously: ${data.fileName})` : ""}.
+          <OrderNoticeBanner
+            variant="info"
+            actions={
+              <>
+                <button type="button" className={`${ORDER_BTN_BACK} h-9 px-4 text-[13px]`} onClick={discardDraft}>
+                  Discard
+                </button>
+                <button type="button" className={`${ORDER_BTN_PRIMARY} h-9 px-4 text-[13px]`} onClick={continueFromDraft}>
+                  Continue
+                </button>
+              </>
+            }
+          >
+            <p className="font-medium">Resume your saved order?</p>
+            <p className="text-[12px] text-[var(--pd-slate)] mt-1">
+              {draftPrompt.productName} · saved {formatDraftSavedAt(draftPrompt.savedAt)}
             </p>
-          </div>
+          </OrderNoticeBanner>
+        )}
+        {draftPrompt?.needsFileReupload && draftRestored && (
+          <OrderNoticeBanner variant="amber">
+            Re-upload your case files on the Case details step to continue
+            {data.fileName ? ` (previously: ${data.fileName})` : ""}.
+          </OrderNoticeBanner>
         )}
         {equipmentBanner && (
-          <div className="mb-6 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/50 px-4 py-3 text-sm text-[#085041]">
-            {equipmentBanner}
-          </div>
+          <OrderNoticeBanner variant="teal">{equipmentBanner}</OrderNoticeBanner>
         )}
 
         <OrderFlowMobileProgress
@@ -1841,11 +1943,11 @@ function OrderContent() {
           </div>
 
           <main className="min-w-0">
-            <div className="rounded-2xl border border-[#E2E0D8] bg-white p-6 sm:p-8 shadow-sm">
+            <div className="border border-[var(--pd-border)] bg-white p-6 sm:p-8">
               {step === flowStepToIndex(orderFlow, "product") && (
                 productsLoading ? (
                   <div className="flex items-center justify-center py-20">
-                    <p className="text-sm text-[#9B9B9B]">Loading products...</p>
+                    <p className="text-sm text-[var(--pd-muted)]">Loading products...</p>
                   </div>
                 ) : (
                   <Step1
@@ -1854,6 +1956,7 @@ function OrderContent() {
                     onSelect={selectProduct}
                     onContinue={continueFromProduct}
                     flowStepLabel={flowStepLabel}
+                    preferredGroupLabel={serviceGroupLabelFromParam(searchParams.get("group"))}
                   />
                 )
               )}
@@ -1908,18 +2011,22 @@ function OrderContent() {
           </main>
         </div>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
 
 // ── Page Export ────────────────────────────────────────────────────────────
 export default function OrderPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-        <p className="text-sm text-[#9B9B9B]">Loading...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <MarketingShell>
+          <div className="min-h-[50vh] flex items-center justify-center">
+            <p className="text-[14px] text-[var(--pd-muted)]">Loading order flow…</p>
+          </div>
+        </MarketingShell>
+      }
+    >
       <OrderContent />
     </Suspense>
   );

@@ -44,8 +44,10 @@ export const DENTURE_CATEGORIES = [
   "equipment",
 ];
 
-/** Lab-case categories shown on /order step 1 (excludes equipment — sold via /shop or equipment step). */
-export const ORDER_FLOW_CATEGORIES = DENTURE_CATEGORIES.filter((c) => c !== "equipment");
+/** Lab-case categories shown on /order step 1 (excludes equipment & reline). */
+export const ORDER_FLOW_CATEGORIES = DENTURE_CATEGORIES.filter(
+  (c) => c !== "equipment" && c !== "reline"
+);
 
 export function defaultSitesForCategory(category: string): SiteId[] {
   return CATEGORY_SITE_DEFAULTS[category] ?? ["printcrown", "printdenture"];

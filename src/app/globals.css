@@ -126,12 +126,34 @@
   text-rendering: geometricPrecision;
 }
 
+/* PrintDenture brand tokens — aligned with PrintCrown sibling brand */
+:root {
+  --pd-navy: #0D1B2A;
+  --pd-navy-light: #1B2B3A;
+  --pd-teal: #1D9E75;
+  --pd-teal-dark: #0F6E56;
+  --pd-teal-light: #5DCAA5;
+  --pd-bg: #F8F7F4;
+  --pd-surface: #F2F1ED;
+  --pd-border: #E2E0D8;
+  --pd-border-strong: #C8C5BC;
+  --pd-slate: #4A5568;
+  --pd-muted: #6B7280;
+}
+
+.pd-grid-bg {
+  background-image:
+    linear-gradient(to right, currentColor 1px, transparent 1px),
+    linear-gradient(to bottom, currentColor 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   html {
-    @apply font-sans antialiased;
+    @apply font-sans antialiased scroll-smooth;
   }
   body {
     @apply bg-background text-foreground font-sans;
@@ -142,6 +164,6 @@
   h3,
   h4 {
     @apply font-semibold tracking-tight;
-    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-inter), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   }
 }

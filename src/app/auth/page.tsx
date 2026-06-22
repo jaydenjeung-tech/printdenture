@@ -8,9 +8,20 @@ import {
   isSupabaseConfigured,
   SUPABASE_SETUP_MESSAGE,
 } from "@/lib/supabase";
-import Navbar from "@/components/navbar";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
+import {
+  AuthAlert,
+  AuthDivider,
+  AuthField,
+  AuthGoogleButton,
+  AuthModeToggle,
+  AuthPanelAside,
+  AuthSelect,
+  AuthSubmitButton,
+} from "@/components/marketing/auth-ui";
 import { getClientAppOrigin } from "@/lib/app-url";
 import { isPracticeProfileComplete } from "@/lib/profile-requirements";
+import { accountStatusMessage, type AccountStatus } from "@/lib/account-status";
 
 type Mode = "login" | "signup";
 
@@ -29,7 +40,8 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const postAuthPath = getPostAuthPath(searchParams.get("next"));
-  const [mode, setMode] = useState<Mode>("login");
+  const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -46,6 +58,27 @@ function AuthContent() {
   const [success, setSuccess] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
   const configured = isSupabaseConfigured();
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError("");
+    setSuccess("");
+  };
+
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "pending") {
+      setError("Your practice registration is pending admin approval.");
+    } else if (status === "rejected") {
+      setError("Your practice registration was not approved. Contact support for assistance.");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("mode") === "signup") {
+      setMode("signup");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (searchParams.get("error") === "oauth") {
@@ -88,9 +121,7 @@ function AuthContent() {
     const callbackUrl = `${getClientAppOrigin()}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: callbackUrl,
-      },
+      options: { redirectTo: callbackUrl },
     });
     if (oauthError) {
       setError(oauthError.message);
@@ -118,6 +149,25 @@ function AuthContent() {
       if (signInError) {
         setError(signInError.message);
       } else {
+        const { user } = await getClientUser(supabase);
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("account_status, role, is_admin")
+            .eq("id", user.id)
+            .single();
+
+          const status = profile?.account_status as AccountStatus | undefined;
+          const isAdmin = profile?.role === "admin" || profile?.is_admin;
+          const blockMessage = !isAdmin ? accountStatusMessage(status ?? "approved") : null;
+
+          if (blockMessage) {
+            await supabase.auth.signOut();
+            setError(blockMessage);
+            setLoading(false);
+            return;
+          }
+        }
         router.push(postAuthPath);
       }
     } else {
@@ -125,14 +175,16 @@ function AuthContent() {
       if (signUpError) {
         setError(signUpError.message);
       } else if (data.user) {
-        if (!isPracticeProfileComplete({
-          practice_name: practiceName,
-          phone,
-          address,
-          city,
-          state,
-          zip,
-        })) {
+        if (
+          !isPracticeProfileComplete({
+            practice_name: practiceName,
+            phone,
+            address,
+            city,
+            state,
+            zip,
+          })
+        ) {
           setError("Practice name, phone, and full address are required to sign up.");
           setLoading(false);
           return;
@@ -147,286 +199,212 @@ function AuthContent() {
           city: city.trim(),
           state: state.trim(),
           zip: zip.trim(),
+          account_status: "approved",
         });
-        setSuccess("Account created! Please check your email to confirm.");
+        if (data.session) {
+          router.push(postAuthPath);
+        } else {
+          setSuccess("Account created. Check your email to confirm, then sign in to start submitting cases.");
+        }
       }
     }
     setLoading(false);
   }
 
+  const signupIncomplete =
+    mode === "signup" &&
+    (!firstName ||
+      !lastName ||
+      !isPracticeProfileComplete({
+        practice_name: practiceName,
+        phone,
+        address,
+        city,
+        state,
+        zip,
+      }));
+
+  const submitDisabled = loading || !email || !password || !configured || signupIncomplete;
+
   return (
-    <div className="min-h-screen bg-[#F8F7F4] flex flex-col">
-      <Navbar />
+    <div className="pt-[4.25rem] min-h-[calc(100vh-4.25rem)] grid lg:grid-cols-2">
+      <AuthPanelAside />
 
-      <div className="flex-1 flex items-center justify-center px-6 pt-24 pb-12">
+      <div className="flex items-center justify-center px-6 py-12 lg:py-16 bg-[var(--pd-bg)]">
         {checkingSession ? (
-          <p className="text-sm text-[#9B9B9B]">Checking session…</p>
+          <p className="text-[14px] text-[var(--pd-muted)]">Checking session…</p>
         ) : (
-        <div className="w-full max-w-sm">
-          <div className="flex bg-white border border-[#E2E0D8] rounded-xl p-1 mb-8">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setError("");
-                setSuccess("");
-              }}
-              className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
-                mode === "login" ? "bg-[#1A1A1A] text-white" : "text-[#6B6B6B] hover:text-[#1A1A1A]"
-              }`}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError("");
-                setSuccess("");
-              }}
-              className={`flex-1 h-9 rounded-lg text-sm font-medium transition-all ${
-                mode === "signup" ? "bg-[#1A1A1A] text-white" : "text-[#6B6B6B] hover:text-[#1A1A1A]"
-              }`}
-            >
-              Sign up
-            </button>
-          </div>
+          <div className="w-full max-w-md">
+            <div className="lg:hidden mb-8 pb-8 border-b border-[var(--pd-border)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-teal-dark)] mb-2">
+                Provider portal
+              </p>
+              <h1 className="text-[1.5rem] font-semibold text-[var(--pd-navy)] tracking-[-0.02em]">
+                {mode === "login" ? "Provider login" : "Register your practice"}
+              </h1>
+            </div>
 
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">
-            {mode === "login" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="text-sm text-[#6B6B6B] mb-6">
-            {mode === "login"
-              ? "Sign in to manage your denture cases."
-              : "Start ordering dentures online in minutes."}
-          </p>
+            <AuthModeToggle
+              mode={mode}
+              onLogin={() => switchMode("login")}
+              onSignup={() => switchMode("signup")}
+            />
 
-          {!configured && (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-6">
-              <p className="text-sm text-amber-900 font-medium mb-1">Auth not configured yet</p>
-              <p className="text-[13px] text-amber-800 leading-relaxed">{SUPABASE_SETUP_MESSAGE}</p>
-              <p className="text-[12px] text-amber-700 mt-2">
-                Use the same values as PrintCrown in Vercel → Settings → Environment Variables.
+            <div className="hidden lg:block mb-6">
+              <h2 className="text-[1.5rem] font-semibold text-[var(--pd-navy)] tracking-[-0.02em] mb-2">
+                {mode === "login" ? "Sign in to your account" : "Register your practice"}
+              </h2>
+              <p className="text-[14px] text-[var(--pd-slate)] leading-relaxed">
+                {mode === "login"
+                  ? "Access your dashboard to manage cases and track workflow status."
+                  : "Create your practice account to submit cases and track orders."}
               </p>
             </div>
-          )}
 
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading || !configured}
-            className="w-full h-11 rounded-xl border border-[#E2E0D8] bg-white flex items-center justify-center gap-3 text-sm font-medium text-[#1A1A1A] hover:bg-[#F8F7F4] transition mb-4 disabled:opacity-50"
-          >
-            {googleLoading ? (
-              <span className="text-sm text-[#6B6B6B]">Redirecting...</span>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                  <path
-                    d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.705 17.64 9.2z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"
-                    fill="#EA4335"
-                  />
-                </svg>
-                Continue with Google
-              </>
+            {!configured && (
+              <div className="mb-6">
+                <AuthAlert variant="warning">
+                  <p className="font-medium mb-1">Auth not configured yet</p>
+                  <p>{SUPABASE_SETUP_MESSAGE}</p>
+                  <p className="mt-2 text-[12px] opacity-90">
+                    Use the same values as PrintCrown in Vercel → Settings → Environment Variables.
+                  </p>
+                </AuthAlert>
+              </div>
             )}
-          </button>
 
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-[#E2E0D8]" />
-            <span className="text-xs text-[#9B9B9B]">or</span>
-            <div className="flex-1 h-px bg-[#E2E0D8]" />
-          </div>
+            <AuthGoogleButton
+              loading={googleLoading}
+              disabled={!configured}
+              onClick={handleGoogleSignIn}
+            />
 
-          <div className="space-y-4">
-            {mode === "signup" && (
-              <>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
-                      First name
-                    </label>
-                    <input
-                      type="text"
+            <AuthDivider />
+
+            <div className="space-y-4">
+              {mode === "signup" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <AuthField
+                      label="First name"
+                      id="firstName"
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={setFirstName}
                       placeholder="John"
-                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                     />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
-                      Last name
-                    </label>
-                    <input
-                      type="text"
+                    <AuthField
+                      label="Last name"
+                      id="lastName"
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={setLastName}
                       placeholder="Smith"
-                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
-                    Practice name *
-                  </label>
-                  <input
-                    type="text"
+                  <AuthField
+                    label="Practice name *"
+                    id="practiceName"
                     value={practiceName}
-                    onChange={(e) => setPracticeName(e.target.value)}
+                    onChange={setPracticeName}
                     placeholder="Smith Family Dentistry"
-                    className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Phone *</label>
-                  <input
+                  <AuthField
+                    label="Phone *"
+                    id="phone"
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={setPhone}
                     placeholder="(555) 000-0000"
-                    className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Street address *</label>
-                  <input
-                    type="text"
+                  <AuthField
+                    label="Street address *"
+                    id="address"
                     value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    onChange={setAddress}
                     placeholder="123 Main St"
-                    className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                   />
-                </div>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">City *</label>
-                    <input
-                      type="text"
+                  <div className="grid grid-cols-[1fr_5rem_5rem] gap-3">
+                    <AuthField
+                      label="City *"
+                      id="city"
                       value={city}
-                      onChange={(e) => setCity(e.target.value)}
+                      onChange={setCity}
                       placeholder="Los Angeles"
-                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                     />
-                  </div>
-                  <div className="w-24">
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">State *</label>
-                    <select
+                    <AuthSelect
+                      label="State *"
+                      id="state"
                       value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="w-full h-10 px-2 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56]"
-                    >
-                      <option value="">—</option>
-                      {US_STATES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="w-24">
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">ZIP *</label>
-                    <input
-                      type="text"
+                      onChange={setState}
+                      options={[{ value: "", label: "—" }, ...US_STATES.map((s) => ({ value: s, label: s }))]}
+                    />
+                    <AuthField
+                      label="ZIP *"
+                      id="zip"
                       value={zip}
-                      onChange={(e) => setZip(e.target.value)}
+                      onChange={setZip}
                       placeholder="90001"
-                      className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
                     />
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
 
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Email</label>
-              <input
+              <AuthField
+                label="Email"
+                id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                onChange={setEmail}
                 placeholder="doctor@practice.com"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                onKeyDown={(e) => e.key === "Enter" && !submitDisabled && handleSubmit()}
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Password</label>
-              <input
+              <AuthField
+                label="Password"
+                id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                onChange={setPassword}
                 placeholder="••••••••"
-                className="w-full h-10 px-3 rounded-lg border border-[#E2E0D8] bg-white text-sm text-[#1A1A1A] focus:outline-none focus:border-[#0F6E56] placeholder:text-[#C8C6BE]"
+                onKeyDown={(e) => e.key === "Enter" && !submitDisabled && handleSubmit()}
               />
+
+              {error && <AuthAlert variant="error">{error}</AuthAlert>}
+              {success && <AuthAlert variant="success">{success}</AuthAlert>}
+
+              <AuthSubmitButton loading={loading} disabled={!!submitDisabled} onClick={handleSubmit}>
+                {mode === "login" ? "Sign in" : "Submit registration"}
+              </AuthSubmitButton>
             </div>
 
-            {error && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-            {success && (
-              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                <p className="text-sm text-green-600">{success}</p>
-              </div>
+            {mode === "login" && (
+              <p className="text-center text-[14px] text-[var(--pd-muted)] mt-6">
+                Don&apos;t have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => switchMode("signup")}
+                  className="text-[var(--pd-teal-dark)] hover:underline font-medium"
+                >
+                  Register your practice
+                </button>
+              </p>
             )}
 
-            <button
-              type="button"
-              className="w-full h-11 bg-[#0F6E56] hover:bg-[#085041] text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
-              onClick={handleSubmit}
-              disabled={
-                loading ||
-                !email ||
-                !password ||
-                !configured ||
-                (mode === "signup" &&
-                  (!firstName ||
-                    !lastName ||
-                    !isPracticeProfileComplete({
-                      practice_name: practiceName,
-                      phone,
-                      address,
-                      city,
-                      state,
-                      zip,
-                    })))
-              }
-            >
-              {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}
-            </button>
-          </div>
+            {mode === "signup" && (
+              <p className="text-center text-[14px] text-[var(--pd-muted)] mt-6">
+                Already registered?{" "}
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="text-[var(--pd-teal-dark)] hover:underline font-medium"
+                >
+                  Sign in
+                </button>
+              </p>
+            )}
 
-          {mode === "login" && (
-            <p className="text-center text-sm text-[#9B9B9B] mt-6">
-              Don&apos;t have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("signup")}
-                className="text-[#0F6E56] hover:underline font-medium"
-              >
-                Sign up
-              </button>
+            <p className="text-center text-[11px] text-[var(--pd-muted)] mt-6 leading-relaxed">
+              Uses the same account as PrintCrown when your lab shares one Supabase project.
             </p>
-          )}
-
-          <p className="text-center text-[11px] text-[#9B9B9B] mt-6 leading-relaxed">
-            Uses the same account as PrintCrown when your lab shares one Supabase project.
-          </p>
-        </div>
+          </div>
         )}
       </div>
     </div>
@@ -437,12 +415,16 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-          <p className="text-sm text-[#9B9B9B]">Loading...</p>
-        </div>
+        <MarketingShell>
+          <div className="min-h-[60vh] flex items-center justify-center">
+            <p className="text-[14px] text-[var(--pd-muted)]">Loading…</p>
+          </div>
+        </MarketingShell>
       }
     >
-      <AuthContent />
+      <MarketingShell>
+        <AuthContent />
+      </MarketingShell>
     </Suspense>
   );
 }

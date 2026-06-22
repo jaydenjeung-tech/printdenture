@@ -16,6 +16,20 @@ function copyCookies(from: NextResponse, to: NextResponse) {
   });
 }
 
+async function getAccountStatus(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("account_status, role, is_admin")
+    .eq("id", userId)
+    .single();
+
+  if (data?.role === "admin" || data?.is_admin) return "approved";
+  return data?.account_status ?? "approved";
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -69,6 +83,18 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(loginUrl);
     copyCookies(supabaseResponse, redirectResponse);
     return redirectResponse;
+  }
+
+  if (isProtected && activeUser) {
+    const status = await getAccountStatus(supabase, activeUser.id);
+    if (status === "pending" || status === "rejected") {
+      const pendingUrl = new URL("/auth", request.url);
+      pendingUrl.searchParams.set("status", status);
+      await supabase.auth.signOut();
+      const redirectResponse = NextResponse.redirect(pendingUrl);
+      copyCookies(supabaseResponse, redirectResponse);
+      return redirectResponse;
+    }
   }
 
   if (pathname.startsWith("/auth") && !pathname.startsWith("/auth/callback") && activeUser) {

@@ -63,6 +63,11 @@ export const DENTURE_SERVICE_GROUPS: readonly DentureServiceGroup[] = [
   },
 ] as const;
 
+/** Order page tabs — excludes reline/repair (not offered in self-serve order flow). */
+export const ORDER_DENTURE_SERVICE_GROUPS = DENTURE_SERVICE_GROUPS.filter(
+  (group) => group.id !== "reline"
+);
+
 /** Pricing page section order (excludes equipment). */
 export const DENTURE_PRICING_CATEGORY_ORDER = [
   "complete",

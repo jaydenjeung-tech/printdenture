@@ -36,22 +36,25 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.metadata?.orderId;
+    const orderIds = [
+      ...(session.metadata?.orderIds?.split(",").filter(Boolean) ?? []),
+      ...(session.metadata?.orderId && !session.metadata?.orderIds ? [session.metadata.orderId] : []),
+    ].filter((id, index, all) => all.indexOf(id) === index);
 
-    if (orderId) {
-      const { data: order } = await supabase
+    if (orderIds.length > 0) {
+      const { data: orders } = await supabase
         .from("orders")
-        .select("product_name, product_id, user_id, order_type, notes")
-        .eq("id", orderId)
-        .single();
+        .select("id, product_name, product_id, user_id, order_type, notes")
+        .in("id", orderIds);
 
       const paidAt = new Date(session.created * 1000);
+      const primaryOrder = orders?.[0];
       const isEquipment =
-        session.metadata?.orderType === "equipment" || order?.order_type === "equipment";
+        session.metadata?.orderType === "equipment" || primaryOrder?.order_type === "equipment";
 
       const dueDate = isEquipment
         ? null
-        : calculateDueDate(paidAt, order?.product_name, order?.product_id);
+        : calculateDueDate(paidAt, primaryOrder?.product_name, primaryOrder?.product_id);
 
       await supabase
         .from("orders")
@@ -61,25 +64,30 @@ export async function POST(req: NextRequest) {
           paid_at: paidAt.toISOString(),
           due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
         })
-        .eq("id", orderId);
+        .in("id", orderIds);
 
-      if (isEquipment && order?.user_id) {
-        const equipmentKind =
-          session.metadata?.equipmentKind ||
-          (order.notes?.includes("jb_tray") ? "jb_tray" : order.notes?.includes("jb_fork") ? "jb_fork" : null);
+      if (isEquipment && primaryOrder?.user_id) {
+        const metadataKinds =
+          session.metadata?.equipmentKinds?.split(",").filter(Boolean) ?? [];
+        const noteKinds =
+          orders?.flatMap((order) => {
+            const match = order.notes?.match(/equipment_kind:(jb_tray|jb_fork)/);
+            return match ? [match[1]] : [];
+          }) ?? [];
+        const equipmentKinds = [...new Set([...metadataKinds, ...noteKinds])];
 
         const profilePatch: Record<string, string> = {};
-        if (equipmentKind === "jb_tray") profilePatch.jb_tray_status = "ordered";
-        if (equipmentKind === "jb_fork") profilePatch.jb_fork_status = "ordered";
+        if (equipmentKinds.includes("jb_tray")) profilePatch.jb_tray_status = "ordered";
+        if (equipmentKinds.includes("jb_fork")) profilePatch.jb_fork_status = "ordered";
 
         if (Object.keys(profilePatch).length > 0) {
-          await supabase.from("profiles").update(profilePatch).eq("id", order.user_id);
+          await supabase.from("profiles").update(profilePatch).eq("id", primaryOrder.user_id);
         }
-      } else {
+      } else if (primaryOrder) {
         await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notify-new-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId }),
+          body: JSON.stringify({ orderId: primaryOrder.id }),
         });
       }
     }

@@ -1,23 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import Navbar from "@/components/navbar";
-import { Button } from "@/components/ui/button";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
+import {
+  ShopCartPanel,
+  ShopLoadingState,
+  ShopPageHeader,
+  shopFamilyTabClass,
+  shopVariantClass,
+} from "@/components/marketing/shop-ui";
+import { OrderNoticeBanner, ORDER_BTN_NAVY } from "@/components/marketing/order-ui";
+import { GuideImageFrame } from "@/components/marketing/guide-image";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
 import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
 import {
+  addCartLine,
   EQUIPMENT_FAMILIES,
   EQUIPMENT_SHOP_ATTRIBUTION,
   groupProductsByFamily,
   getVariantBadge,
   getVariantShortLabel,
   parseShopFamilyParam,
+  removeCartLine,
+  resolveCartItems,
   SHOP_QUANTITY_MAX,
   SHOP_QUANTITY_MIN,
+  updateCartLineQuantity,
   type EquipmentFamilyId,
+  type ShopCartLine,
   type ShopProduct,
 } from "@/lib/equipment-shop";
 
@@ -28,8 +40,11 @@ function ShopContent() {
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [cartLines, setCartLines] = useState<ShopCartLine[]>([]);
+  const [addedNotice, setAddedNotice] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupProductsByFamily(products), [products]);
+  const cartItems = useMemo(() => resolveCartItems(cartLines, products), [cartLines, products]);
 
   const initialFamily = parseShopFamilyParam(searchParams.get("family")) ?? "jb_tray";
   const [activeFamily, setActiveFamily] = useState<EquipmentFamilyId>(initialFamily);
@@ -38,14 +53,17 @@ function ShopContent() {
 
   const familyMeta = EQUIPMENT_FAMILIES.find((f) => f.id === activeFamily)!;
   const familyProducts = grouped[activeFamily] ?? [];
-  const selected =
-    familyProducts.find((p) => p.id === selectedId) ?? familyProducts[0] ?? null;
-
-  const subtotal = selected ? selected.price * quantity : 0;
-  const total = subtotal + SHIPPING_FLAT_RATE;
+  const selected = familyProducts.find((p) => p.id === selectedId) ?? familyProducts[0] ?? null;
+  const selectedLineSubtotal = selected ? selected.price * quantity : 0;
+  const cartHasSelected = selected ? cartLines.some((line) => line.productId === selected.id) : false;
 
   useEffect(() => {
     if (searchParams.get("equipment") === "ordered") {
+      const count = searchParams.get("count");
+      if (count && Number(count) > 1) {
+        setBanner(`${count} equipment items confirmed. Mark them as received on your dashboard when they arrive.`);
+        return;
+      }
       const kind = searchParams.get("kind");
       const label =
         kind === "jb_tray"
@@ -83,7 +101,7 @@ function ShopContent() {
       setProducts((data as ShopProduct[]) || []);
       setLoading(false);
     }
-    load();
+    void load();
   }, [router]);
 
   useEffect(() => {
@@ -93,16 +111,38 @@ function ShopContent() {
     setQuantity(1);
   }, [activeFamily, grouped]);
 
-  async function handleCheckout() {
+  function handleAddToCart() {
     if (!selected) return;
+    setCartLines((lines) => {
+      const exists = lines.some((line) => line.productId === selected.id);
+      if (exists) return updateCartLineQuantity(lines, selected.id, quantity);
+      return addCartLine(lines, selected.id, quantity);
+    });
+    setAddedNotice(`${selected.name} ${cartHasSelected ? "updated in cart" : "added to cart"}`);
+    setQuantity(1);
+    window.setTimeout(() => setAddedNotice(null), 2500);
+  }
+
+  function handleUpdateCartQuantity(productId: string, nextQuantity: number) {
+    if (nextQuantity < SHOP_QUANTITY_MIN) {
+      setCartLines((lines) => removeCartLine(lines, productId));
+      return;
+    }
+    setCartLines((lines) => updateCartLineQuantity(lines, productId, nextQuantity));
+  }
+
+  async function handleCheckout() {
+    if (!cartItems.length) return;
     setCheckingOut(true);
     try {
       const res = await fetch("/api/equipment-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: selected.id,
-          quantity,
+          items: cartItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
           returnTo: `/shop?family=${activeFamily}`,
         }),
       });
@@ -115,238 +155,187 @@ function ShopContent() {
     }
   }
 
+  if (loading) {
+    return <ShopLoadingState />;
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8F7F4]">
-      <Navbar />
-      <div className="mx-auto max-w-4xl px-6 pt-24 pb-16">
-        <p className="text-[11px] font-medium text-[#0F6E56] uppercase tracking-[0.08em] mb-2">
-          PrintDenture supply
-        </p>
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">JB Tray, JB Fork & ADD POP Bow</h1>
-        <p className="text-[#6B6B6B] mb-6 leading-relaxed max-w-2xl">
-          Not sure which kit? Use the guide below — most visits use Fork or Tray alone, but PNUADD
-          also teaches sequential workflows where both help. When your kit arrives, mark received on
-          your{" "}
-          <Link href="/dashboard" className="text-[#0F6E56] font-medium hover:underline">
-            dashboard
-          </Link>
-          , capture records, then submit from{" "}
-          <Link href="/order" className="text-[#0F6E56] font-medium hover:underline">
-            New lab case
-          </Link>
-          . Flat-rate {SHIPPING_LABEL} shipping (${SHIPPING_FLAT_RATE}).
-        </p>
+    <MarketingShell>
+      <ShopPageHeader />
 
-        <JbProtocolChooser
-          variant="shop"
-          activeFamily={activeFamily === "pop_bow" ? undefined : activeFamily}
-          onSelectFamily={setActiveFamily}
-          className="mb-8"
-        />
+      <div className="max-w-5xl mx-auto px-6 lg:px-10 py-10 pb-16">
+        {banner && <OrderNoticeBanner variant="teal">{banner}</OrderNoticeBanner>}
+        {addedNotice && <OrderNoticeBanner variant="teal">{addedNotice}</OrderNoticeBanner>}
 
-        {banner && (
-          <div className="mb-6 rounded-xl border border-[#9FE1CB] bg-[#E1F5EE]/50 px-4 py-3 text-sm text-[#085041]">
-            {banner}
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[var(--pd-border)] border border-[var(--pd-border)]">
+              {EQUIPMENT_FAMILIES.map((family) => {
+                const active = family.id === activeFamily;
+                const count = grouped[family.id]?.length ?? 0;
+                return (
+                  <button
+                    key={family.id}
+                    type="button"
+                    onClick={() => setActiveFamily(family.id)}
+                    className={shopFamilyTabClass(active)}
+                  >
+                    <p className="text-[14px] font-semibold">{family.label}</p>
+                    <p className={`text-[12px] mt-1 ${active ? "text-white/75" : "text-[var(--pd-muted)]"}`}>
+                      {count} option{count !== 1 ? "s" : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
 
-        {loading ? (
-          <p className="text-sm text-[#9B9B9B] py-12 text-center">Loading equipment…</p>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
-            <div className="space-y-5">
-              {/* Family tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {EQUIPMENT_FAMILIES.map((family) => {
-                  const active = family.id === activeFamily;
-                  const count = grouped[family.id]?.length ?? 0;
-                  return (
-                    <button
-                      key={family.id}
-                      type="button"
-                      onClick={() => setActiveFamily(family.id)}
-                      className={`rounded-xl border p-4 text-left transition-all ${
-                        active
-                          ? "bg-[#1A1A1A] text-white border-[#1A1A1A] shadow-sm"
-                          : "bg-white text-[#6B6B6B] border-[#E2E0D8] hover:border-[#1A1A1A]/40"
-                      }`}
-                    >
-                      <p className="text-sm font-semibold">{family.label}</p>
-                      <p className={`text-xs mt-1 ${active ? "text-white/75" : "text-[#9B9B9B]"}`}>
-                        {count} option{count !== 1 ? "s" : ""}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Family hero */}
-              <div className="rounded-2xl border border-[#E2E0D8] bg-white p-5 flex gap-4">
-                <div
-                  className="w-24 h-24 rounded-xl bg-cover bg-center shrink-0 border border-[#E2E0D8]"
-                  style={{ backgroundImage: `url(${familyMeta.image})` }}
+            <div className="border border-[var(--pd-border)] bg-white overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-0">
+                <GuideImageFrame
+                  src={familyMeta.image}
+                  alt={familyMeta.label}
+                  variant="product"
+                  className="border-0 border-b sm:border-b-0 sm:border-r border-[var(--pd-border)] min-h-[200px] sm:min-h-0"
                 />
-                <div>
-                  <h2 className="text-lg font-semibold text-[#1A1A1A]">{familyMeta.label}</h2>
-                  <p className="text-sm text-[#6B6B6B] mt-1 leading-relaxed">{familyMeta.description}</p>
-                  <ul className="mt-2 space-y-0.5">
+                <div className="p-5 sm:p-6">
+                  <h2 className="text-lg font-semibold text-[var(--pd-navy)]">{familyMeta.label}</h2>
+                  <p className="text-[14px] text-[var(--pd-slate)] mt-2 leading-relaxed">{familyMeta.description}</p>
+                  <ul className="mt-3 space-y-1">
                     {familyMeta.variantHints.map((hint) => (
-                      <li key={hint} className="text-xs text-[#0F6E56]">
+                      <li key={hint} className="text-[12px] text-[var(--pd-teal-dark)]">
                         · {hint}
                       </li>
                     ))}
                   </ul>
                   {familyMeta.orderHint && (
-                    <p className="text-xs text-[#6B6B6B] mt-3 leading-relaxed border-t border-[#E2E0D8] pt-3">
+                    <p className="text-[12px] text-[var(--pd-muted)] mt-4 leading-relaxed border-t border-[var(--pd-border)] pt-4">
                       {familyMeta.orderHint}
                     </p>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Variant options */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B] mb-3">
-                  Choose option
-                </p>
-                <div className="space-y-2">
-                  {familyProducts.map((product) => {
-                    const isSelected = selected?.id === product.id;
-                    const badge = getVariantBadge(product.fields);
-                    return (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(product.id);
-                          setQuantity(1);
-                        }}
-                        className={`w-full text-left rounded-xl border p-4 transition-all ${
-                          isSelected
-                            ? "border-[#0F6E56] bg-[#E1F5EE]/30 ring-2 ring-[#0F6E56]/15"
-                            : "border-[#E2E0D8] bg-white hover:border-[#0F6E56]/40"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-semibold text-[#1A1A1A]">
-                                {getVariantShortLabel(product.fields)}
-                              </p>
-                              {badge && (
-                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#0F6E56]/10 text-[#085041] border border-[#9FE1CB]">
-                                  {badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-[#6B6B6B] mt-1 leading-relaxed">{product.description}</p>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)] mb-3">
+                Choose option
+              </p>
+              <div className="space-y-2">
+                {familyProducts.map((product) => {
+                  const isSelected = selected?.id === product.id;
+                  const inCart = cartLines.find((line) => line.productId === product.id);
+                  const badge = getVariantBadge(product.fields);
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(product.id);
+                        setQuantity(inCart?.quantity ?? 1);
+                      }}
+                      className={shopVariantClass(isSelected)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[14px] font-semibold text-[var(--pd-navy)]">
+                              {getVariantShortLabel(product.fields)}
+                            </p>
+                            {badge && (
+                              <span className="text-[10px] font-medium px-2 py-0.5 border bg-[#E1F5EE] text-[var(--pd-teal-dark)] border-[#9FE1CB] uppercase tracking-wide">
+                                {badge}
+                              </span>
+                            )}
+                            {inCart && (
+                              <span className="text-[10px] font-medium px-2 py-0.5 border bg-[var(--pd-surface)] text-[var(--pd-navy)] border-[var(--pd-border)]">
+                                In cart · Qty {inCart.quantity}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-base font-semibold text-[#1A1A1A] shrink-0">${product.price}</p>
+                          <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">
+                            {product.description}
+                          </p>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <p className="text-base font-semibold text-[var(--pd-navy)] shrink-0">${product.price}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Quantity */}
-              {selected && (
-                <div className="rounded-xl border border-[#E2E0D8] bg-white p-4">
-                  <p className="text-sm font-medium text-[#1A1A1A] mb-3">Quantity</p>
+            {selected && (
+              <div className="border border-[var(--pd-border)] bg-white p-4 sm:p-5 space-y-4">
+                <div>
+                  <p className="text-[14px] font-medium text-[var(--pd-navy)] mb-3">Quantity</p>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.max(SHOP_QUANTITY_MIN, q - 1))}
                         disabled={quantity <= SHOP_QUANTITY_MIN}
-                        className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] font-semibold text-[#1A1A1A] disabled:opacity-40"
+                        className="w-9 h-9 border border-[var(--pd-border)] bg-[var(--pd-surface)] font-semibold text-[var(--pd-navy)] disabled:opacity-40 hover:border-[var(--pd-navy)] transition-colors"
                       >
                         −
                       </button>
-                      <span className="w-10 text-center font-semibold text-[#1A1A1A]">{quantity}</span>
+                      <span className="w-10 text-center font-semibold text-[var(--pd-navy)]">{quantity}</span>
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.min(SHOP_QUANTITY_MAX, q + 1))}
                         disabled={quantity >= SHOP_QUANTITY_MAX}
-                        className="w-9 h-9 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] font-semibold text-[#1A1A1A] disabled:opacity-40"
+                        className="w-9 h-9 border border-[var(--pd-border)] bg-[var(--pd-surface)] font-semibold text-[var(--pd-navy)] disabled:opacity-40 hover:border-[var(--pd-navy)] transition-colors"
                       >
                         +
                       </button>
                     </div>
-                    <p className="text-xs text-[#9B9B9B]">
-                      {quantity === 1 ? "1 unit" : `${quantity} units`}
+                    <p className="text-[12px] text-[var(--pd-muted)]">
+                      {quantity === 1 ? "1 unit" : `${quantity} units`} · ${selectedLineSubtotal}
                     </p>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Order summary */}
-            <div className="lg:sticky lg:top-24 rounded-2xl border border-[#E2E0D8] bg-white p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#9B9B9B]">Order summary</p>
-              {selected ? (
-                <>
-                  <div>
-                    <p className="text-sm font-semibold text-[#1A1A1A]">{selected.name}</p>
-                    <p className="text-xs text-[#9B9B9B] mt-1">
-                      {getVariantShortLabel(selected.fields)} · Qty {quantity}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 text-sm border-t border-[#F0EEE8] pt-3">
-                    <div className="flex justify-between text-[#6B6B6B]">
-                      <span>
-                        ${selected.price} × {quantity}
-                      </span>
-                      <span>${subtotal}</span>
-                    </div>
-                    <div className="flex justify-between text-[#6B6B6B]">
-                      <span>Shipping ({SHIPPING_LABEL})</span>
-                      <span>${SHIPPING_FLAT_RATE}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-[#1A1A1A] pt-1">
-                      <span>Total</span>
-                      <span>${total}</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-[#9B9B9B]">{selected.turnaround}</p>
-                  <Button
-                    className="w-full h-11 rounded-xl bg-[#0F6E56] hover:bg-[#085041] text-white"
-                    disabled={checkingOut}
-                    onClick={handleCheckout}
-                  >
-                    {checkingOut ? "Redirecting to checkout…" : `Checkout · $${total}`}
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm text-[#9B9B9B]">No products available.</p>
-              )}
-              <Link
-                href="/order"
-                className="block text-center text-xs text-[#378ADD] hover:underline font-medium"
-              >
-                ← Back to lab case order
-              </Link>
-            </div>
+                <button
+                  type="button"
+                  className={`${ORDER_BTN_NAVY} w-full sm:w-auto`}
+                  onClick={handleAddToCart}
+                >
+                  {cartHasSelected ? "Update cart" : "Add to cart"}
+                </button>
+              </div>
+            )}
           </div>
-        )}
 
-        <p className="text-[11px] text-[#9B9B9B] leading-relaxed mt-8 max-w-2xl">
+          <ShopCartPanel
+            cartItems={cartItems}
+            checkingOut={checkingOut}
+            onUpdateQuantity={handleUpdateCartQuantity}
+            onRemove={(productId) => setCartLines((lines) => removeCartLine(lines, productId))}
+            onCheckout={() => void handleCheckout()}
+          />
+        </div>
+
+        <section className="mt-16 pt-12 border-t-2 border-[var(--pd-navy)]">
+          <p className="text-[13px] text-[var(--pd-slate)] mb-8 leading-relaxed max-w-2xl">
+            Not sure which kit? Most visits use Fork or Tray alone — use the protocol guide below to
+            decide. Flat-rate {SHIPPING_LABEL} shipping (${SHIPPING_FLAT_RATE}).
+          </p>
+          <JbProtocolChooser
+            variant="shop"
+            activeFamily={activeFamily === "pop_bow" ? undefined : activeFamily}
+            onSelectFamily={setActiveFamily}
+          />
+        </section>
+
+        <p className="text-[11px] text-[var(--pd-muted)] leading-relaxed mt-10 max-w-2xl">
           {EQUIPMENT_SHOP_ATTRIBUTION}
         </p>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
 
 export default function ShopPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-          <p className="text-sm text-[#9B9B9B]">Loading…</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<ShopLoadingState />}>
       <ShopContent />
     </Suspense>
   );
