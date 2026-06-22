@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Outfit } from "next/font/google";
 
 const outfit = Outfit({
@@ -13,10 +14,18 @@ const outfit = Outfit({
 export type LogoVariant = "dark" | "light";
 export type LogoSize = "sm" | "md" | "lg";
 
+const LOCKUP_IMAGE_DARK = "/images/brand/printdenture-lockup-dark.png";
+
 const MARK_SIZES: Record<LogoSize, number> = {
   sm: 24,
-  md: 48,
-  lg: 52,
+  md: 40,
+  lg: 48,
+};
+
+const LOCKUP_HEIGHTS: Record<LogoSize, number> = {
+  sm: 24,
+  md: 40,
+  lg: 48,
 };
 
 const WORDMARK_SIZES: Record<LogoSize, string> = {
@@ -26,55 +35,27 @@ const WORDMARK_SIZES: Record<LogoSize, string> = {
 };
 
 const COLORS: Record<LogoVariant, { print: string; denture: string; mark: string }> = {
-  dark: { print: "#FFFFFF", denture: "#5DCAA5", mark: "#5DCAA5" },
+  dark: { print: "#FFFFFF", denture: "#45C4A0", mark: "#45C4A0" },
   light: { print: "#1A1A1A", denture: "#0F6E56", mark: "#0F6E56" },
 };
 
-/** Single-SVG lockup — integer render sizes only (0.5× or 1× of viewBox). */
 const LOCKUP_SPECS: Record<
   LogoSize,
-  { viewW: number; viewH: number; height: number; fontSize: number; textX: number; textY: number }
+  { viewW: number; viewH: number; fontSize: number; textX: number; textY: number }
 > = {
-  sm: { viewW: 176, viewH: 48, height: 24, fontSize: 18, textX: 40, textY: 32 },
-  md: { viewW: 176, viewH: 48, height: 48, fontSize: 18, textX: 40, textY: 32 },
-  lg: { viewW: 200, viewH: 52, height: 52, fontSize: 22, textX: 42, textY: 37 },
+  sm: { viewW: 176, viewH: 48, fontSize: 18, textX: 40, textY: 32 },
+  md: { viewW: 176, viewH: 48, fontSize: 17, textX: 40, textY: 32 },
+  lg: { viewW: 200, viewH: 52, fontSize: 22, textX: 42, textY: 37 },
 };
 
-function lockupWidth(spec: (typeof LOCKUP_SPECS)[LogoSize]) {
-  return Math.round(spec.height * (spec.viewW / spec.viewH));
-}
-
-function TrayMarkPaths({ stroke }: { stroke: string }) {
+function TrayMarkPaths({ color }: { color: string }) {
   return (
-    <g transform="rotate(90 24 24)">
-      <path
-        d="M11.75 10.5V16.25C11.75 16.25 12 26.75 24 27.5C36 26.75 36.25 16.25 36.25 16.25V10.5"
-        stroke={stroke}
-        strokeWidth="3.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15.75 13.25V16.75C15.75 16.75 15.9 23.25 24 23.85C32.1 23.25 32.25 16.75 32.25 16.75V13.25"
-        stroke={stroke}
-        strokeWidth="2.15"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.38"
-      />
-      <path
-        d="M24 27.5V35.25"
-        stroke={stroke}
-        strokeWidth="3.2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M19.75 35.75Q24 38.25 28.25 35.75"
-        stroke={stroke}
-        strokeWidth="3.2"
-        strokeLinecap="round"
-        opacity="0.88"
-      />
+    <g fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.25 17.75C12.25 9.25 35.75 9.25 35.75 17.75" strokeWidth="3.6" />
+      <path d="M24 17.75V22.75" strokeWidth="2.4" />
+      <circle cx="24" cy="25.35" r="2.25" fill={color} stroke="none" />
+      <path d="M15.25 31.25C18.25 35.25 29.75 35.25 32.75 31.25" strokeWidth="2.6" />
+      <circle cx="24" cy="39.25" r="4.35" strokeWidth="2.6" />
     </g>
   );
 }
@@ -85,9 +66,8 @@ type MarkProps = {
   className?: string;
 };
 
-/** Tray mark only — 48×48 viewBox, use integer display sizes (24, 48). */
 export function PrintDentureMark({ size = 32, variant = "dark", className }: MarkProps) {
-  const stroke = COLORS[variant].mark;
+  const color = COLORS[variant].mark;
 
   return (
     <svg
@@ -100,7 +80,7 @@ export function PrintDentureMark({ size = 32, variant = "dark", className }: Mar
       className={`logo-lockup block shrink-0 ${className ?? ""}`}
       aria-hidden
     >
-      <TrayMarkPaths stroke={stroke} />
+      <TrayMarkPaths color={color} />
     </svg>
   );
 }
@@ -133,25 +113,43 @@ type LockupProps = {
   className?: string;
 };
 
-function PrintDentureLockup({ variant = "dark", size = "md", className }: LockupProps) {
+function PrintDentureLockupImage({ size = "md", className }: { size?: LogoSize; className?: string }) {
+  const height = LOCKUP_HEIGHTS[size];
+
+  return (
+    <Image
+      src={LOCKUP_IMAGE_DARK}
+      alt="PrintDenture"
+      width={382}
+      height={100}
+      priority
+      className={`logo-lockup block shrink-0 select-none w-auto max-w-none ${className ?? ""}`}
+      style={{ height, width: "auto" }}
+    />
+  );
+}
+
+function PrintDentureLockupSvg({ variant = "light", size = "md", className }: LockupProps) {
   const spec = LOCKUP_SPECS[size];
   const colors = COLORS[variant];
-  const width = lockupWidth(spec);
+  const height = LOCKUP_HEIGHTS[size];
+  const width = Math.round((height * spec.viewW) / spec.viewH);
   const tracking = `${-0.06 * spec.fontSize}px`;
 
   return (
     <svg
       width={width}
-      height={spec.height}
+      height={height}
       viewBox={`0 0 ${spec.viewW} ${spec.viewH}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       shapeRendering="geometricPrecision"
-      className={`logo-lockup block shrink-0 select-none ${className ?? ""}`}
+      preserveAspectRatio="xMinYMid meet"
+      className={`logo-lockup block shrink-0 select-none w-auto max-w-none ${className ?? ""}`}
       role="img"
       aria-label="PrintDenture"
     >
-      <TrayMarkPaths stroke={colors.mark} />
+      <TrayMarkPaths color={colors.mark} />
       <text
         x={spec.textX}
         y={spec.textY}
@@ -169,6 +167,13 @@ function PrintDentureLockup({ variant = "dark", size = "md", className }: Lockup
       </text>
     </svg>
   );
+}
+
+function PrintDentureLockup({ variant = "dark", size = "md", className }: LockupProps) {
+  if (variant === "dark") {
+    return <PrintDentureLockupImage size={size} className={className} />;
+  }
+  return <PrintDentureLockupSvg variant={variant} size={size} className={className} />;
 }
 
 type LogoProps = {

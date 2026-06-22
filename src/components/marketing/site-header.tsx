@@ -114,20 +114,19 @@ export default function SiteHeader() {
     router.push("/");
   }
 
-  const headerBg =
-    scrolled || !isMarketingDark
-      ? "bg-white/95 backdrop-blur-md border-[var(--pd-border)] text-[var(--pd-navy)]"
-      : "bg-[var(--pd-navy)]/95 backdrop-blur-md border-white/10 text-white";
+  const lightChrome = !isMarketingDark;
 
-  const linkClass =
-    scrolled || !isMarketingDark
-      ? "text-[14px] font-medium text-[var(--pd-slate)] hover:text-[var(--pd-navy)] transition-colors"
-      : "text-[14px] font-medium text-[#A8C4D4] hover:text-white transition-colors";
+  const headerBg = lightChrome
+    ? "bg-white/95 backdrop-blur-md border-[var(--pd-border)] text-[var(--pd-navy)]"
+    : `bg-[var(--pd-nav)] border-white/10 text-white${scrolled ? " shadow-[0_4px_24px_rgba(0,0,0,0.2)]" : ""}`;
 
-  const loginClass =
-    scrolled || !isMarketingDark
-      ? "text-[14px] font-medium text-[var(--pd-navy)] hover:text-[var(--pd-teal-dark)] transition-colors"
-      : "text-[14px] font-medium text-white/80 hover:text-white transition-colors";
+  const linkClass = lightChrome
+    ? "text-[14px] font-medium text-[var(--pd-slate)] hover:text-[var(--pd-navy)] transition-colors"
+    : "text-[14px] font-medium text-[#A8C4D4] hover:text-white transition-colors";
+
+  const loginClass = lightChrome
+    ? "text-[14px] font-medium text-[var(--pd-navy)] hover:text-[var(--pd-teal-dark)] transition-colors"
+    : "text-[14px] font-medium text-white/80 hover:text-white transition-colors";
 
   function NavLinks({ mobile = false }: { mobile?: boolean }) {
     const itemClass = mobile ? "block text-[16px] font-medium py-1" : linkClass;
@@ -269,11 +268,12 @@ export default function SiteHeader() {
       className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-colors duration-200 ${headerBg}`}
     >
       <div className="w-full flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-10 h-[4.25rem]">
-        <Link href="/" aria-label="PrintDenture home">
-          <PrintDentureLogo
-            variant={scrolled || !isMarketingDark ? "light" : "dark"}
-            size="md"
-          />
+        <Link
+          href="/"
+          aria-label="PrintDenture home"
+          className={`inline-flex shrink-0 items-center${lightChrome ? " rounded-lg overflow-hidden" : ""}`}
+        >
+          <PrintDentureLogo variant="dark" size="md" />
         </Link>
 
         <nav className="hidden lg:flex items-center gap-7 flex-1 justify-center">

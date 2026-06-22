@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import PrintDentureLogo, { PrintDentureWordmark } from "@/components/logo";
+import PrintDentureLogo from "@/components/logo";
 import { ADMIN_FOOTER_LINKS, ADMIN_NAV, isAdminNavActive } from "@/lib/admin-nav";
 
 const NAV_ICONS: Record<string, ReactNode> = {
@@ -42,13 +42,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-[#F8F7F4]">
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-[#E2E0D8] bg-white">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[#E2E0D8]">
-          <Link href="/" className="flex items-center gap-2.5 min-w-0">
-            <PrintDentureLogo variant="light" size="sm" showWordmark={false} />
-            <div className="min-w-0">
-              <PrintDentureWordmark variant="light" size="sm" className="block truncate" />
-              <p className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider">Admin</p>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 min-w-0 rounded-lg overflow-hidden shrink-0">
+            <PrintDentureLogo variant="dark" size="sm" />
           </Link>
+          <p className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</p>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -94,10 +91,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       <div className="flex flex-1 flex-col min-w-0 min-h-screen">
         <header className="md:hidden h-14 px-4 flex items-center justify-between border-b border-[#E2E0D8] bg-white shrink-0">
-          <Link href="/admin" className="flex items-center gap-2 font-semibold text-sm text-[#1A1A1A]">
-            <PrintDentureLogo variant="light" size="sm" showWordmark={false} />
-            <PrintDentureWordmark variant="light" size="sm" />
-            <span>Admin</span>
+          <Link href="/admin" className="flex items-center gap-2 min-w-0 rounded-lg overflow-hidden">
+            <PrintDentureLogo variant="dark" size="sm" />
+            <span className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</span>
           </Link>
           <select
             className="text-sm border border-[#E2E0D8] rounded-lg px-2 py-1.5 bg-white"

@@ -129,10 +129,11 @@
 /* PrintDenture brand tokens — aligned with PrintCrown sibling brand */
 :root {
   --pd-navy: #0D1B2A;
+  --pd-nav: #051622;
   --pd-navy-light: #1B2B3A;
   --pd-teal: #1D9E75;
   --pd-teal-dark: #0F6E56;
-  --pd-teal-light: #5DCAA5;
+  --pd-teal-light: #45C4A0;
   --pd-bg: #F8F7F4;
   --pd-surface: #F2F1ED;
   --pd-border: #E2E0D8;
@@ -151,8 +152,8 @@
 .pd-hero-base {
   background: linear-gradient(
     152deg,
-    #132638 0%,
-    var(--pd-navy) 38%,
+    #07121f 0%,
+    var(--pd-nav) 38%,
     #0a1520 100%
   );
 }

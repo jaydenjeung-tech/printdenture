@@ -12,7 +12,7 @@ import { HeroBackdrop } from "@/components/marketing/hero-backdrop";
 
 export function HeroSection() {
   return (
-    <section className="relative bg-[var(--pd-navy)] text-white overflow-hidden">
+    <section className="relative bg-[var(--pd-nav)] text-white overflow-hidden">
       <HeroBackdrop />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 pt-32 pb-16 lg:pt-36 lg:pb-24">
