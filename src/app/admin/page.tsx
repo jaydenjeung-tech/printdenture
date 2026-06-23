@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 import { ADMIN_STATUS_STEPS } from "@/components/admin/admin-orders-ui";
 import {
+  AdminOverviewAtAGlance,
   AdminOverviewDetailPanel,
-  AdminOverviewDetailPlaceholder,
   AdminOverviewHeader,
+  AdminOverviewLoadError,
   AdminOverviewLoading,
   AdminOverviewMetrics,
   AdminOverviewOrderList,
   AdminOverviewStatusTabs,
+  getOverviewAttentionOrders,
   type AdminOverviewOrder,
 } from "@/components/admin/admin-overview-ui";
 
@@ -22,16 +24,19 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<AdminOverviewOrder | null>(null);
   const [trackingInput, setTrackingInput] = useState("");
   const [carrierInput, setCarrierInput] = useState("UPS");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("active");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [productCategoryById, setProductCategoryById] = useState<Record<string, string>>({});
   const [defaultPartnerEmail, setDefaultPartnerEmail] = useState("");
+  const [defaultPartnerName, setDefaultPartnerName] = useState("JD");
 
   useEffect(() => {
     void fetch("/api/admin/design-outsource")
       .then((r) => r.json())
       .then((data) => {
         if (data.defaultPartnerEmail) setDefaultPartnerEmail(data.defaultPartnerEmail);
+        if (data.defaultPartnerName) setDefaultPartnerName(data.defaultPartnerName);
       })
       .catch(() => {});
   }, []);
@@ -46,12 +51,18 @@ export default function AdminPage() {
         return;
       }
 
-      const { data } = await access.supabase
+      const { data, error } = await access.supabase
         .from("orders")
         .select(
-          `id, user_id, product_id, product_name, quantity, unit_price, total_price, status, shade, tooth_number, notes, stl_file_path, case_files, tracking_number, carrier, created_at, design_outsource_status, design_outsource_sent_at, design_outsource_email, design_outsource_notes, design_outsource_sent_by, profiles(first_name, last_name, practice_name, phone, address, city, state, zip)`
+          `*, profiles!orders_user_id_fkey(first_name, last_name, practice_name, phone, address, city, state, zip)`
         )
         .order("created_at", { ascending: false });
+
+      if (error) {
+        setLoadError(error.message);
+        setLoading(false);
+        return;
+      }
 
       if (data) {
         setOrders(
@@ -145,7 +156,13 @@ export default function AdminPage() {
     }
   }
 
-  const filtered = filterStatus === "all" ? orders : orders.filter((o) => o.status === filterStatus);
+  const activeOrders = orders.filter((o) => o.status !== "delivered");
+  const filtered =
+    filterStatus === "all"
+      ? orders
+      : filterStatus === "active"
+        ? activeOrders
+        : orders.filter((o) => o.status === filterStatus);
 
   const statusCounts = ADMIN_STATUS_STEPS.reduce(
     (acc, s) => {
@@ -155,29 +172,37 @@ export default function AdminPage() {
     {} as Record<string, number>
   );
 
+  const atJd = orders.filter((o) => o.design_outsource_status === "sent").length;
+  const inLab = (statusCounts.printing ?? 0) + (statusCounts.qc ?? 0);
+  const attentionOrders = getOverviewAttentionOrders(activeOrders);
+
   const stats = {
-    total: orders.length,
+    active: activeOrders.length,
     received: statusCounts.received ?? 0,
-    printing: statusCounts.printing ?? 0,
+    inLab,
     shipped: statusCounts.shipped ?? 0,
-    revenue: orders.reduce((sum, o) => sum + o.total_price, 0),
+    atJd,
   };
 
   if (loading) {
     return <AdminOverviewLoading />;
   }
 
+  if (loadError) {
+    return <AdminOverviewLoadError message={loadError} />;
+  }
+
   return (
     <div className="max-w-6xl w-full">
-      <AdminOverviewHeader />
+      <AdminOverviewHeader activeCount={stats.active} attentionCount={attentionOrders.length} />
 
       <AdminOverviewMetrics
         items={[
-          { label: "Total orders", value: stats.total },
+          { label: "Active cases", value: stats.active },
           { label: "New", value: stats.received },
-          { label: "In progress", value: stats.printing },
+          { label: "In lab", value: stats.inLab },
           { label: "Shipped", value: stats.shipped },
-          { label: "Revenue", value: `$${stats.revenue.toLocaleString()}` },
+          { label: "At JD", value: stats.atJd },
         ]}
       />
 
@@ -188,6 +213,7 @@ export default function AdminPage() {
             onChange={setFilterStatus}
             counts={statusCounts}
             total={orders.length}
+            activeCount={activeOrders.length}
           />
           <AdminOverviewOrderList
             orders={filtered}
@@ -211,10 +237,15 @@ export default function AdminPage() {
               selectedOrder.product_id ? productCategoryById[selectedOrder.product_id] ?? null : null
             }
             defaultPartnerEmail={defaultPartnerEmail}
+            defaultPartnerName={defaultPartnerName}
             onOutsourceSent={(fields) => handleOutsourceSent(selectedOrder.id, fields)}
           />
         ) : (
-          <AdminOverviewDetailPlaceholder />
+          <AdminOverviewAtAGlance
+            stats={stats}
+            attentionOrders={attentionOrders}
+            onSelect={selectOrder}
+          />
         )}
       </div>
     </div>

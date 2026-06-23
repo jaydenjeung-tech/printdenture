@@ -3,6 +3,7 @@
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatCaseNumberLabel } from "@/lib/case-number";
 import {
   ORDER_BTN_BACK,
   ORDER_BTN_NAVY,
@@ -34,17 +35,35 @@ export function AdminOrdersLoading() {
   );
 }
 
-export function AdminOrdersHeader({ totalCount }: { totalCount: number }) {
+export function AdminOrdersHeader({
+  totalCount,
+  lead,
+}: {
+  totalCount: number;
+  lead?: string;
+}) {
   return (
     <div className="mb-8">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-teal-dark)] mb-2">
         Operations
       </p>
       <h1 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-[var(--pd-navy)] tracking-[-0.03em]">
-        Order management
+        Orders
       </h1>
-      <p className="text-[14px] text-[var(--pd-slate)] mt-2">
-        {totalCount} total order{totalCount !== 1 ? "s" : ""}
+      <p className="text-[14px] text-[var(--pd-slate)] mt-2 max-w-2xl leading-relaxed">
+        {lead ??
+          `${totalCount} total case${totalCount !== 1 ? "s" : ""} — status, remakes, messages, and partner design.`}
+      </p>
+      <p className="text-[12px] text-[var(--pd-muted)] mt-1.5">
+        Payment tracking is in{" "}
+        <Link href="/admin/payments" className="text-[var(--pd-teal-dark)] hover:underline">
+          Payments
+        </Link>
+        . For print work orders, use{" "}
+        <Link href="/lab" className="text-[var(--pd-teal-dark)] hover:underline">
+          Lab queue
+        </Link>
+        .
       </p>
     </div>
   );
@@ -112,6 +131,8 @@ export function AdminOrdersToolbar({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
+  paymentFilter,
+  onPaymentFilterChange,
   dateFilter,
   onDateFilterChange,
   onClear,
@@ -123,6 +144,8 @@ export function AdminOrdersToolbar({
   onSearchChange: (value: string) => void;
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
+  paymentFilter?: string;
+  onPaymentFilterChange?: (value: string) => void;
   dateFilter: string;
   onDateFilterChange: (value: string) => void;
   onClear: () => void;
@@ -163,6 +186,25 @@ export function AdminOrdersToolbar({
           </option>
         ))}
       </select>
+
+      {onPaymentFilterChange && (
+        <div className="flex gap-px bg-[var(--pd-border)] border border-[var(--pd-border)] p-px">
+          {[
+            { key: "all", label: "All pay" },
+            { key: "unpaid", label: "Unpaid" },
+            { key: "paid", label: "Paid" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onPaymentFilterChange(item.key)}
+              className={chipClass((paymentFilter ?? "all") === item.key, "h-8 px-3 text-[12px]")}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-px bg-[var(--pd-border)] border border-[var(--pd-border)] p-px">
         {[
@@ -283,6 +325,7 @@ export function AdminOrderExpandedPanel({
 }: {
   order: {
     id: string;
+    case_number?: number | null;
     status: string;
     unit_price: number;
     quantity: number;
@@ -384,7 +427,9 @@ export function AdminOrderExpandedPanel({
               </p>
             )}
             {profile?.phone && <p className="text-[12px] text-[var(--pd-muted)]">{profile.phone}</p>}
-            <p className="text-[11px] font-mono text-[var(--pd-muted)] pt-1">{order.id}</p>
+            <p className="text-[11px] font-mono text-[var(--pd-muted)] pt-1">
+              #{formatCaseNumberLabel(order.case_number, order.id)}
+            </p>
           </div>
         </AdminDetailPanel>
 
@@ -448,13 +493,28 @@ export function AdminOrderExpandedPanel({
           </AdminDetailPanel>
         )}
 
-        <Link
-          href={`/admin/orders/${order.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className={`${ORDER_BTN_NAVY} inline-flex h-9 px-4 text-[12px]`}
-        >
-          Open full case →
-        </Link>
+        <div className="border-t border-[var(--pd-border)] pt-4 space-y-3">
+          <p className="text-[12px] text-[var(--pd-muted)]">
+            Full case — timeline, messages, design outsource, and shipping.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/lab/workorders?ids=${order.id}`}
+              target="_blank"
+              onClick={(e) => e.stopPropagation()}
+              className={`${ORDER_BTN_BACK} inline-flex h-9 px-4 text-[12px]`}
+            >
+              Print work order
+            </Link>
+            <Link
+              href={`/admin/orders/${order.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className={`${ORDER_BTN_NAVY} inline-flex h-9 px-4 text-[12px]`}
+            >
+              Open full case →
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -482,9 +542,9 @@ export function AdminOrdersTableHead({
   return (
     <thead>
       <tr className="border-b border-[var(--pd-border)] bg-[var(--pd-surface)]">
-        {columns.map((col) => (
+        {columns.map((col, idx) => (
           <th
-            key={col.label}
+            key={col.key ?? `col-${idx}`}
             className={cn(
               "text-left px-4 py-3 text-[11px] font-semibold text-[var(--pd-muted)] uppercase tracking-[0.1em]",
               col.width,
@@ -511,10 +571,16 @@ export function AdminOrdersEmptyRow({ colSpan }: { colSpan: number }) {
   );
 }
 
-export function AdminOrderIdChip({ id }: { id: string }) {
+export function AdminOrderIdChip({
+  id,
+  caseNumber,
+}: {
+  id: string;
+  caseNumber?: number | null;
+}) {
   return (
     <span className="font-mono text-[11px] text-[var(--pd-muted)] border border-[var(--pd-border)] bg-[var(--pd-surface)] px-2 py-0.5">
-      #{id.slice(0, 6).toUpperCase()}
+      #{formatCaseNumberLabel(caseNumber, id)}
     </span>
   );
 }

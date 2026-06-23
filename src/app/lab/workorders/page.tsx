@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
+import { formatCaseNumber, formatCaseNumberLabel } from "@/lib/case-number";
 
 type Order = {
   id: string;
@@ -20,6 +21,7 @@ type Order = {
   stl_file_path: string | null;
   created_at: string;
   due_date: string | null;
+  case_number: number | null;
 };
 
 type Rx = {
@@ -168,7 +170,8 @@ function WorkOrdersContent() {
         const teeth = order.tooth_numbers?.length
           ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
           : order.tooth_number ? `#${order.tooth_number}` : "—";
-        const caseId = order.id.slice(0, 6).toUpperCase();
+        const caseId = formatCaseNumberLabel(order.case_number, order.id);
+        const barcodeValue = formatCaseNumber(order.case_number) ?? order.id;
 
         return (
           <div key={order.id} className={`max-w-2xl mx-auto px-10 py-8 bg-white ${!isLast ? "page-break" : ""}`}>
@@ -198,7 +201,7 @@ function WorkOrdersContent() {
 
             {/* Barcode */}
             <div className="flex justify-center mb-5">
-              <Barcode value={order.id} />
+              <Barcode value={barcodeValue} />
             </div>
 
             {/* Practice */}

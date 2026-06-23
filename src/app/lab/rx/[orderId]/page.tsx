@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatCaseNumberLabel } from "@/lib/case-number";
 import { createAppClient } from "@/lib/supabase";
 
 type Order = {
@@ -19,6 +20,7 @@ type Order = {
   notes: string | null;
   stl_file_path: string | null;
   created_at: string;
+  case_number: number | null;
 };
 
 type Rx = {
@@ -118,7 +120,7 @@ export default function RxPrintPage() {
     ? order.tooth_numbers.sort((a, b) => a - b).map(n => `#${n}`).join(", ")
     : order.tooth_number ? `#${order.tooth_number}` : "—";
 
-  const caseId = order.id.slice(0, 6).toUpperCase();
+  const caseId = formatCaseNumberLabel(order.case_number, order.id);
 
   return (
     <>

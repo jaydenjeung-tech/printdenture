@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PrintDentureLogo from "@/components/logo";
-import { NAV_LINKS } from "@/lib/marketing/copy";
+import { NAV_LINKS, LAB_PARTNER } from "@/lib/marketing/copy";
+import { LabPartnerLink } from "@/components/marketing/lab-partner";
 
 export default function SiteFooter() {
   return (
@@ -9,7 +10,11 @@ export default function SiteFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           <div>
             <PrintDentureLogo variant="dark" size="md" />
-            <p className="text-[13px] text-[#8BB3C8] leading-relaxed mt-4 max-w-xs">
+            <p className="text-[12px] font-medium text-[#8BB3C8] mt-3">
+              Lab partner:{" "}
+              <LabPartnerLink className="text-white hover:text-[#C5DCE8]">{LAB_PARTNER.name}</LabPartnerLink>
+            </p>
+            <p className="text-[13px] text-[#8BB3C8] leading-relaxed mt-3 max-w-xs">
               A clinically-developed capture workflow that cuts denture chair time in half — from
               capture to finished prosthesis, in one place.
             </p>
@@ -81,8 +86,10 @@ export default function SiteFooter() {
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row justify-between gap-4 text-[12px] text-[#5A7D94]">
           <p>© {new Date().getFullYear()} PrintDenture. All rights reserved.</p>
           <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <LabPartnerLink className="text-[#5A7D94] hover:text-[#8BB3C8] no-underline hover:underline">
+              {LAB_PARTNER.name} — case fulfillment
+            </LabPartnerLink>
             <span>FDA-registered capture devices</span>
-            <span>Operated by IDOC Dental Lab</span>
           </div>
         </div>
 

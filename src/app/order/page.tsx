@@ -16,6 +16,8 @@ import {
   OrderStepHeader,
   chipClass,
 } from "@/components/marketing/order-ui";
+import { LabPartnerNotice, LabPartnerLink } from "@/components/marketing/lab-partner";
+import { LAB_PARTNER } from "@/lib/marketing/copy";
 import { shopFamilyTabClass, shopVariantClass } from "@/components/marketing/shop-ui";
 import { isOrderShippingComplete } from "@/lib/profile-requirements";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
@@ -1231,6 +1233,8 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         </div>
       )}
 
+      <LabPartnerNotice />
+
       <div className="p-5 border border-[var(--pd-border)] bg-white mb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-4">Order summary</p>
         <div className="flex items-center justify-between mb-2">
@@ -1323,7 +1327,10 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         </button>
       </div>
       <p className="text-xs text-center text-[var(--pd-muted)] mt-4">
-        Secure checkout · HIPAA compliant · Free remake guarantee
+        Secure checkout · HIPAA compliant · Cases fulfilled by{" "}
+        <LabPartnerLink className="text-[var(--pd-muted)] hover:text-[var(--pd-teal-dark)]">
+          {LAB_PARTNER.name}
+        </LabPartnerLink>
       </p>
     </div>
   );

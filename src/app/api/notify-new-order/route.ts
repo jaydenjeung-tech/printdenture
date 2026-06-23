@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { formatCaseNumberLabel } from "@/lib/case-number";
 
 function getAdminSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
       .eq("id", order.user_id)
       .single();
 
-    const caseId = orderId.slice(0, 6).toUpperCase();
+    const caseId = formatCaseNumberLabel(order.case_number, orderId);
     const practiceName = profile?.practice_name || "Unknown Practice";
     const teeth = order.tooth_numbers?.length
       ? order.tooth_numbers.sort((a: number, b: number) => a - b).map((n: number) => `#${n}`).join(", ")

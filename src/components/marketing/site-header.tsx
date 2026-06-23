@@ -7,13 +7,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import PrintDentureLogo from "@/components/logo";
 import { createClient, getClientUser, isSupabaseConfigured } from "@/lib/supabase";
 import { NAV_LINKS } from "@/lib/marketing/copy";
+import { resolveAppNavRole, type AppNavRole } from "@/lib/nav-roles";
 import { CtaLink } from "./primitives";
-
-type Role = "user" | "lab" | "admin";
+import { LabPartnerHeaderTag } from "./lab-partner";
 
 type UserState = {
   email: string;
-  role: Role;
+  role: AppNavRole;
 };
 
 const ACCOUNT_LINKS = [
@@ -26,12 +26,16 @@ const LAB_LINKS = [
   { label: "Scan", href: "/lab/scan" },
 ];
 
+const PARTNER_LINKS = [{ label: "Case queue", href: "/partner" }];
+
 const ADMIN_LINKS = [
   { label: "Overview", href: "/admin" },
   { label: "Orders", href: "/admin/orders" },
+  { label: "Support", href: "/admin/support" },
+  { label: "Lab queue", href: "/lab" },
+  { label: "Partner portal", href: "/partner" },
   { label: "Customers", href: "/admin/customers" },
   { label: "Products", href: "/admin/products" },
-  { label: "Support", href: "/admin/support" },
 ];
 
 export default function SiteHeader() {
@@ -84,7 +88,7 @@ export default function SiteHeader() {
         .select("role, is_admin")
         .eq("id", authUser.id)
         .single();
-      const role: Role = profile?.role ?? (profile?.is_admin ? "admin" : "user");
+      const role = resolveAppNavRole(profile);
       setUser({ email: authUser.email || "", role });
       setLoading(false);
     }
@@ -142,6 +146,10 @@ export default function SiteHeader() {
           {l.label}
         </Link>
       );
+    }
+
+    if (user?.role === "partner") {
+      return <>{PARTNER_LINKS.map(renderLink)}</>;
     }
 
     if (user?.role === "lab") {
@@ -227,7 +235,7 @@ export default function SiteHeader() {
   function DesktopActions() {
     if (loading) return <div className="w-24 h-9 bg-black/5 animate-pulse" />;
 
-    if (user?.role === "lab") {
+    if (user?.role === "partner" || user?.role === "lab") {
       return (
         <button type="button" onClick={handleSignOut} className={loginClass}>
           Sign out
@@ -268,13 +276,16 @@ export default function SiteHeader() {
       className={`fixed top-0 left-0 right-0 z-50 w-full border-b transition-colors duration-200 ${headerBg}`}
     >
       <div className="w-full flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-10 h-[4.25rem]">
-        <Link
-          href="/"
-          aria-label="PrintDenture home"
-          className={`inline-flex shrink-0 items-center${lightChrome ? " rounded-lg overflow-hidden" : ""}`}
-        >
-          <PrintDentureLogo variant="dark" size="md" />
-        </Link>
+        <div className={`inline-flex shrink-0 items-center gap-2.5${lightChrome ? "" : ""}`}>
+          <Link
+            href="/"
+            aria-label="PrintDenture home"
+            className={`inline-flex shrink-0 items-center${lightChrome ? " rounded-lg overflow-hidden" : ""}`}
+          >
+            <PrintDentureLogo variant="dark" size="md" />
+          </Link>
+          <LabPartnerHeaderTag light={lightChrome} />
+        </div>
 
         <nav className="hidden lg:flex items-center gap-7 flex-1 justify-center">
           <NavLinks />

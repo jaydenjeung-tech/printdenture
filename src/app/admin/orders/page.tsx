@@ -4,6 +4,7 @@ import { useEffect, useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
+import { isOrderPaid, isOrderUnpaid } from "@/lib/order-payment";
 import { cn } from "@/lib/utils";
 import {
   AdminDueDateChip,
@@ -38,6 +39,7 @@ type Order = {
   stl_file_path: string | null;
   paid_at: string | null;
   due_date: string | null;
+  case_number: number | null;
   is_remake: boolean;
   remake_of: string | null;
   remake_reason: string | null;
@@ -94,6 +96,7 @@ export default function AdminOrdersPage() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -218,6 +221,10 @@ export default function AdminOrdersPage() {
         o.product_name.toLowerCase().includes(q) ||
         (profile?.practice_name || "").toLowerCase().includes(q);
       const matchStatus = statusFilter === "all" || o.status === statusFilter;
+      const matchPayment =
+        paymentFilter === "all" ||
+        (paymentFilter === "paid" && isOrderPaid(o)) ||
+        (paymentFilter === "unpaid" && isOrderUnpaid(o));
       let matchDate = true;
       if (dateFilter !== "all") {
         const created = new Date(o.created_at);
@@ -230,7 +237,7 @@ export default function AdminOrdersPage() {
           matchDate = created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
         }
       }
-      return matchSearch && matchStatus && matchDate;
+      return matchSearch && matchStatus && matchPayment && matchDate;
     })
     .sort((a, b) => {
       let valA: string | number = 0;
@@ -302,12 +309,15 @@ export default function AdminOrdersPage() {
         onSearchChange={setSearch}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        paymentFilter={paymentFilter}
+        onPaymentFilterChange={setPaymentFilter}
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
-        showClear={!!search || statusFilter !== "all" || dateFilter !== "all"}
+        showClear={!!search || statusFilter !== "all" || paymentFilter !== "all" || dateFilter !== "all"}
         onClear={() => {
           setSearch("");
           setStatusFilter("all");
+          setPaymentFilter("all");
           setDateFilter("all");
         }}
         filteredCount={filtered.length}
@@ -347,7 +357,7 @@ export default function AdminOrdersPage() {
                   )}
                 >
                   <td className="px-4 py-3">
-                    <AdminOrderIdChip id={order.id} />
+                    <AdminOrderIdChip id={order.id} caseNumber={order.case_number} />
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-[var(--pd-navy)] truncate max-w-[180px]">{order.product_name}</p>
@@ -368,6 +378,9 @@ export default function AdminOrdersPage() {
                         <AdminTagBadge className="bg-[#E1F5EE] text-[var(--pd-teal-dark)] border-[#9FE1CB]">
                           Paid
                         </AdminTagBadge>
+                      )}
+                      {!order.paid_at && !order.is_remake && (
+                        <AdminTagBadge className="bg-amber-50 text-amber-800 border-amber-200">Unpaid</AdminTagBadge>
                       )}
                       {order.is_remake && (
                         <AdminTagBadge className="bg-red-50 text-red-600 border-red-200">Remake</AdminTagBadge>

@@ -442,6 +442,7 @@ export function AdminCustomerQuickActions({
 
 export type AdminCustomerOrderRow = {
   id: string;
+  case_number?: number | null;
   product_name: string;
   total_price: number;
   status: string;
@@ -497,7 +498,7 @@ export function AdminCustomerOrdersTable({
                 className="cursor-pointer hover:bg-[var(--pd-surface)] transition-colors"
               >
                 <td className="px-4 py-3">
-                  <AdminOrderIdChip id={order.id} />
+                  <AdminOrderIdChip id={order.id} caseNumber={order.case_number} />
                 </td>
                 <td className="px-4 py-3">
                   <p className="font-medium text-[var(--pd-navy)]">{order.product_name}</p>

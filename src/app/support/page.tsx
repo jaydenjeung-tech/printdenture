@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import Navbar from "@/components/navbar";
 import Link from "next/link";
+import { formatCaseNumberLabel } from "@/lib/case-number";
 
 type Message = {
   id: string;
@@ -19,6 +20,7 @@ type Message = {
 
 type Order = {
   id: string;
+  case_number: number | null;
   product_name: string;
   created_at: string;
 };
@@ -60,7 +62,7 @@ function SupportContent() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
       supabase.from("orders")
-        .select("id, product_name, created_at")
+        .select("id, case_number, product_name, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10),
@@ -188,7 +190,7 @@ function SupportContent() {
               <option value="">General inquiry (no specific order)</option>
               {orders.map(o => (
                 <option key={o.id} value={o.id}>
-                  {o.product_name} · #{o.id.slice(0, 6).toUpperCase()}
+                  {o.product_name} · #{formatCaseNumberLabel(o.case_number, o.id)}
                 </option>
               ))}
             </select>

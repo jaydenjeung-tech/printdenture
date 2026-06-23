@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createAppClient } from "@/lib/supabase";
+import { formatCaseNumberHash, formatCaseNumberLabel } from "@/lib/case-number";
 import { CtaLink } from "@/components/marketing/primitives";
+import { LabPartnerBadge, LabPartnerNotice } from "@/components/marketing/lab-partner";
 
 export type DashboardOrder = {
   id: string;
@@ -186,7 +188,7 @@ export function DashboardOrderCard({
       ? `#${order.tooth_number}`
       : null;
   const upsUrl = `https://www.ups.com/track?tracknum=${order.tracking_number}`;
-  const caseNum = order.case_number ? `PC-${String(order.case_number).padStart(6, "0")}` : null;
+  const caseNum = formatCaseNumberHash(order.case_number, order.id);
 
   async function loadMessages() {
     if (loadingMsgs) return;
@@ -250,11 +252,9 @@ export function DashboardOrderCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <p className="font-semibold text-[var(--pd-navy)]">{order.product_name}</p>
-              {caseNum && (
-                <span className="text-[11px] font-mono font-medium px-2 py-0.5 border border-[var(--pd-border)] bg-[var(--pd-surface)] text-[var(--pd-muted)]">
-                  {caseNum}
-                </span>
-              )}
+              <span className="text-[11px] font-mono font-medium px-2 py-0.5 border border-[var(--pd-border)] bg-[var(--pd-surface)] text-[var(--pd-muted)]">
+                {caseNum}
+              </span>
               <StatusBadge className={status.className}>{status.label}</StatusBadge>
               {order.paid_at && (
                 <StatusBadge className="bg-[#E1F5EE] text-[var(--pd-teal-dark)] border-[#9FE1CB]">Paid</StatusBadge>
@@ -292,6 +292,7 @@ export function DashboardOrderCard({
 
       {expanded && (
         <div className="border-t border-[var(--pd-border)] px-5 sm:px-6 py-4 bg-[var(--pd-surface)] space-y-3">
+          <LabPartnerNotice variant="compact" className="mb-0" />
           {order.tracking_number && (
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--pd-muted)] w-24">Tracking</span>
@@ -314,7 +315,7 @@ export function DashboardOrderCard({
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--pd-muted)] w-24">Case ID</span>
             <span className="text-[11px] font-mono font-medium px-2 py-0.5 border border-[var(--pd-border)] bg-white text-[var(--pd-muted)]">
-              {caseNum ?? order.id.slice(0, 8)}
+              {formatCaseNumberLabel(order.case_number, order.id)}
             </span>
           </div>
           <div className="flex gap-2 pt-1 flex-wrap">
@@ -541,6 +542,9 @@ export function DashboardHeader({
             <p className="text-[14px] text-[var(--pd-slate)] mt-1">
               {caseCount} total case{caseCount !== 1 ? "s" : ""} · track workflow status and messages
             </p>
+            <div className="mt-3">
+              <LabPartnerBadge />
+            </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {profile && (

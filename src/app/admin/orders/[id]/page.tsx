@@ -15,6 +15,8 @@ import {
   type AdminOrderDetailRx,
   type AdminOrderDetailStatusHistory,
 } from "@/components/admin/admin-order-detail-ui";
+import { formatCaseNumberHash } from "@/lib/case-number";
+import { runAdminPaymentAction } from "@/components/admin/admin-payments-ui";
 import type { DesignOutsourceFields } from "@/lib/design-outsource";
 
 export default function OrderDetailPage() {
@@ -40,12 +42,16 @@ export default function OrderDetailPage() {
   const [submittingRemake, setSubmittingRemake] = useState(false);
   const [productCategory, setProductCategory] = useState<string | null>(null);
   const [defaultPartnerEmail, setDefaultPartnerEmail] = useState("");
+  const [defaultPartnerName, setDefaultPartnerName] = useState("JD");
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/admin/design-outsource")
       .then((r) => r.json())
       .then((data) => {
         if (data.defaultPartnerEmail) setDefaultPartnerEmail(data.defaultPartnerEmail);
+        if (data.defaultPartnerName) setDefaultPartnerName(data.defaultPartnerName);
       })
       .catch(() => {});
   }, []);
@@ -65,6 +71,33 @@ export default function OrderDetailPage() {
       cancelled = true;
     };
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order || order.design_outsource_status !== "sent") return;
+
+    const interval = window.setInterval(() => {
+      void (async () => {
+        const supabase = createAppClient();
+        const { data } = await supabase
+          .from("orders")
+          .select("design_deliverables, design_outsource_status")
+          .eq("id", orderId)
+          .single();
+        if (!data) return;
+        setOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                design_deliverables: data.design_deliverables,
+                design_outsource_status: data.design_outsource_status,
+              }
+            : prev
+        );
+      })();
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, [order?.design_outsource_status, orderId]);
 
   async function loadAll(supabase: ReturnType<typeof createAppClient>) {
     const { data: orderData } = await supabase.from("orders").select("*").eq("id", orderId).single();
@@ -258,7 +291,7 @@ export default function OrderDetailPage() {
         order_id: order.id,
         sender_id: user?.id,
         sender_role: "admin",
-        message: `Remake requested — ${REMAKE_REASONS.find((r) => r.value === remakeReason)?.label}${remakeNote ? `: ${remakeNote}` : ""}. New case: #${newOrder.id.slice(0, 6).toUpperCase()}`,
+        message: `Remake requested — ${REMAKE_REASONS.find((r) => r.value === remakeReason)?.label}${remakeNote ? `: ${remakeNote}` : ""}. New case: ${formatCaseNumberHash(newOrder.case_number, newOrder.id)}`,
         is_internal: true,
       });
 
@@ -269,6 +302,27 @@ export default function OrderDetailPage() {
     }
 
     setSubmittingRemake(false);
+  }
+
+  async function handlePaymentAction(action: "mark-paid" | "sync-stripe") {
+    if (!order) return;
+    setPaymentBusy(true);
+    setPaymentMessage(null);
+    const result = await runAdminPaymentAction(action, order.id);
+    setPaymentMessage(result.message);
+    if (result.ok && result.paid_at) {
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              paid_at: result.paid_at!,
+              due_date: result.due_date ?? prev.due_date,
+              status: prev.status === "pending_payment" ? "received" : prev.status,
+            }
+          : prev
+      );
+    }
+    setPaymentBusy(false);
   }
 
   if (loading) return <AdminOrderDetailLoading />;
@@ -310,6 +364,7 @@ export default function OrderDetailPage() {
         rx={rx}
         productCategory={productCategory}
         defaultPartnerEmail={defaultPartnerEmail}
+        defaultPartnerName={defaultPartnerName}
         timeline={timeline}
         trackingInput={trackingInput}
         saving={saving}
@@ -327,6 +382,10 @@ export default function OrderDetailPage() {
         onNewMessageChange={setNewMessage}
         onToggleInternal={() => setIsInternal((v) => !v)}
         onSendMessage={() => void sendMessage()}
+        paymentBusy={paymentBusy}
+        paymentMessage={paymentMessage}
+        onMarkPaid={() => void handlePaymentAction("mark-paid")}
+        onSyncStripe={() => void handlePaymentAction("sync-stripe")}
       />
     </>
   );

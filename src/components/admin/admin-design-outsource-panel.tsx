@@ -12,9 +12,17 @@ import {
 } from "@/lib/products/case-files";
 import {
   collectOrderCaseFiles,
-  type DesignOutsourceFields,
+  DESIGN_OUTSOURCE_CATEGORY_LABELS,
+  orderQualifiesForDesignOutsourceFromOrder,
   outsourceFileSummary,
+  resolveOrderProductCategory,
+  type DesignOutsourceFields,
 } from "@/lib/design-outsource";
+import {
+  downloadDesignDeliverable,
+  parseDesignDeliverables,
+  type DesignDeliverable,
+} from "@/lib/design-deliverables";
 
 type Props = {
   orderId: string;
@@ -25,7 +33,9 @@ type Props = {
     product_name: string;
   };
   outsource: DesignOutsourceFields;
+  designDeliverables?: unknown;
   defaultPartnerEmail?: string;
+  defaultPartnerName?: string;
   onSent: (fields: Partial<DesignOutsourceFields>) => void;
   className?: string;
 };
@@ -35,22 +45,33 @@ export function AdminDesignOutsourcePanel({
   productCategory,
   order,
   outsource,
+  designDeliverables,
   defaultPartnerEmail = "",
+  defaultPartnerName = "JD",
   onSent,
   className,
 }: Props) {
-  const qualifies = productCategory === "complete" || productCategory === "jb_tray";
+  const resolvedCategory = resolveOrderProductCategory(productCategory, order.product_name);
+  const qualifies = orderQualifiesForDesignOutsourceFromOrder({
+    productCategory,
+    product_name: order.product_name,
+  });
   const files = useMemo(() => collectOrderCaseFiles(order), [order]);
+  const deliverables = useMemo(() => parseDesignDeliverables(designDeliverables), [designDeliverables]);
+  const showDeliverables =
+    deliverables.length > 0 ||
+    outsource.design_outsource_status === "sent" ||
+    outsource.design_outsource_status === "completed";
 
   const [partnerEmail, setPartnerEmail] = useState(
     outsource.design_outsource_email || defaultPartnerEmail
   );
   const [notes, setNotes] = useState(outsource.design_outsource_notes || "");
+  const [sendEmail, setSendEmail] = useState(false);
   const [sending, setSending] = useState(false);
+  const [successNote, setSuccessNote] = useState("");
   const [error, setError] = useState("");
   const [markingDone, setMarkingDone] = useState(false);
-
-  if (!qualifies) return null;
 
   async function handleSend(force = false) {
     if (!partnerEmail.trim()) {
@@ -64,12 +85,15 @@ export function AdminDesignOutsourcePanel({
     if (
       !force &&
       outsource.design_outsource_status === "sent" &&
-      !window.confirm("This case was already sent to a design partner. Send again with fresh download links?")
+      !window.confirm(
+        `This case was already assigned to ${defaultPartnerName}. Assign again${sendEmail ? " (with a new email)" : ""}?`
+      )
     ) {
       return;
     }
 
     setError("");
+    setSuccessNote("");
     setSending(true);
     try {
       const res = await fetch("/api/admin/design-outsource", {
@@ -79,6 +103,7 @@ export function AdminDesignOutsourcePanel({
           orderId,
           partnerEmail: partnerEmail.trim(),
           notes: notes.trim(),
+          sendEmail,
         }),
       });
       const data = await res.json();
@@ -92,6 +117,11 @@ export function AdminDesignOutsourcePanel({
         design_outsource_email: data.partnerEmail,
         design_outsource_notes: notes.trim() || null,
       });
+      setSuccessNote(
+        data.partnerLinked
+          ? `Case added to /partner for ${data.partnerEmail}.`
+          : `Case added to /partner. No login linked to ${data.partnerEmail} — set profiles.role to design_partner on that account.`
+      );
     } catch {
       setError("Network error — try again.");
     } finally {
@@ -126,14 +156,34 @@ export function AdminDesignOutsourcePanel({
       <div className="px-4 py-3 border-b border-[var(--pd-border)] bg-[var(--pd-surface)] flex items-center justify-between gap-3">
         <div>
           <h2 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)]">
-            Design outsource
+            {defaultPartnerName} design outsource
           </h2>
-          <p className="text-[12px] text-[var(--pd-slate)] mt-0.5">Send practice scans to external CAD partner</p>
+          <p className="text-[12px] text-[var(--pd-slate)] mt-0.5">
+            Assign scans &amp; Rx to {defaultPartnerName} for CAD design via the partner portal
+          </p>
         </div>
-        <OutsourceStatusBadge status={outsource.design_outsource_status} />
+        <AdminDesignOutsourceStatusBadge
+          status={outsource.design_outsource_status}
+          partnerName={defaultPartnerName}
+        />
       </div>
 
       <div className="p-4 space-y-4">
+        {!qualifies ? (
+          <p className="text-[13px] text-[var(--pd-slate)] border border-[var(--pd-border)] bg-[var(--pd-surface)] px-3 py-2.5 leading-relaxed">
+            JD outsource is for denture cases (complete, partial, immediate, overdenture, reline).
+            {order.product_name ? (
+              <>
+                {" "}
+                This order: <span className="font-medium text-[var(--pd-navy)]">{order.product_name}</span>
+                {resolvedCategory ? ` (${DESIGN_OUTSOURCE_CATEGORY_LABELS[resolvedCategory] ?? resolvedCategory})` : ""}.
+              </>
+            ) : (
+              " No product category detected."
+            )}
+          </p>
+        ) : (
+          <>
         <FilePreviewList files={files} />
 
         {outsource.design_outsource_sent_at && (
@@ -151,15 +201,19 @@ export function AdminDesignOutsourcePanel({
 
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--pd-muted)] mb-1.5">
-            Partner email
+            Partner account email
           </label>
           <input
             type="email"
             value={partnerEmail}
             onChange={(e) => setPartnerEmail(e.target.value)}
-            placeholder="design@partner.com"
+            placeholder={`${defaultPartnerName.toLowerCase()}@partner.com`}
             className={`${ORDER_INPUT_CLASS} h-9 text-[13px]`}
           />
+          <p className="text-[11px] text-[var(--pd-muted)] mt-1.5">
+            Must match the email on the {defaultPartnerName} portal login (
+            <span className="font-mono text-[10px]">design_partner</span> role).
+          </p>
         </div>
 
         <div>
@@ -175,7 +229,29 @@ export function AdminDesignOutsourcePanel({
           />
         </div>
 
-        {error && <p className="text-[13px] text-red-600">{error}</p>}
+        {successNote && (
+          <p className="text-[13px] text-[var(--pd-teal-dark)] border border-[#9FE1CB] bg-[#E1F5EE] px-3 py-2 leading-relaxed">
+            {successNote}
+          </p>
+        )}
+
+        {error && (
+          <p className="text-[13px] text-red-600 border border-red-200 bg-red-50 px-3 py-2 leading-relaxed">
+            {error}
+          </p>
+        )}
+
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={sendEmail}
+            onChange={(e) => setSendEmail(e.target.checked)}
+            className="mt-0.5 w-4 h-4 shrink-0 cursor-pointer"
+          />
+          <span className="text-[13px] text-[var(--pd-slate)] leading-relaxed">
+            Also send email notification with 72-hour download links and case summary (English + Korean)
+          </span>
+        </label>
 
         <div className="flex flex-col sm:flex-row gap-2">
           <button
@@ -185,10 +261,10 @@ export function AdminDesignOutsourcePanel({
             className={`${ORDER_BTN_PRIMARY} flex-1 h-9 text-[13px]`}
           >
             {sending
-              ? "Sending…"
+              ? "Assigning…"
               : outsource.design_outsource_status === "sent"
-                ? "Resend scan package"
-                : "Send to design partner"}
+                ? `Reassign to ${defaultPartnerName}`
+                : `Assign to ${defaultPartnerName}`}
           </button>
           {outsource.design_outsource_status === "sent" && (
             <button
@@ -203,26 +279,103 @@ export function AdminDesignOutsourcePanel({
         </div>
 
         <p className="text-[11px] text-[var(--pd-muted)] leading-relaxed">
-          Email includes signed download links (72h) for {outsourceFileSummary(files) || "case files"} plus case and Rx
-          summary.
+          <strong className="font-medium text-[var(--pd-slate)]">Assign</strong> adds the case to{" "}
+          <span className="font-mono text-[10px]">/partner</span> for {defaultPartnerName} (
+          {outsourceFileSummary(files) || "case files"}). Partner email must match their login.
+          {sendEmail
+            ? " Email will include signed download links."
+            : " No email — partner works in the portal only."}
         </p>
+          </>
+        )}
+
+        {showDeliverables && (
+          <AdminDesignDeliverablesList
+            orderId={orderId}
+            deliverables={deliverables}
+            partnerName={defaultPartnerName}
+            status={outsource.design_outsource_status}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function OutsourceStatusBadge({ status }: { status: DesignOutsourceFields["design_outsource_status"] }) {
+function AdminDesignDeliverablesList({
+  deliverables,
+  partnerName,
+  status,
+}: {
+  orderId: string;
+  deliverables: DesignDeliverable[];
+  partnerName: string;
+  status: DesignOutsourceFields["design_outsource_status"];
+}) {
+  return (
+    <div className="border-t border-[var(--pd-border)] pt-4 space-y-3">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--pd-muted)]">
+          {partnerName} design files
+        </p>
+        <p className="text-[12px] text-[var(--pd-slate)] mt-0.5">
+          Uploaded via partner portal
+          {status === "completed" ? " · case marked complete" : ""}
+        </p>
+      </div>
+
+      {deliverables.length === 0 ? (
+        <p className="text-[13px] text-[var(--pd-muted)] border border-dashed border-[var(--pd-border)] px-3 py-2.5">
+          No design files yet — waiting for {partnerName} to upload via the portal.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[var(--pd-border)] border border-[var(--pd-border)]">
+          {deliverables.map((file) => (
+            <li key={file.path} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-[var(--pd-navy)] truncate">{file.fileName}</p>
+                <p className="text-[11px] text-[var(--pd-muted)]">
+                  {new Date(file.uploadedAt).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void downloadDesignDeliverable(file.path)}
+                className="text-[13px] font-medium text-[var(--pd-teal-dark)] hover:underline shrink-0"
+              >
+                Download
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function AdminDesignOutsourceStatusBadge({
+  status,
+  partnerName = "JD",
+}: {
+  status: DesignOutsourceFields["design_outsource_status"];
+  partnerName?: string;
+}) {
   if (status === "completed") {
     return (
       <span className="text-[11px] font-medium px-2 py-0.5 border bg-[#E1F5EE] text-[var(--pd-teal-dark)] border-[#9FE1CB]">
-        Design received
+        {partnerName} design received
       </span>
     );
   }
   if (status === "sent") {
     return (
       <span className="text-[11px] font-medium px-2 py-0.5 border bg-amber-50 text-amber-800 border-amber-200">
-        Sent to partner
+        Sent to {partnerName}
       </span>
     );
   }

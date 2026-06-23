@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import PrintDentureLogo from "@/components/logo";
 import { createClient, getClientUser, isSupabaseConfigured } from "@/lib/supabase";
-
-type Role = "user" | "lab" | "admin";
+import { resolveAppNavRole, type AppNavRole } from "@/lib/nav-roles";
 
 type UserState = {
   email: string;
-  role: Role;
+  role: AppNavRole;
 };
 
 const linkClass =
@@ -55,7 +54,7 @@ export default function Navbar() {
         .eq("id", authUser.id)
         .single();
 
-      const role: Role = profile?.role ?? (profile?.is_admin ? "admin" : "user");
+      const role = resolveAppNavRole(profile);
       setUser({ email: authUser.email || "", role });
       setLoading(false);
     }
@@ -108,6 +107,8 @@ export default function Navbar() {
     { label: "Support", href: "/support" },
   ];
 
+  const partnerLinks = [{ label: "Case queue", href: "/partner" }];
+
   const labLinks = [
     { label: "Lab queue", href: "/lab" },
     { label: "Scan", href: "/lab/scan" },
@@ -116,10 +117,11 @@ export default function Navbar() {
   const adminLinks = [
     { label: "Overview", href: "/admin" },
     { label: "Orders", href: "/admin/orders" },
+    { label: "Support inbox", href: "/admin/support" },
+    { label: "Lab queue", href: "/lab" },
+    { label: "Partner portal", href: "/partner" },
     { label: "Customers", href: "/admin/customers" },
     { label: "Products", href: "/admin/products" },
-    { label: "Support inbox", href: "/admin/support" },
-    { label: "Lab", href: "/lab" },
   ];
 
   function Logo() {
@@ -185,6 +187,18 @@ export default function Navbar() {
   }
 
   function DesktopNav() {
+    if (user?.role === "partner") {
+      return (
+        <div className="flex items-center gap-5 lg:gap-6">
+          {partnerLinks.map((l) => (
+            <Link key={l.href} href={l.href} className={linkClassAccent}>
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      );
+    }
+
     if (user?.role === "lab") {
       return (
         <div className="flex items-center gap-5 lg:gap-6">
@@ -261,7 +275,7 @@ export default function Navbar() {
       );
     }
 
-    if (user.role === "lab") {
+    if (user.role === "partner" || user.role === "lab") {
       return (
         <button type="button" onClick={handleSignOut} className={`${linkClass} shrink-0`}>
           Sign out
@@ -315,6 +329,25 @@ export default function Navbar() {
           <Link href="/auth?next=%2Forder" onClick={() => setOpen(false)}>
             <Button className="w-full bg-[#1D9E75] hover:bg-[#0F6E56] text-white">Order now</Button>
           </Link>
+        </>
+      );
+    }
+
+    if (user.role === "partner") {
+      return (
+        <>
+          {section("Design partner", partnerLinks, true)}
+          <hr className="border-[#1E3347]" />
+          <button
+            type="button"
+            onClick={() => {
+              handleSignOut();
+              setOpen(false);
+            }}
+            className="text-sm text-[#7CA0B8]"
+          >
+            Sign out
+          </button>
         </>
       );
     }

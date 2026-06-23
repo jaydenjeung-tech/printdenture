@@ -3,7 +3,6 @@ import {
   parseStoredCaseFiles,
   type StoredCaseFile,
 } from "@/lib/products/case-files";
-import { isCompleteDentureCategory } from "@/lib/products/complete-denture-records";
 
 export type DesignOutsourceStatus = "sent" | "completed";
 
@@ -15,14 +14,82 @@ export type DesignOutsourceFields = {
   design_outsource_sent_by: string | null;
 };
 
+/** Denture prosthetics eligible for JD CAD outsource (not guards). */
+export const DESIGN_OUTSOURCE_CATEGORIES = [
+  "complete",
+  "jb_tray",
+  "immediate",
+  "partial",
+  "overdenture",
+  "reline",
+] as const;
+
+export const DESIGN_OUTSOURCE_CATEGORY_LABELS: Record<string, string> = {
+  complete: "Complete denture (JB Fork)",
+  jb_tray: "Complete denture (JB Tray)",
+  immediate: "Immediate denture",
+  partial: "Partial denture",
+  overdenture: "Overdenture / All-on-X",
+  reline: "Reline / repair",
+};
+
 export const DESIGN_OUTSOURCE_SIGNED_URL_SECONDS = 72 * 60 * 60;
 
+export type DesignPartnerConfig = {
+  name: string;
+  email: string;
+};
+
+export function getDesignPartnerConfig(): DesignPartnerConfig {
+  return {
+    name: process.env.DESIGN_PARTNER_NAME?.trim() || "JD",
+    email: process.env.DESIGN_PARTNER_EMAIL?.trim() || "",
+  };
+}
+
 export function defaultDesignPartnerEmail(): string {
-  return process.env.DESIGN_PARTNER_EMAIL?.trim() ?? "";
+  return getDesignPartnerConfig().email;
+}
+
+export function defaultDesignPartnerName(): string {
+  return getDesignPartnerConfig().name;
 }
 
 export function orderQualifiesForDesignOutsource(category: string | null | undefined): boolean {
-  return isCompleteDentureCategory(category);
+  if (!category) return false;
+  return (DESIGN_OUTSOURCE_CATEGORIES as readonly string[]).includes(category);
+}
+
+/** Fallback when orders lack product_id or the products join fails. */
+export function inferProductCategoryFromName(productName: string | null | undefined): string | null {
+  if (!productName?.trim()) return null;
+  const lower = productName.toLowerCase();
+  if (lower.includes("jb tray")) return "jb_tray";
+  if (lower.includes("jb fork") || lower.includes("radi+")) return "complete";
+  if (lower.includes("immediate")) return "immediate";
+  if (lower.includes("partial") || lower.includes("flipper") || lower.includes("nesbit")) return "partial";
+  if (lower.includes("overdenture") || lower.includes("all-on") || lower.includes("locator")) return "overdenture";
+  if (lower.includes("reline") || lower.includes("repair")) return "reline";
+  if (lower.includes("complete denture") || lower.includes("full set")) return "complete";
+  if (lower.includes("denture")) return "complete";
+  return null;
+}
+
+export function resolveOrderProductCategory(
+  dbCategory: string | null | undefined,
+  productName: string | null | undefined
+): string | null {
+  const trimmed = dbCategory?.trim();
+  if (trimmed) return trimmed;
+  return inferProductCategoryFromName(productName);
+}
+
+export function orderQualifiesForDesignOutsourceFromOrder(order: {
+  productCategory?: string | null;
+  product_name?: string | null;
+}): boolean {
+  const category = resolveOrderProductCategory(order.productCategory, order.product_name);
+  return orderQualifiesForDesignOutsource(category);
 }
 
 export function collectOrderCaseFiles(order: {

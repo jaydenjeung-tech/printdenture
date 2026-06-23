@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { formatCaseNumberLabel } from "@/lib/case-number";
+
+function getAdminSupabase(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Supabase admin env vars are not configured");
+  return createClient(url, key);
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -9,6 +18,13 @@ export async function POST(req: NextRequest) {
   const resend = new Resend(apiKey);
   const { orderId, orderName, practiceName, message } = await req.json();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  let caseId = formatCaseNumberLabel(undefined, orderId);
+  if (orderId) {
+    const supabase = getAdminSupabase();
+    const { data: order } = await supabase.from("orders").select("case_number").eq("id", orderId).single();
+    caseId = formatCaseNumberLabel(order?.case_number, orderId);
+  }
 
   try {
     await resend.emails.send({
@@ -29,7 +45,7 @@ export async function POST(req: NextRequest) {
               <p style="margin: 0; color: #4B4B4B; font-size: 14px;">${message}</p>
             </div>
             <p style="color: #9B9B9B; font-size: 12px; margin: 0 0 16px;">
-              Case: <strong style="color: #1A1A1A;">${orderName}</strong> · #${orderId.slice(0, 6).toUpperCase()}
+              Case: <strong style="color: #1A1A1A;">${orderName}</strong> · #${caseId}
             </p>
             <a href="${appUrl}/admin/orders/${orderId}"
               style="display: inline-block; background: #0F6E56; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">

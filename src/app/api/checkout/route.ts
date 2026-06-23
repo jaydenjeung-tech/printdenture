@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
     });
 
+    await supabase
+      .from("orders")
+      .update({ stripe_session_id: session.id })
+      .eq("id", order.id);
+
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

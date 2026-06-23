@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatCaseNumberHash } from "@/lib/case-number";
 import {
   ORDER_BTN_BACK,
   ORDER_BTN_NAVY,
@@ -17,6 +18,7 @@ import {
   AdminTagBadge,
 } from "@/components/admin/admin-orders-ui";
 import { AdminDesignOutsourcePanel } from "@/components/admin/admin-design-outsource-panel";
+import { AdminOrderPaymentPanel } from "@/components/admin/admin-payments-ui";
 import type { DesignOutsourceFields } from "@/lib/design-outsource";
 import {
   CASE_FILE_KIND_META,
@@ -43,11 +45,16 @@ export type AdminOrderDetailOrder = {
   case_files: unknown;
   paid_at: string | null;
   due_date: string | null;
+  case_number?: number | null;
+  stripe_session_id?: string | null;
+  order_type?: string | null;
   is_remake: boolean;
   remake_of: string | null;
   remake_reason: string | null;
   remake_note: string | null;
-} & DesignOutsourceFields;
+} & DesignOutsourceFields & {
+  design_deliverables?: unknown;
+};
 
 export type AdminOrderDetailRx = {
   dentist_name: string;
@@ -110,9 +117,11 @@ function AdminSidePanel({ title, children }: { title: string; children: React.Re
 
 export function AdminOrderDetailBreadcrumb({
   orderId,
+  caseNumber,
   isRemake,
 }: {
   orderId: string;
+  caseNumber?: number | null;
   isRemake: boolean;
 }) {
   return (
@@ -121,7 +130,7 @@ export function AdminOrderDetailBreadcrumb({
         All orders
       </Link>
       <span className="text-[var(--pd-border-strong)]">/</span>
-      <AdminOrderIdChip id={orderId} />
+      <AdminOrderIdChip id={orderId} caseNumber={caseNumber} />
       {isRemake && (
         <AdminTagBadge className="bg-red-50 text-red-600 border-red-200">Remake</AdminTagBadge>
       )}
@@ -133,10 +142,12 @@ export function AdminOrderDetailRemakeBanner({
   remakeReason,
   remakeNote,
   originalOrderId,
+  originalCaseNumber,
 }: {
   remakeReason: string | null;
   remakeNote: string | null;
   originalOrderId: string;
+  originalCaseNumber?: number | null;
 }) {
   const label = REMAKE_REASONS.find((r) => r.value === remakeReason)?.label || remakeReason;
   return (
@@ -149,7 +160,7 @@ export function AdminOrderDetailRemakeBanner({
         href={`/admin/orders/${originalOrderId}`}
         className="text-[12px] font-medium text-amber-900 hover:underline shrink-0"
       >
-        Original case #{originalOrderId.slice(0, 6).toUpperCase()} →
+        Original case {formatCaseNumberHash(originalCaseNumber, originalOrderId)} →
       </Link>
     </div>
   );
@@ -192,6 +203,16 @@ export function AdminOrderDetailHeader({
             Request remake
           </button>
         )}
+        <Link
+          href={`/lab/workorders?ids=${order.id}`}
+          target="_blank"
+          className={`${ORDER_BTN_BACK} h-9 px-4 text-[12px]`}
+        >
+          Print work order
+        </Link>
+        <Link href="/lab" className={`${ORDER_BTN_BACK} h-9 px-4 text-[12px]`}>
+          Lab queue
+        </Link>
         <div className="text-right">
           <p className="text-2xl font-semibold text-[var(--pd-navy)] tracking-[-0.02em]">${order.total_price}</p>
           <p className="text-[12px] text-[var(--pd-muted)] mt-0.5">
@@ -357,7 +378,7 @@ export function AdminOrderDetailTimeline({
                 href={`/admin/orders/${order.remake_of}`}
                 className="text-[12px] text-[var(--pd-teal-dark)] hover:underline mt-1 inline-block"
               >
-                Original case #{originalOrder.id.slice(0, 6).toUpperCase()} →
+                Original case {formatCaseNumberHash(originalOrder.case_number, originalOrder.id)} →
               </Link>
             }
           />
@@ -577,28 +598,27 @@ export function AdminOrderDetailRxPanel({ rx }: { rx: AdminOrderDetailRx }) {
   );
 }
 
-export function AdminOrderDetailPaymentPanel({ order }: { order: AdminOrderDetailOrder }) {
+export function AdminOrderDetailPaymentPanel({
+  order,
+  busy,
+  message,
+  onMarkPaid,
+  onSyncStripe,
+}: {
+  order: AdminOrderDetailOrder;
+  busy?: boolean;
+  message?: string | null;
+  onMarkPaid?: () => void;
+  onSyncStripe?: () => void;
+}) {
   return (
-    <AdminSidePanel title="Payment">
-      <div className="space-y-2 text-[13px]">
-        <div className="flex justify-between text-[var(--pd-slate)]">
-          <span>Unit price</span>
-          <span>${order.unit_price}</span>
-        </div>
-        <div className="flex justify-between text-[var(--pd-slate)]">
-          <span>Qty</span>
-          <span>{order.quantity}</span>
-        </div>
-        <div className="flex justify-between font-semibold text-[var(--pd-navy)] border-t border-[var(--pd-border)] pt-2 mt-2">
-          <span>Total</span>
-          <span>${order.total_price}</span>
-        </div>
-        {order.is_remake && <p className="text-[12px] text-red-600">Remake — no charge</p>}
-        {order.paid_at && (
-          <p className="text-[12px] text-[var(--pd-muted)]">Paid {formatDateTime(order.paid_at)}</p>
-        )}
-      </div>
-    </AdminSidePanel>
+    <AdminOrderPaymentPanel
+      order={order}
+      busy={busy}
+      message={message}
+      onMarkPaid={onMarkPaid}
+      onSyncStripe={onSyncStripe}
+    />
   );
 }
 
@@ -629,7 +649,7 @@ export function AdminOrderDetailRemakeModal({
           <div>
             <h3 className="text-[16px] font-semibold text-[var(--pd-navy)]">Request remake</h3>
             <p className="text-[12px] text-[var(--pd-muted)] mt-0.5">
-              #{order.id.slice(0, 6).toUpperCase()} · {order.product_name}
+              {formatCaseNumberHash(order.case_number, order.id)} · {order.product_name}
             </p>
           </div>
           <button
@@ -709,6 +729,7 @@ export function AdminOrderDetailLayout({
   rx,
   productCategory,
   defaultPartnerEmail,
+  defaultPartnerName = "JD",
   timeline,
   trackingInput,
   saving,
@@ -724,6 +745,10 @@ export function AdminOrderDetailLayout({
   onNewMessageChange,
   onToggleInternal,
   onSendMessage,
+  paymentBusy,
+  paymentMessage,
+  onMarkPaid,
+  onSyncStripe,
 }: {
   order: AdminOrderDetailOrder;
   originalOrder: AdminOrderDetailOrder | null;
@@ -731,6 +756,7 @@ export function AdminOrderDetailLayout({
   rx: AdminOrderDetailRx | null;
   productCategory: string | null;
   defaultPartnerEmail: string;
+  defaultPartnerName?: string;
   timeline: (
     | { type: "status"; data: AdminOrderDetailStatusHistory }
     | { type: "message"; data: AdminOrderDetailMessage }
@@ -749,16 +775,21 @@ export function AdminOrderDetailLayout({
   onNewMessageChange: (value: string) => void;
   onToggleInternal: () => void;
   onSendMessage: () => void;
+  paymentBusy?: boolean;
+  paymentMessage?: string | null;
+  onMarkPaid?: () => void;
+  onSyncStripe?: () => void;
 }) {
   return (
     <div className="max-w-6xl w-full mx-auto">
-      <AdminOrderDetailBreadcrumb orderId={order.id} isRemake={order.is_remake} />
+      <AdminOrderDetailBreadcrumb orderId={order.id} caseNumber={order.case_number} isRemake={order.is_remake} />
 
       {order.is_remake && order.remake_of && (
         <AdminOrderDetailRemakeBanner
           remakeReason={order.remake_reason}
           remakeNote={order.remake_note}
           originalOrderId={order.remake_of}
+          originalCaseNumber={originalOrder?.case_number}
         />
       )}
 
@@ -789,12 +820,12 @@ export function AdminOrderDetailLayout({
         </div>
 
         <div className="space-y-4">
-          <AdminOrderDetailCasePanel order={order} teeth={teeth} />
           <AdminDesignOutsourcePanel
             orderId={order.id}
             productCategory={productCategory}
             order={order}
             defaultPartnerEmail={defaultPartnerEmail}
+            defaultPartnerName={defaultPartnerName}
             outsource={{
               design_outsource_status: order.design_outsource_status,
               design_outsource_sent_at: order.design_outsource_sent_at,
@@ -802,11 +833,19 @@ export function AdminOrderDetailLayout({
               design_outsource_notes: order.design_outsource_notes,
               design_outsource_sent_by: order.design_outsource_sent_by,
             }}
+            designDeliverables={order.design_deliverables}
             onSent={onOutsourceSent}
           />
+          <AdminOrderDetailCasePanel order={order} teeth={teeth} />
           <AdminOrderDetailPracticePanel userId={order.user_id} profile={profile} rx={rx} />
           {rx && <AdminOrderDetailRxPanel rx={rx} />}
-          <AdminOrderDetailPaymentPanel order={order} />
+          <AdminOrderDetailPaymentPanel
+            order={order}
+            busy={paymentBusy}
+            message={paymentMessage}
+            onMarkPaid={onMarkPaid}
+            onSyncStripe={onSyncStripe}
+          />
         </div>
       </div>
     </div>

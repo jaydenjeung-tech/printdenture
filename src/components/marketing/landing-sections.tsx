@@ -7,6 +7,7 @@ import {
   SectionEyebrow,
   TrustIcon,
 } from "@/components/marketing/primitives";
+import { LabPartnerHeroLine } from "@/components/marketing/lab-partner";
 import { HeroVideoPanel } from "@/components/marketing/hero-video-panel";
 import { HeroBackdrop } from "@/components/marketing/hero-backdrop";
 
@@ -21,9 +22,10 @@ export function HeroSection() {
             <SectionEyebrow className="text-[var(--pd-teal-light)]">
               Clinically-developed denture workflow
             </SectionEyebrow>
-            <h1 className="text-[clamp(2.25rem,5vw,3.75rem)] font-semibold tracking-[-0.04em] leading-[1.05] mb-6">
+            <h1 className="text-[clamp(2.25rem,5vw,3.75rem)] font-semibold tracking-[-0.04em] leading-[1.05] mb-4">
               Full dentures in 2 visits — not 5.
             </h1>
+            <LabPartnerHeroLine />
             <p className="text-[17px] leading-relaxed text-[#A8C4D4] mb-8 max-w-xl">
               A single-appointment capture system — impression, bite, and occlusal plane in one sitting
               — developed by a university prosthodontics faculty. You capture; we design, fabricate, and
@@ -234,7 +236,7 @@ export function ClinicalPreview() {
             research to further validate outcomes in mainstream general practice settings.
           </p>
           <ul className="flex flex-wrap gap-4">
-            {TRUST_BADGES.slice(0, 2).map((badge) => (
+            {TRUST_BADGES.slice(0, 3).map((badge) => (
               <li key={badge.label} className="flex items-center gap-2 text-[13px] text-[var(--pd-muted)]">
                 <TrustIcon type={badge.icon} />
                 {badge.label}

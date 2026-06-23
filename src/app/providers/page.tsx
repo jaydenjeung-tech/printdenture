@@ -1,13 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { MarketingShell, PageHero } from "@/components/marketing/marketing-shell";
-import { PROVIDER_BENEFITS } from "@/lib/marketing/copy";
+import { PROVIDER_BENEFITS, CLINICAL_DEMO_INTRO, CLINICAL_DEMO_NEXT_STEPS, CLINICAL_DEMO_SUCCESS_LEAD } from "@/lib/marketing/copy";
 import { CtaLink, SectionEyebrow } from "@/components/marketing/primitives";
+
+async function submitInquiry(body: Record<string, string>): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch("/api/provider-inquiry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: data.error || "Failed to send. Please try again." };
+  return { ok: true };
+}
 
 export default function ProvidersPage() {
   const [demoSubmitted, setDemoSubmitted] = useState(false);
   const [applySubmitted, setApplySubmitted] = useState(false);
+  const [demoSubmitting, setDemoSubmitting] = useState(false);
+  const [applySubmitting, setApplySubmitting] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  async function handleDemoSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setDemoSubmitting(true);
+    setDemoError(null);
+    const fd = new FormData(e.currentTarget);
+    const result = await submitInquiry({
+      type: "demo",
+      name: String(fd.get("name") ?? ""),
+      practice: String(fd.get("practice") ?? ""),
+      email: String(fd.get("email") ?? ""),
+      phone: String(fd.get("phone") ?? ""),
+      state: String(fd.get("state") ?? ""),
+    });
+    setDemoSubmitting(false);
+    if (result.ok) setDemoSubmitted(true);
+    else setDemoError(result.error ?? "Failed to send.");
+  }
+
+  async function handleApplySubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setApplySubmitting(true);
+    setApplyError(null);
+    const fd = new FormData(e.currentTarget);
+    const result = await submitInquiry({
+      type: "apply",
+      name: String(fd.get("name") ?? ""),
+      credentials: String(fd.get("credentials") ?? ""),
+      practice: String(fd.get("practice") ?? ""),
+      email: String(fd.get("email") ?? ""),
+      phone: String(fd.get("phone") ?? ""),
+      location: String(fd.get("location") ?? ""),
+      motivation: String(fd.get("motivation") ?? ""),
+    });
+    setApplySubmitting(false);
+    if (result.ok) setApplySubmitted(true);
+    else setApplyError(result.error ?? "Failed to send.");
+  }
 
   return (
     <MarketingShell>
@@ -48,33 +101,38 @@ export default function ProvidersPage() {
       <section id="demo" className="py-20 px-6 bg-[var(--pd-surface)] border-y border-[var(--pd-border)] scroll-mt-24">
         <div className="max-w-xl mx-auto">
           <SectionEyebrow className="text-center">Demo request</SectionEyebrow>
-          <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-center text-[var(--pd-navy)] mb-8">
+          <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-center text-[var(--pd-navy)] mb-4">
             Request a clinical demo
           </h2>
+          <p className="text-center text-[15px] leading-relaxed text-[var(--pd-slate)] mb-8 max-w-lg mx-auto">
+            {CLINICAL_DEMO_INTRO}
+          </p>
           {demoSubmitted ? (
-            <p className="text-center text-[15px] text-[var(--pd-teal-dark)]">
-              Thank you. Our team will contact you within 2 business days.
-            </p>
+            <div className="space-y-6">
+              <p className="text-center text-[15px] text-[var(--pd-teal-dark)] font-medium">
+                {CLINICAL_DEMO_SUCCESS_LEAD}
+              </p>
+              <ClinicalDemoInstructions title="What happens next" />
+            </div>
           ) : (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setDemoSubmitted(true);
-              }}
-            >
+            <div className="space-y-6">
+              <ClinicalDemoInstructions title="Before you submit" />
+            <form className="space-y-4" onSubmit={(e) => void handleDemoSubmit(e)}>
               <FormField label="Full name" name="name" required />
               <FormField label="Practice name" name="practice" required />
               <FormField label="Email" name="email" type="email" required />
               <FormField label="Phone" name="phone" type="tel" />
               <FormField label="State" name="state" required />
+              {demoError && <p className="text-[13px] text-red-600">{demoError}</p>}
               <button
                 type="submit"
-                className="w-full h-11 bg-[var(--pd-teal)] text-white text-[14px] font-medium hover:bg-[var(--pd-teal-dark)] transition-colors"
+                disabled={demoSubmitting}
+                className="w-full h-11 bg-[var(--pd-teal)] text-white text-[14px] font-medium hover:bg-[var(--pd-teal-dark)] transition-colors disabled:opacity-50"
               >
-                Submit demo request
+                {demoSubmitting ? "Sending…" : "Submit demo request"}
               </button>
             </form>
+            </div>
           )}
         </div>
       </section>
@@ -94,13 +152,7 @@ export default function ProvidersPage() {
               Application received. We will review and respond within 5 business days.
             </p>
           ) : (
-            <form
-              className="space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setApplySubmitted(true);
-              }}
-            >
+            <form className="space-y-4" onSubmit={(e) => void handleApplySubmit(e)}>
               <FormField label="Full name" name="name" required />
               <FormField label="Credentials (DDS, DMD, etc.)" name="credentials" required />
               <FormField label="Practice name" name="practice" required />
@@ -119,17 +171,39 @@ export default function ProvidersPage() {
                   className="w-full border border-[var(--pd-border)] px-3 py-2 text-[14px] bg-white focus:outline-none focus:border-[var(--pd-teal)]"
                 />
               </div>
+              {applyError && <p className="text-[13px] text-red-600">{applyError}</p>}
               <button
                 type="submit"
-                className="w-full h-11 bg-[var(--pd-navy)] text-white text-[14px] font-medium hover:bg-[var(--pd-navy-light)] transition-colors"
+                disabled={applySubmitting}
+                className="w-full h-11 bg-[var(--pd-navy)] text-white text-[14px] font-medium hover:bg-[var(--pd-navy-light)] transition-colors disabled:opacity-50"
               >
-                Submit application
+                {applySubmitting ? "Sending…" : "Submit application"}
               </button>
             </form>
           )}
         </div>
       </section>
     </MarketingShell>
+  );
+}
+
+function ClinicalDemoInstructions({ title }: { title: string }) {
+  return (
+    <div className="border border-[var(--pd-border)] bg-white p-5 sm:p-6">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-teal-dark)] mb-3">
+        {title}
+      </p>
+      <ol className="space-y-3">
+        {CLINICAL_DEMO_NEXT_STEPS.map((step, index) => (
+          <li key={step} className="flex gap-3 text-[14px] leading-relaxed text-[var(--pd-slate)]">
+            <span className="shrink-0 w-6 h-6 flex items-center justify-center bg-[#E8F5F0] text-[var(--pd-teal-dark)] text-[12px] font-semibold">
+              {index + 1}
+            </span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 

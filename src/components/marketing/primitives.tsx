@@ -139,6 +139,16 @@ export function TrustIcon({ type }: { type: string }) {
         <path d="M8 17l4 3 4-3" stroke="currentColor" strokeWidth="1.5" fill="none" />
       </>
     ),
+    lab: (
+      <path
+        d="M9 3h6M10 3v6.5L5.5 18A2.5 2.5 0 007.9 21.5h8.2a2.5 2.5 0 002.4-3.5L14 9.5V3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    ),
   };
 
   return (

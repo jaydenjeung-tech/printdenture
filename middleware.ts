@@ -26,7 +26,7 @@ async function getAccountStatus(
     .eq("id", userId)
     .single();
 
-  if (data?.role === "admin" || data?.is_admin) return "approved";
+  if (data?.role === "admin" || data?.is_admin || data?.role === "design_partner") return "approved";
   return data?.account_status ?? "approved";
 }
 
@@ -74,7 +74,7 @@ export async function middleware(request: NextRequest) {
 
   const activeUser = error && isStaleAuthError(error.message) ? null : user;
 
-  const protectedRoutes = ["/dashboard", "/order", "/admin", "/lab"];
+  const protectedRoutes = ["/dashboard", "/order", "/admin", "/lab", "/partner"];
   const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));
 
   if (isProtected && !activeUser) {
@@ -99,14 +99,19 @@ export async function middleware(request: NextRequest) {
 
   if (
     (pathname === "/login" || pathname === "/signup" || pathname.startsWith("/auth")) &&
-    !pathname.startsWith("/auth/callback") &&
     activeUser
   ) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", activeUser.id)
+      .single();
     const next = request.nextUrl.searchParams.get("next");
+    const defaultPath = profile?.role === "design_partner" ? "/partner" : "/dashboard";
     const destination =
       next?.startsWith("/") && !next.startsWith("//")
         ? new URL(next, request.url)
-        : new URL("/dashboard", request.url);
+        : new URL(defaultPath, request.url);
     const redirectResponse = NextResponse.redirect(destination);
     copyCookies(supabaseResponse, redirectResponse);
     return redirectResponse;

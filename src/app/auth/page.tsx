@@ -11,17 +11,15 @@ import {
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import {
   AuthAlert,
-  AuthDivider,
   AuthField,
-  AuthGoogleButton,
   AuthModeToggle,
   AuthPanelAside,
   AuthSelect,
   AuthSubmitButton,
 } from "@/components/marketing/auth-ui";
-import { getClientAppOrigin } from "@/lib/app-url";
 import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 import { accountStatusMessage, type AccountStatus } from "@/lib/account-status";
+import { DESIGN_PARTNER_ROLE } from "@/lib/partner-auth";
 
 type Mode = "login" | "signup";
 
@@ -31,15 +29,16 @@ const US_STATES = [
   "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
 ];
 
-function getPostAuthPath(next: string | null) {
+function getPostAuthPath(next: string | null, role?: string | null) {
   if (next?.startsWith("/") && !next.startsWith("//")) return next;
+  if (role === DESIGN_PARTNER_ROLE) return "/partner";
   return "/dashboard";
 }
 
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const postAuthPath = getPostAuthPath(searchParams.get("next"));
+  const nextParam = searchParams.get("next");
   const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
@@ -53,7 +52,6 @@ function AuthContent() {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
@@ -81,11 +79,6 @@ function AuthContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("error") === "oauth") {
-      setError("Google sign-in could not be completed. Please try again.");
-      setCheckingSession(false);
-      return;
-    }
     if (!configured) {
       setCheckingSession(false);
       return;
@@ -98,37 +91,18 @@ function AuthContent() {
     void (async () => {
       const { user } = await getClientUser(supabase);
       if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
         router.refresh();
-        router.replace(postAuthPath);
+        router.replace(getPostAuthPath(nextParam, profile?.role));
         return;
       }
       setCheckingSession(false);
     })();
-  }, [configured, postAuthPath, router, searchParams]);
-
-  async function handleGoogleSignIn() {
-    if (!configured) {
-      setError(SUPABASE_SETUP_MESSAGE);
-      return;
-    }
-    setError("");
-    setGoogleLoading(true);
-    const supabase = createClient();
-    if (!supabase) {
-      setError(SUPABASE_SETUP_MESSAGE);
-      setGoogleLoading(false);
-      return;
-    }
-    const callbackUrl = `${getClientAppOrigin()}/auth/callback?next=${encodeURIComponent(postAuthPath)}`;
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: callbackUrl },
-    });
-    if (oauthError) {
-      setError(oauthError.message);
-      setGoogleLoading(false);
-    }
-  }
+  }, [configured, nextParam, router, searchParams]);
 
   async function handleSubmit() {
     if (!configured) {
@@ -151,6 +125,7 @@ function AuthContent() {
         setError(signInError.message);
       } else {
         const { user } = await getClientUser(supabase);
+        let profileRole: string | null | undefined;
         if (user) {
           const { data: profile } = await supabase
             .from("profiles")
@@ -158,9 +133,11 @@ function AuthContent() {
             .eq("id", user.id)
             .single();
 
+          profileRole = profile?.role;
           const status = profile?.account_status as AccountStatus | undefined;
           const isAdmin = profile?.role === "admin" || profile?.is_admin;
-          const blockMessage = !isAdmin ? accountStatusMessage(status ?? "approved") : null;
+          const isPartner = profile?.role === DESIGN_PARTNER_ROLE;
+          const blockMessage = !isAdmin && !isPartner ? accountStatusMessage(status ?? "approved") : null;
 
           if (blockMessage) {
             await supabase.auth.signOut();
@@ -170,7 +147,7 @@ function AuthContent() {
           }
         }
         router.refresh();
-        router.push(postAuthPath);
+        router.push(getPostAuthPath(nextParam, profileRole));
       }
     } else {
       const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
@@ -205,7 +182,7 @@ function AuthContent() {
         });
         if (data.session) {
           router.refresh();
-          router.push(postAuthPath);
+          router.push(getPostAuthPath(nextParam));
         } else {
           setSuccess("Account created. Check your email to confirm, then sign in to start submitting cases.");
         }
@@ -275,14 +252,6 @@ function AuthContent() {
                 </AuthAlert>
               </div>
             )}
-
-            <AuthGoogleButton
-              loading={googleLoading}
-              disabled={!configured}
-              onClick={handleGoogleSignIn}
-            />
-
-            <AuthDivider />
 
             <div className="space-y-4">
               {mode === "signup" && (

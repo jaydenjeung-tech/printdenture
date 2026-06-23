@@ -4,9 +4,10 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { loadOrderDraft, formatDraftSavedAt } from "@/lib/order-draft";
-import CompleteProfileModal, { type CompleteProfile } from "@/components/complete-profile-modal";
+import { formatCaseNumber } from "@/lib/case-number";
 import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 import WorkflowReadinessCard from "@/components/workflow-readiness-card";
+import CompleteProfileModal, { type CompleteProfile } from "@/components/complete-profile-modal";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import {
   DashboardDraftBanner,
@@ -118,10 +119,11 @@ function DashboardContent() {
       if (statusFilter === "delivered" && o.status !== "delivered") return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const caseNum = o.case_number ? `pc-${String(o.case_number).padStart(6, "0")}` : "";
+        const caseNum = formatCaseNumber(o.case_number) ?? "";
         const teeth = o.tooth_numbers?.map((n) => `#${n}`).join(" ") || "";
         if (
           !caseNum.includes(q) &&
+          !o.id.toLowerCase().includes(q) &&
           !o.product_name.toLowerCase().includes(q) &&
           !teeth.includes(q) &&
           !(o.shade?.toLowerCase().includes(q))

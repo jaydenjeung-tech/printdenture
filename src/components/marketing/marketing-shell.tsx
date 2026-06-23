@@ -1,5 +1,7 @@
 import SiteHeader from "@/components/marketing/site-header";
 import SiteFooter from "@/components/marketing/site-footer";
+import { LAB_PARTNER } from "@/lib/marketing/copy";
+import { LabPartnerLink } from "@/components/marketing/lab-partner";
 
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
@@ -32,7 +34,11 @@ export function PageHero({
         <h1 className="text-[clamp(2rem,4.5vw,3rem)] font-semibold tracking-[-0.04em] leading-[1.08] mb-5">
           {title}
         </h1>
-        {lead && <p className="text-[17px] leading-relaxed text-[#A8C4D4]">{lead}</p>}
+        {lead && <p className="text-[17px] leading-relaxed text-[#A8C4D4] mb-4">{lead}</p>}
+        <p className="text-[13px] font-medium text-[#8BB3C8]">
+          Lab partner ·{" "}
+          <LabPartnerLink className="text-white/90 hover:text-white">{LAB_PARTNER.name}</LabPartnerLink>
+        </p>
       </div>
     </section>
   );
