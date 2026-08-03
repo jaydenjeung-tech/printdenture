@@ -52,8 +52,43 @@ export const HERO_PROMO = {
   lead:
     "A single-appointment capture system — impression, bite, and occlusal plane in one sitting — developed by a university prosthodontics faculty. You capture; we design, fabricate, and finish. New providers get 50% off their first lab case.",
   cta: "Claim your first-case offer",
+  ctaHref: "/first-case",
   primaryCta: "Request a clinical demo",
   secondaryCta: "See the workflow",
+} as const;
+
+/** Dedicated first-case 50% off landing */
+export const FIRST_CASE_OFFER = {
+  eyebrow: "Launch offer",
+  title: "50% off your first lab case.",
+  lead:
+    "New PrintDenture providers get half off their first complete denture case fulfilled by IDOC Dental Lab — so you can run the two-visit workflow on a real patient before committing at full rate.",
+  highlights: [
+    {
+      title: "Half off lab fabrication",
+      detail: "50% discount on your first PrintDenture lab case — design, printed try-in, QC, and finishing included.",
+    },
+    {
+      title: "Guided first case available",
+      detail: "Prefer a walkthrough? Request a clinical demo and our team helps you choose the case and records checklist.",
+    },
+    {
+      title: "You capture. We fabricate.",
+      detail: "Use JB Tray or JB Fork chairside, upload your records, and IDOC handles the rest.",
+    },
+  ],
+  steps: [
+    "Register your practice and open a provider portal account.",
+    "Order capture equipment if needed, then submit your first lab case.",
+    "Mention the first-case offer when you submit — we apply 50% off that case.",
+  ],
+  note: "Offer applies to one lab case per new practice. Capture devices are priced separately. Standard remake policy applies.",
+  primaryCta: "Register & claim offer",
+  primaryHref: "/signup",
+  secondaryCta: "See lab pricing",
+  secondaryHref: "/pricing",
+  demoCta: "Prefer a guided demo instead?",
+  demoHref: "/providers#demo",
 } as const;
 
 /**

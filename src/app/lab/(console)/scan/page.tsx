@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/admin-orders-ui";
 import { ORDER_INPUT_CLASS } from "@/components/marketing/order-ui";
 import { formatCaseNumberLabel, parseCaseScanInput } from "@/lib/case-number";
+import { isLabFulfillable } from "@/lib/order-payment";
 
 const STATUS_NEXT: Record<string, string | null> = {
   received: "printing",
@@ -19,6 +20,7 @@ const STATUS_NEXT: Record<string, string | null> = {
   qc: "shipped",
   shipped: "delivered",
   delivered: null,
+  pending_payment: null,
 };
 
 type ScanResult = {
@@ -76,7 +78,7 @@ export default function ScanPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     let query = supabase.from("orders").select(`
-      id, product_name, status, user_id, case_number,
+      id, product_name, status, user_id, case_number, paid_at, is_remake,
       profiles!orders_user_id_fkey(practice_name)
     `);
 
@@ -95,6 +97,8 @@ export default function ScanPage() {
       product_name: string;
       status: string;
       case_number: number | null;
+      paid_at: string | null;
+      is_remake?: boolean;
       profiles?: { practice_name: string | null };
     } | undefined;
 
@@ -110,6 +114,25 @@ export default function ScanPage() {
           timestamp: new Date(),
           success: false,
           message: "Case not found",
+        },
+        ...prev.slice(0, 19),
+      ]);
+      setProcessing(false);
+      return;
+    }
+
+    if (!isLabFulfillable(order)) {
+      setHistory((prev) => [
+        {
+          id: order.id,
+          caseId: formatCaseNumberLabel(order.case_number, order.id),
+          productName: order.product_name,
+          oldStatus: order.status,
+          newStatus: null,
+          practiceName: order.profiles?.practice_name || "—",
+          timestamp: new Date(),
+          success: false,
+          message: "Payment not confirmed — keep out of lab queue",
         },
         ...prev.slice(0, 19),
       ]);

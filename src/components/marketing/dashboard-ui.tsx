@@ -60,6 +60,10 @@ const STATUS_STEP_LABELS: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  pending_payment: {
+    label: "Awaiting payment",
+    className: "bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]",
+  },
   received: { label: "Received", className: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]" },
   printing: { label: "In Progress", className: "bg-[#FFFBEB] text-[#D97706] border-[#FDE68A]" },
   qc: { label: "QC Check", className: "bg-[#FDF4FF] text-[#9333EA] border-[#E9D5FF]" },
@@ -112,6 +116,14 @@ function DueDateChip({ dueDate }: { dueDate: string | null }) {
 }
 
 function StatusProgress({ status }: { status: string }) {
+  if (status === "pending_payment") {
+    return (
+      <p className="mt-3 text-[12px] text-[#C2410C]">
+        Payment incomplete — lab work starts after checkout is confirmed.
+      </p>
+    );
+  }
+
   const currentIdx = STATUS_STEPS.indexOf(status);
   const safeIdx = currentIdx >= 0 ? currentIdx : 0;
   const nextStep = safeIdx < STATUS_STEPS.length - 1 ? STATUS_STEPS[safeIdx + 1] : null;
@@ -258,6 +270,9 @@ export function DashboardOrderCard({
               <StatusBadge className={status.className}>{status.label}</StatusBadge>
               {order.paid_at && (
                 <StatusBadge className="bg-[#E1F5EE] text-[var(--pd-teal-dark)] border-[#9FE1CB]">Paid</StatusBadge>
+              )}
+              {!order.paid_at && !order.is_remake && (
+                <StatusBadge className="bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]">Unpaid</StatusBadge>
               )}
               {order.order_type === "equipment" && (
                 <StatusBadge className="bg-[var(--pd-surface)] text-[var(--pd-navy)] border-[var(--pd-border)]">

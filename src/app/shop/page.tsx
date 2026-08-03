@@ -61,7 +61,7 @@ function ShopContent() {
     if (searchParams.get("equipment") === "ordered") {
       const count = searchParams.get("count");
       if (count && Number(count) > 1) {
-        setBanner(`${count} equipment items confirmed. Mark them as received on your dashboard when they arrive.`);
+        setBanner(`${count} equipment items paid. Mark them as received on your dashboard when they arrive.`);
         return;
       }
       const kind = searchParams.get("kind");
@@ -73,7 +73,7 @@ function ShopContent() {
             : kind === "pop_bow"
               ? "ADD POP Bow"
               : "Equipment";
-      setBanner(`${label} order confirmed. Mark it as received on your dashboard when it arrives.`);
+      setBanner(`${label} payment confirmed. Mark it as received on your dashboard when it arrives.`);
     }
   }, [searchParams]);
 

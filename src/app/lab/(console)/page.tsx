@@ -24,6 +24,7 @@ import {
   ORDER_INPUT_CLASS,
   chipClass,
 } from "@/components/marketing/order-ui";
+import { isLabFulfillable } from "@/lib/order-payment";
 
 type Order = {
   id: string;
@@ -44,6 +45,7 @@ type Order = {
   paid_at: string | null;
   due_date: string | null;
   case_number: number | null;
+  is_remake?: boolean;
   design_outsource_status: "sent" | "completed" | null;
 };
 
@@ -146,27 +148,37 @@ export default function LabPage() {
       .order("created_at", { ascending: false });
 
     if (!ordersData) { setLoading(false); return; }
-    setOrders(ordersData);
+    // Unpaid / abandoned checkouts must not enter the lab queue
+    const fulfillable = ordersData.filter((o) => isLabFulfillable(o));
+    setOrders(fulfillable);
 
-    const userIds = [...new Set(ordersData.map((o) => o.user_id))];
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name, practice_name")
-      .in("id", userIds);
+    const userIds = [...new Set(fulfillable.map((o) => o.user_id))];
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, practice_name")
+        .in("id", userIds);
 
-    const profileMap: Record<string, Profile> = {};
-    profilesData?.forEach((p) => { profileMap[p.id] = p; });
-    setProfiles(profileMap);
+      const profileMap: Record<string, Profile> = {};
+      profilesData?.forEach((p) => { profileMap[p.id] = p; });
+      setProfiles(profileMap);
+    } else {
+      setProfiles({});
+    }
 
-    const orderIds = ordersData.map((o) => o.id);
-    const { data: rxData } = await supabase
-      .from("rx")
-      .select("*")
-      .in("order_id", orderIds);
+    const orderIds = fulfillable.map((o) => o.id);
+    if (orderIds.length > 0) {
+      const { data: rxData } = await supabase
+        .from("rx")
+        .select("*")
+        .in("order_id", orderIds);
 
-    const rxMapData: Record<string, Rx> = {};
-    rxData?.forEach((rx) => { rxMapData[rx.order_id] = rx; });
-    setRxMap(rxMapData);
+      const rxMapData: Record<string, Rx> = {};
+      rxData?.forEach((rx) => { rxMapData[rx.order_id] = rx; });
+      setRxMap(rxMapData);
+    } else {
+      setRxMap({});
+    }
 
     setLoading(false);
   }

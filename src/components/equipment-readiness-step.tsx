@@ -138,12 +138,7 @@ export default function EquipmentReadinessStep({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
-      const next: EquipmentCheckState = {
-        ...state,
-        [statusFieldForKind(kind)]: "ordered",
-      };
-      setState(next);
-      await saveProfile(next);
+      // Profile "ordered" is set by Stripe webhook after payment — not before redirect.
       window.location.href = data.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start checkout.");

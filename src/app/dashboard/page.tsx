@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { loadOrderDraft, formatDraftSavedAt } from "@/lib/order-draft";
 import { formatCaseNumber } from "@/lib/case-number";
@@ -26,7 +26,6 @@ import {
 
 function DashboardContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -48,25 +47,6 @@ function DashboardContent() {
       });
     }
   }, []);
-
-  useEffect(() => {
-    const orderId = searchParams.get("orderId");
-    if (!orderId) return;
-    async function completeOrder() {
-      const supabase = createAppClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      await fetch("/api/order-complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, userId: user.id }),
-      });
-      router.replace("/dashboard");
-    }
-    void completeOrder();
-  }, [searchParams, router]);
 
   useEffect(() => {
     async function load() {
@@ -235,15 +215,5 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  return (
-    <Suspense
-      fallback={
-        <MarketingShell>
-          <DashboardLoadingState />
-        </MarketingShell>
-      }
-    >
-      <DashboardContent />
-    </Suspense>
-  );
+  return <DashboardContent />;
 }

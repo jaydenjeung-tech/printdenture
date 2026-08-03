@@ -39,6 +39,20 @@ export async function POST(req: NextRequest) {
 
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
+    if (order.paid_at) {
+      return NextResponse.json({ error: "Order is already paid" }, { status: 400 });
+    }
+
+    if (order.status !== "pending_payment" && order.status !== "received") {
+      // Allow legacy unpaid "received" rows to still check out once.
+      return NextResponse.json({ error: "Order is not awaiting payment" }, { status: 400 });
+    }
+
+    // Normalize legacy unpaid rows into pending_payment before Checkout
+    if (order.status !== "pending_payment") {
+      await supabase.from("orders").update({ status: "pending_payment" }).eq("id", order.id);
+    }
+
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
         price_data: {
@@ -84,7 +98,7 @@ export async function POST(req: NextRequest) {
       mode: "payment",
       line_items: lineItems,
       metadata: { orderId: order.id, userId: user.id, orderType: "lab_case" },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true&orderId=${order.id}`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
     });
 

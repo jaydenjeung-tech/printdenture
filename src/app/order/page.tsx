@@ -1776,7 +1776,7 @@ function OrderContent() {
               ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
               : null,
         ].filter(Boolean).join("\n") || null,
-        status: "received",
+        status: "pending_payment",
         order_type: "lab_case",
         record_checklist: recordChecklist,
       })

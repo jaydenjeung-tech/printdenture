@@ -20,6 +20,10 @@ export const ADMIN_STATUS_CONFIG: Record<
   string,
   { label: string; className: string }
 > = {
+  pending_payment: {
+    label: "Awaiting payment",
+    className: "bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]",
+  },
   received: { label: "Received", className: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]" },
   printing: { label: "In Progress", className: "bg-[#FFFBEB] text-[#D97706] border-[#FDE68A]" },
   qc: { label: "QC Check", className: "bg-[#FDF4FF] text-[#9333EA] border-[#E9D5FF]" },

@@ -60,7 +60,7 @@ export function OfferStrip() {
           </p>
           <p className="text-[16px] sm:text-[17px] leading-relaxed text-[#A8C4D4]">{HERO_PROMO.lead}</p>
         </div>
-        <CtaLink href="/providers#demo" className="shrink-0">
+        <CtaLink href={HERO_PROMO.ctaHref} className="shrink-0">
           {HERO_PROMO.cta}
         </CtaLink>
       </div>
