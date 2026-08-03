@@ -1,32 +1,41 @@
+import Image from "next/image";
+import { HERO_IMAGE } from "@/lib/marketing/copy";
+
 /**
- * Hero backdrop — navy base with soft ambient gradients (no photo).
+ * Full-bleed clinical photo — Pexels free license (commercial OK).
  */
 export function HeroBackdrop() {
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden>
-      <div className="absolute inset-0 pd-hero-base" />
-
+      <Image
+        src={HERO_IMAGE.src}
+        alt=""
+        fill
+        priority
+        quality={90}
+        sizes="100vw"
+        className="object-cover object-[55%_30%] pd-hero-kenburns"
+      />
       <div
-        className="absolute -top-[20%] right-[-10%] w-[min(720px,85vw)] h-[min(720px,70vh)] rounded-full opacity-[0.22] blur-3xl"
+        className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(circle at 40% 40%, rgba(29, 158, 117, 0.9) 0%, rgba(29, 158, 117, 0.15) 42%, transparent 68%)",
+            "linear-gradient(105deg, rgba(5,22,34,0.92) 0%, rgba(5,22,34,0.72) 32%, rgba(5,22,34,0.28) 58%, rgba(5,22,34,0.15) 100%)",
         }}
       />
-
       <div
-        className="absolute bottom-[-25%] left-[-15%] w-[min(520px,70vw)] h-[min(520px,55vh)] rounded-full opacity-[0.12] blur-3xl"
+        className="absolute inset-x-0 bottom-0 h-[36%]"
         style={{
           background:
-            "radial-gradient(circle at 50% 50%, rgba(55, 138, 221, 0.75) 0%, rgba(55, 138, 221, 0.1) 45%, transparent 70%)",
+            "linear-gradient(to top, rgba(5,22,34,0.8) 0%, rgba(5,22,34,0.2) 60%, transparent 100%)",
         }}
       />
-
-      <div className="absolute inset-0 pd-hero-vignette" />
-
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent" />
-
-      <div className="absolute top-0 right-0 hidden lg:block w-px h-full bg-gradient-to-b from-white/[0.08] via-white/[0.04] to-transparent" />
+      <div
+        className="absolute inset-x-0 top-0 h-24"
+        style={{
+          background: "linear-gradient(to bottom, rgba(5,22,34,0.5) 0%, transparent 100%)",
+        }}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PrintDentureLogo from "@/components/logo";
-import { NAV_LINKS, LAB_PARTNER } from "@/lib/marketing/copy";
+import { NAV_LINKS, LAB_PARTNER, HERO_IMAGE } from "@/lib/marketing/copy";
 import { LabPartnerLink } from "@/components/marketing/lab-partner";
 
 export default function SiteFooter() {
@@ -64,14 +64,9 @@ export default function SiteFooter() {
             </p>
             <ul className="space-y-2.5 text-[13px] text-[#8BB3C8]">
               <li>
-                <a
-                  href="https://printcrown.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
-                >
-                  PrintCrown
-                </a>
+                <Link href="/" className="hover:text-white transition-colors">
+                  PrintDenture
+                </Link>
               </li>
               <li>
                 <a href="mailto:infor@printdenture.com" className="hover:text-white transition-colors">
@@ -90,6 +85,16 @@ export default function SiteFooter() {
               {LAB_PARTNER.name} — case fulfillment
             </LabPartnerLink>
             <span>FDA-registered capture devices</span>
+            {HERO_IMAGE.credit ? (
+              <a
+                href={HERO_IMAGE.credit.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#5A7D94] hover:text-[#8BB3C8]"
+              >
+                Photo: {HERO_IMAGE.credit.name} / Pexels
+              </a>
+            ) : null}
           </div>
         </div>
 

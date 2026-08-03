@@ -120,9 +120,13 @@ export default function SiteHeader() {
 
   const lightChrome = !isMarketingDark;
 
+  const homeOverHero = pathname === "/" && !scrolled;
+
   const headerBg = lightChrome
     ? "bg-white/95 backdrop-blur-md border-[var(--pd-border)] text-[var(--pd-navy)]"
-    : `bg-[var(--pd-nav)] border-white/10 text-white${scrolled ? " shadow-[0_4px_24px_rgba(0,0,0,0.2)]" : ""}`;
+    : homeOverHero
+      ? "bg-transparent border-transparent text-white transition-colors duration-300"
+      : `bg-[var(--pd-nav)]/95 backdrop-blur-md border-white/10 text-white transition-colors duration-300${scrolled ? " shadow-[0_4px_24px_rgba(0,0,0,0.2)]" : ""}`;
 
   const linkClass = lightChrome
     ? "text-[14px] font-medium text-[var(--pd-slate)] hover:text-[var(--pd-navy)] transition-colors"

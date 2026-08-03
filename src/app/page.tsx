@@ -1,8 +1,10 @@
 import {
   HeroSection,
+  OfferStrip,
   StatRow,
   ProblemSection,
   HowItWorksPreview,
+  ClinicalDemoSection,
   SystemPreview,
   ClinicalPreview,
   PrinterSection,
@@ -16,9 +18,11 @@ export default function Home() {
   return (
     <MarketingShell>
       <HeroSection />
+      <OfferStrip />
       <StatRow />
       <ProblemSection />
       <HowItWorksPreview />
+      <ClinicalDemoSection />
       <SystemPreview />
       <ClinicalPreview />
       <PrinterSection />

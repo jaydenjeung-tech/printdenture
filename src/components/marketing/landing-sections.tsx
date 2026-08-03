@@ -1,4 +1,4 @@
-import { TRUST_BADGES, HERO_STATS, HUH_JUNGBO_PROFILE } from "@/lib/marketing/copy";
+import { TRUST_BADGES, HERO_STATS, HERO_PROMO, HUH_JUNGBO_PROFILE } from "@/lib/marketing/copy";
 import { CAPTURE_DEVICES } from "@/lib/marketing/devices";
 import { GuideImageFrame } from "@/components/marketing/guide-image";
 import {
@@ -7,49 +7,84 @@ import {
   SectionEyebrow,
   TrustIcon,
 } from "@/components/marketing/primitives";
-import { LabPartnerHeroLine } from "@/components/marketing/lab-partner";
 import { HeroVideoPanel } from "@/components/marketing/hero-video-panel";
 import { HeroBackdrop } from "@/components/marketing/hero-backdrop";
+import { PrintDentureWordmark } from "@/components/logo";
 
 export function HeroSection() {
   return (
-    <section className="relative bg-[var(--pd-nav)] text-white overflow-hidden">
+    <section className="relative min-h-[100svh] bg-[var(--pd-nav)] text-white overflow-hidden">
       <HeroBackdrop />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-10 pt-32 pb-16 lg:pt-36 lg:pb-24">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div className="relative">
-            <SectionEyebrow className="text-[var(--pd-teal-light)]">
-              Clinically-developed denture workflow
-            </SectionEyebrow>
-            <h1 className="text-[clamp(2.25rem,5vw,3.75rem)] font-semibold tracking-[-0.04em] leading-[1.05] mb-4">
-              Full dentures in 2 visits — not 5.
+      <div className="relative z-10 min-h-[100svh] flex flex-col justify-end">
+        <div className="max-w-7xl mx-auto w-full px-6 lg:px-10 pt-28 pb-14 sm:pb-16 lg:pb-24">
+          <div className="w-full max-w-[26rem] lg:max-w-[28rem]">
+            <div className="pd-hero-reveal [&_.logo-wordmark]:text-[clamp(2.35rem,5.5vw,3.5rem)] [&_.logo-wordmark]:tracking-[-0.05em]">
+              <PrintDentureWordmark variant="dark" size="lg" />
+            </div>
+
+            <h1 className="pd-hero-reveal pd-hero-reveal-delay-1 mt-8 sm:mt-9 text-[clamp(1.5rem,3vw,2.05rem)] font-semibold uppercase tracking-[0.04em] leading-[1.2]">
+              <span className="block text-white">{HERO_PROMO.headline}</span>
+              <span className="block mt-1.5 text-[#8BB3C8] font-medium">{HERO_PROMO.headlineAccent}</span>
             </h1>
-            <LabPartnerHeroLine />
-            <p className="text-[17px] leading-relaxed text-[#A8C4D4] mb-8 max-w-xl">
-              A single-appointment capture system — impression, bite, and occlusal plane in one sitting
-              — developed by a university prosthodontics faculty. You capture; we design, fabricate, and
-              finish. Less chair time, fewer remakes, predictable results.
+
+            <p className="pd-hero-reveal pd-hero-reveal-delay-2 mt-5 text-[13px] sm:text-[14px] uppercase tracking-[0.08em] leading-[1.7] text-[#A8C4D4] max-w-[24rem]">
+              {HERO_PROMO.support}
             </p>
-            <div className="flex flex-wrap gap-3 mb-10">
-              <CtaLink href="/providers#demo">Request a clinical demo</CtaLink>
-              <CtaLink href="/how-it-works" variant="secondary" className="border-white/30 text-white hover:bg-white hover:text-[var(--pd-navy)]">
-                See how the workflow works
+
+            <div className="pd-hero-reveal pd-hero-reveal-delay-3 mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <CtaLink href="/providers#demo">{HERO_PROMO.primaryCta}</CtaLink>
+              <CtaLink
+                href="/how-it-works"
+                variant="ghost"
+                className="text-[#C5DCE8] hover:text-white h-auto px-0"
+              >
+                {HERO_PROMO.secondaryCta} →
               </CtaLink>
             </div>
-            <ul className="flex flex-col sm:flex-row flex-wrap gap-x-6 gap-y-3">
-              {TRUST_BADGES.map((badge) => (
-                <li key={badge.label} className="flex items-center gap-2 text-[13px] text-[#8BB3C8]">
-                  <TrustIcon type={badge.icon} />
-                  {badge.label}
-                </li>
-              ))}
-            </ul>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
-          <div className="relative min-w-0">
-            <HeroVideoPanel />
-          </div>
+/** Below-fold offer — keeps hero free of promo chrome */
+export function OfferStrip() {
+  return (
+    <section className="bg-[var(--pd-navy)] text-white border-y border-white/10">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 lg:py-12 flex flex-col lg:flex-row lg:items-end gap-6 lg:gap-12">
+        <div className="flex-1 max-w-2xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-teal-light)] mb-3">
+            {HERO_PROMO.eyebrow}
+          </p>
+          <p className="text-[16px] sm:text-[17px] leading-relaxed text-[#A8C4D4]">{HERO_PROMO.lead}</p>
+        </div>
+        <CtaLink href="/providers#demo" className="shrink-0">
+          {HERO_PROMO.cta}
+        </CtaLink>
+      </div>
+    </section>
+  );
+}
+
+/** Clinical video demos — moved out of the first viewport */
+export function ClinicalDemoSection() {
+  return (
+    <section className="py-20 lg:py-28 px-6 bg-[var(--pd-navy)] text-white">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-10 max-w-2xl">
+          <SectionEyebrow className="text-[var(--pd-teal-light)]">Clinical demonstration</SectionEyebrow>
+          <h2 className="text-[clamp(1.75rem,4vw,2.5rem)] font-semibold tracking-[-0.03em] mb-4">
+            Watch the capture system in use
+          </h2>
+          <p className="text-[16px] leading-relaxed text-[#A8C4D4]">
+            Short chairside demos of JB Tray and JB Fork — then open the full clinical guide when you
+            are ready.
+          </p>
+        </div>
+        <div className="max-w-4xl">
+          <HeroVideoPanel />
         </div>
       </div>
     </section>

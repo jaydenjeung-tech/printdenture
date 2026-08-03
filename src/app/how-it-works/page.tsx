@@ -1,6 +1,7 @@
 import { MarketingShell, PageHero } from "@/components/marketing/marketing-shell";
+import { VisitProtocolsComparison } from "@/components/marketing/visit-protocols";
 import { WORKFLOW_STEPS } from "@/lib/marketing/copy";
-import { CtaLink, ImagePlaceholder, SectionEyebrow } from "@/components/marketing/primitives";
+import { CtaLink, ImagePlaceholder } from "@/components/marketing/primitives";
 
 export const metadata = {
   title: "How it works — PrintDenture",
@@ -52,54 +53,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <section className="py-20 px-6 bg-[var(--pd-surface)] border-y border-[var(--pd-border)]">
-        <div className="max-w-5xl mx-auto">
-          <SectionEyebrow className="text-center">Visit comparison</SectionEyebrow>
-          <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-center text-[var(--pd-navy)] mb-10">
-            From five visits to two
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="border border-[var(--pd-border)] bg-white p-8">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--pd-muted)] mb-4">
-                Traditional workflow
-              </p>
-              <ol className="space-y-3 text-[14px] text-[var(--pd-slate)]">
-                {[
-                  "Preliminary impression",
-                  "Border molding & final impression",
-                  "Jaw relation record",
-                  "Try-in appointment",
-                  "Delivery (+ remakes)",
-                ].map((item, i) => (
-                  <li key={item} className="flex gap-3">
-                    <span className="text-[var(--pd-muted)] font-mono text-[12px]">{i + 1}.</span>
-                    {item}
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="border-2 border-[var(--pd-teal)] bg-white p-8">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--pd-teal-dark)] mb-4">
-                PrintDenture workflow
-              </p>
-              <ol className="space-y-3 text-[14px] text-[var(--pd-navy)]">
-                <li className="flex gap-3">
-                  <span className="text-[var(--pd-teal)] font-mono text-[12px]">1.</span>
-                  <span>
-                    <strong>Capture</strong> — impression, bite & occlusal plane in one appointment
-                  </span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="text-[var(--pd-teal)] font-mono text-[12px]">2.</span>
-                  <span>
-                    <strong>Verify & deliver</strong> — printed try-in, then final prosthesis
-                  </span>
-                </li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </section>
+      <VisitProtocolsComparison />
 
       <section className="py-16 px-6 text-center">
         <CtaLink href="/providers#demo">Request a clinical demo</CtaLink>

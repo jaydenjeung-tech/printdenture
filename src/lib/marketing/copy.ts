@@ -43,6 +43,33 @@ export const HERO_STATS = [
   { value: "Printed try-in", label: "included before final delivery" },
 ] as const;
 
+/** Landing hero — first-case launch offer */
+export const HERO_PROMO = {
+  eyebrow: "First case · 50% off",
+  headline: "Full dentures in two visits.",
+  headlineAccent: "Not five.",
+  support: "Capture once chairside. We design, print, and finish.",
+  lead:
+    "A single-appointment capture system — impression, bite, and occlusal plane in one sitting — developed by a university prosthodontics faculty. You capture; we design, fabricate, and finish. New providers get 50% off their first lab case.",
+  cta: "Claim your first-case offer",
+  primaryCta: "Request a clinical demo",
+  secondaryCta: "See the workflow",
+} as const;
+
+/**
+ * Landing hero photo — Pexels (free for commercial use, attribution optional).
+ * Photo by Gustavo Fring — https://www.pexels.com/photo/5622026/
+ * License: https://www.pexels.com/license/
+ */
+export const HERO_IMAGE = {
+  src: "/images/hero/clinic-senior-consult.jpg",
+  alt: "Dental team consulting with a senior patient in a modern clinic",
+  credit: {
+    name: "Gustavo Fring",
+    url: "https://www.pexels.com/photo/5622026/",
+  },
+} as const;
+
 export const WORKFLOW_STEPS = [
   {
     step: "01",
@@ -90,6 +117,131 @@ export const COMPARISON_ROWS = [
     printDenture: "Lab-controlled",
   },
 ] as const;
+
+/**
+ * PNU ADD digital denture visit pathways — clinical protocol comparison
+ * (Conventional digital → JB Fork → JB Tray).
+ */
+export type VisitProtocolStep = {
+  title: string;
+  detail: string;
+  combined: boolean;
+  image: string;
+  imageAlt: string;
+};
+
+export type VisitProtocol = {
+  id: string;
+  name: string;
+  visits: number;
+  visitsLabel: string;
+  summary: string;
+  device: string | null;
+  highlighted: boolean;
+  steps: VisitProtocolStep[];
+};
+
+export const VISIT_PROTOCOLS: VisitProtocol[] = [
+  {
+    id: "conventional",
+    name: "Conventional digital",
+    visits: 4,
+    visitsLabel: "4 visits",
+    summary: "Separate scans, wax-rim records, temporary, and final delivery.",
+    device: null,
+    highlighted: false,
+    steps: [
+      {
+        title: "Initial scans",
+        detail: "Edentulous arch scans",
+        combined: false,
+        image: "/images/visit-protocols/step-intraoral-scan.jpg",
+        imageAlt: "Chairside intraoral scan and digital arch model",
+      },
+      {
+        title: "Definitive impression",
+        detail: "With wax rims",
+        combined: false,
+        image: "/images/visit-protocols/step-wax-rim-impression.jpg",
+        imageAlt: "Definitive impression with wax rim on articulator",
+      },
+      {
+        title: "Temporary denture",
+        detail: "Try-in / provisional delivery",
+        combined: false,
+        image: "/images/visit-protocols/step-wax-setup.jpg",
+        imageAlt: "Temporary denture setup on articulator",
+      },
+      {
+        title: "Final denture",
+        detail: "Definitive delivery",
+        combined: false,
+        image: "/images/visit-protocols/step-final-denture.jpg",
+        imageAlt: "Finished definitive denture",
+      },
+    ],
+  },
+  {
+    id: "jb-fork",
+    name: "JB Fork",
+    visits: 3,
+    visitsLabel: "3 visits",
+    summary: "Jaw relation and initial records combined chairside with JB Fork.",
+    device: "JB Fork Radi+",
+    highlighted: false,
+    steps: [
+      {
+        title: "Scans & jaw relation",
+        detail: "Initial scans with JB Fork",
+        combined: true,
+        image: "/images/visit-protocols/hero-jb-fork.jpg",
+        imageAlt: "JB Fork Radi+ jaw-relation device",
+      },
+      {
+        title: "Definitive impression",
+        detail: "With temporary denture",
+        combined: false,
+        image: "/images/visit-protocols/step-fork-records.jpg",
+        imageAlt: "Definitive impression records with temporary denture",
+      },
+      {
+        title: "Final denture",
+        detail: "Definitive delivery",
+        combined: false,
+        image: "/images/visit-protocols/step-final-denture.jpg",
+        imageAlt: "Finished definitive denture",
+      },
+    ],
+  },
+  {
+    id: "jb-tray",
+    name: "JB Tray",
+    visits: 2,
+    visitsLabel: "2 visits",
+    summary: "Definitive impression and jaw relation in one appointment — PrintDenture path.",
+    device: "JB Tray",
+    highlighted: true,
+    steps: [
+      {
+        title: "Definitive impression & jaw relation",
+        detail: "Single visit with JB Tray",
+        combined: true,
+        image: "/images/visit-protocols/step-tray-upper.jpg",
+        imageAlt: "JB Tray upper impression tray for single-visit capture",
+      },
+      {
+        title: "Final denture",
+        detail: "Digital or conventional delivery",
+        combined: false,
+        image: "/images/visit-protocols/step-final-denture.jpg",
+        imageAlt: "Finished definitive denture",
+      },
+    ],
+  },
+];
+
+export const VISIT_PROTOCOL_NOTE =
+  "Protocols developed by PNU ADD (Pusan National University Advanced Digital Dentistry). With PrintDenture, IDOC fabricates from your verified digital record set — including a printed try-in before final delivery.";
 
 export const PROVIDER_BENEFITS = [
   "Faculty-led clinical training & certification",
