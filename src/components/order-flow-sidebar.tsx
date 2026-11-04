@@ -40,7 +40,6 @@ export function OrderFlowSidebar({
   const activeHint = activeFlowStep ? ORDER_FLOW_STEP_HINTS[activeFlowStep] : null;
   const requiredEquipment = productCategory ? getRequiredEquipment(productCategory) : [];
   const showJbTrayGuide = activeFlowStep === "product" && requiredEquipment.includes("jb_tray");
-  const showJbForkGuide = activeFlowStep === "product" && requiredEquipment.includes("jb_fork");
 
   return (
     <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
@@ -134,18 +133,11 @@ export function OrderFlowSidebar({
               ))}
             </ul>
           )}
-          {(showJbTrayGuide || showJbForkGuide) && (
+          {showJbTrayGuide && (
             <div className="mt-4 flex flex-col gap-1.5 text-[12px]">
-              {showJbTrayGuide && (
-                <Link href="/guides/jb-tray" className="text-[var(--pd-teal-dark)] font-medium hover:underline">
-                  JB Tray guide →
-                </Link>
-              )}
-              {showJbForkGuide && (
-                <Link href="/guides/jb-fork" className="text-[var(--pd-teal-dark)] font-medium hover:underline">
-                  JB Fork guide →
-                </Link>
-              )}
+              <Link href="/guides/jb-tray" className="text-[var(--pd-teal-dark)] font-medium hover:underline">
+                JB Tray guide →
+              </Link>
             </div>
           )}
         </div>

@@ -29,15 +29,14 @@ import {
   type OrderDraftStored,
 } from "@/lib/order-draft";
 import { CURRENT_SITE } from "@/lib/products/site-catalog";
+import { insertWithOptionalSite } from "@/lib/orders/site-scope";
 import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import {
   ORDER_DENTURE_SERVICE_GROUPS,
-  isCompleteServiceGroup,
 } from "@/lib/products/denture-service-groups";
 import { ORDER_FLOW_CATEGORIES } from "@/lib/products/site-catalog";
 import { resolveOrderProductSelection } from "@/lib/products/order-product-link";
 import { JbShopBanner } from "@/components/jb-shop-banner";
-import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
 import { CaseFileUploadSection } from "@/components/case-file-upload";
 import { RecordUploadChecklistPanel } from "@/components/record-upload-checklist";
 import { OrderFlowMobileProgress, OrderFlowSidebar } from "@/components/order-flow-sidebar";
@@ -49,6 +48,7 @@ import {
   equipmentBlockReason,
   flowStepToIndex,
   getEquipmentNoticeForCategory,
+  getRequiredEquipment,
   isJbWorkflowCategory,
   productRequiresEquipmentCheck,
   resolveDraftStepIndex,
@@ -201,8 +201,11 @@ const CATEGORY_GROUPS =
     ? ORDER_DENTURE_SERVICE_GROUPS.map((group) => ({
         label: group.label,
         shortLabel: group.shortLabel,
-        description: group.description,
-        categories: [...group.categories],
+        description:
+          group.id === "complete"
+            ? "Full-arch removable prosthetics. Record the final impression and jaw relation with the JB Tray, or send an immediate denture from scans."
+            : group.description,
+        categories: group.categories.filter((category) => category !== "complete"),
       }))
     : [
         { label: "Crowns", shortLabel: "Crowns", description: "Zirconia, printed & implant crowns", categories: ["zirconia", "printed", "implant"] },
@@ -211,6 +214,28 @@ const CATEGORY_GROUPS =
 
 function isOrderLabProduct(product: Product) {
   return ORDER_FLOW_CATEGORIES.includes(product.category);
+}
+
+function isForkOrderProduct(product: { category: string; name: string; fields?: string[] }) {
+  if (product.category === "complete") return true;
+  if (product.fields?.includes("jbFork")) return true;
+  return /jb\s*fork/i.test(product.name);
+}
+
+/** Order flow no longer offers the JB Fork path. Tray requirements stay. */
+function orderCategory(category: string | null | undefined): string | null {
+  if (!category || isForkOrderProduct({ category, name: "" })) return null;
+  if (getRequiredEquipment(category).includes("jb_fork")) return null;
+  return category;
+}
+
+function stripForkCopy(text: string): string {
+  return text
+    .replace(/\s*[—–-]\s*JB Fork[^.]*(?:\.|$)/gi, "")
+    .replace(/\bJB Fork(?:\s+Radi\+)?\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,])/g, "$1")
+    .trim();
 }
 
 function serviceGroupLabelFromParam(value: string | null): string | null {
@@ -473,11 +498,11 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="text-[15px] font-semibold text-[var(--pd-navy)]">{product.name}</h3>
-                            <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">{product.description}</p>
-                            {productRequiresEquipmentCheck(product.category) ? (
+                            <h3 className="text-[15px] font-semibold text-[var(--pd-navy)]">{stripForkCopy(product.name)}</h3>
+                            <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">{stripForkCopy(product.description)}</p>
+                            {productRequiresEquipmentCheck(orderCategory(product.category)) ? (
                               <p className="text-[12px] text-[var(--pd-muted)] mt-2 leading-relaxed">
-                                {getEquipmentNoticeForCategory(product.category)?.equipmentLabel} starter kit
+                                {getEquipmentNoticeForCategory(orderCategory(product.category))?.equipmentLabel} starter kit
                                 from PrintDenture — then capture records and submit this case.
                               </p>
                             ) : null}
@@ -497,12 +522,6 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
           </div>
         )}
       </div>
-
-      {isCompleteServiceGroup(activeGroup) && (
-        <section className="mb-8 pt-8 border-t border-[var(--pd-border)]">
-          <JbProtocolChooser variant="compact" />
-        </section>
-      )}
 
       <div className="border border-[var(--pd-border)] bg-white p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -526,15 +545,15 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
             Continue to case details
           </button>
         </div>
-        {selectedProduct && productRequiresEquipmentCheck(selectedProduct.category) && (
+        {selectedProduct && productRequiresEquipmentCheck(orderCategory(selectedProduct.category)) && (
           <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-[12px] text-amber-950 leading-relaxed">
-              {getEquipmentNoticeForCategory(selectedProduct.category)?.equipmentLabel} starter kit
+              {getEquipmentNoticeForCategory(orderCategory(selectedProduct.category))?.equipmentLabel} starter kit
               recommended — order from Shop, or continue to confirm your scan records on the next step.
             </p>
-            {shopHrefForProductCategory(selectedProduct.category) && (
+            {shopHrefForProductCategory(orderCategory(selectedProduct.category)) && (
               <Link
-                href={shopHrefForProductCategory(selectedProduct.category)!}
+                href={shopHrefForProductCategory(orderCategory(selectedProduct.category))!}
                 className={`${ORDER_BTN_PRIMARY} h-9 px-4 text-[12px] shrink-0`}
               >
                 Open Shop
@@ -1215,9 +1234,9 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
           <p className="font-medium mb-1">Starter kit required before checkout</p>
           <p className="leading-relaxed">{equipmentBlock}</p>
           <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            {shopHrefForProductCategory(p.category) && (
+            {shopHrefForProductCategory(orderCategory(p.category)) && (
               <Link
-                href={shopHrefForProductCategory(p.category)!}
+                href={shopHrefForProductCategory(orderCategory(p.category))!}
                 className={`${ORDER_BTN_PRIMARY} h-10 px-5 text-sm`}
               >
                 Open Shop — order starter kit
@@ -1380,8 +1399,10 @@ function OrderContent() {
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
       const visibleProducts = prepareCatalogProducts(productData || []);
-      const labOnly = visibleProducts.filter(isOrderLabProduct);
-      const visibleLab = visibleProducts.filter((p) => p.category !== "equipment");
+      const labOnly = visibleProducts.filter(isOrderLabProduct).filter((product) => !isForkOrderProduct(product));
+      const visibleLab = visibleProducts.filter(
+        (product) => product.category !== "equipment" && !isForkOrderProduct(product)
+      );
       setLabProducts(labOnly);
       setProductsLoading(false);
 
@@ -1528,9 +1549,9 @@ function OrderContent() {
   }, [router, searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("equipment") === "ordered") {
+    if (searchParams.get("equipment") === "ordered" && searchParams.get("kind") !== "jb_fork") {
       const kind = searchParams.get("kind");
-      const label = kind === "jb_tray" ? "JB Tray" : kind === "jb_fork" ? "JB Fork" : "Equipment";
+      const label = kind === "jb_tray" ? "JB Tray" : "Equipment";
       setEquipmentBanner(
         `${label} order confirmed. You can continue preparing this case — submit payment after you mark the kit received on your dashboard.`
       );
@@ -1642,7 +1663,9 @@ function OrderContent() {
     ? `Step ${step} of ${orderFlow.length} · ${ORDER_FLOW_STEP_LABELS[activeFlowStep]}`
     : undefined;
 
-  const equipmentBlock = data.product ? equipmentBlockReason(data.product.category, equipmentProfile) : null;
+  const equipmentBlock = data.product
+    ? equipmentBlockReason(orderCategory(data.product.category), equipmentProfile)
+    : null;
 
   function goToFlowStep(target: OrderFlowStep) {
     setStep(flowStepToIndex(orderFlow, target));
@@ -1727,8 +1750,8 @@ function OrderContent() {
       alert("Please complete your practice name, phone, and shipping address on the review step.");
       return;
     }
-    if (!canSubmitLabCase(data.product.category, equipmentProfile)) {
-      alert(equipmentBlockReason(data.product.category, equipmentProfile) ?? "Complete equipment setup before submitting.");
+    if (!canSubmitLabCase(orderCategory(data.product.category), equipmentProfile)) {
+      alert(equipmentBlockReason(orderCategory(data.product.category), equipmentProfile) ?? "Complete equipment setup before submitting.");
       return;
     }
     if (needsDentbirdDesign(data.product)) {
@@ -1756,31 +1779,28 @@ function OrderContent() {
     const recordChecklist = buildRecordChecklistSnapshot(p.category, checklistContext);
 
     // 1. orders 저장
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        product_id: p.id,
-        product_name: formatOrderProductName(p.name, data.arch),
-        quantity: data.quantity,
-        unit_price: unitPrice,
-        total_price: total,
-        shade: data.shade || null,
-        tooth_number: data.toothNumbers[0]?.toString() || null,
-        tooth_numbers: data.toothNumbers,
-        notes: [
-          data.notes,
-          data.designChoice === "cad"
-            ? `CAD design requested (+$${CAD_DESIGN_FEE} design fee)`
-            : data.aiDesignApproved && data.aiDesignedFileName
-              ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
-              : null,
-        ].filter(Boolean).join("\n") || null,
-        status: "pending_payment",
-        order_type: "lab_case",
-        record_checklist: recordChecklist,
-      })
-      .select().single();
+    const { data: order, error: orderError } = await insertWithOptionalSite(supabase, "orders", {
+      user_id: user.id,
+      product_id: p.id,
+      product_name: formatOrderProductName(p.name, data.arch),
+      quantity: data.quantity,
+      unit_price: unitPrice,
+      total_price: total,
+      shade: data.shade || null,
+      tooth_number: data.toothNumbers[0]?.toString() || null,
+      tooth_numbers: data.toothNumbers,
+      notes: [
+        data.notes,
+        data.designChoice === "cad"
+          ? `CAD design requested (+$${CAD_DESIGN_FEE} design fee)`
+          : data.aiDesignApproved && data.aiDesignedFileName
+            ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
+            : null,
+      ].filter(Boolean).join("\n") || null,
+      status: "pending_payment",
+      order_type: "lab_case",
+      record_checklist: recordChecklist,
+    });
 
     if (orderError || !order) {
       alert("Failed to place order. Please try again.");
@@ -1975,8 +1995,8 @@ function OrderContent() {
                   flowStepLabel={flowStepLabel}
                   showJbShopBanner={
                     !!data.product &&
-                    isJbWorkflowCategory(data.product.category) &&
-                    !canStartJbLabCase(data.product.category, equipmentProfile)
+                    isJbWorkflowCategory(orderCategory(data.product.category)) &&
+                    !canStartJbLabCase(orderCategory(data.product.category), equipmentProfile)
                   }
                   onChecklistChange={handleChecklistChange}
                   onTeethChange={(teeth) => {

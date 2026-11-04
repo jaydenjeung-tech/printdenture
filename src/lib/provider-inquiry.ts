@@ -3,11 +3,20 @@ export const DEFAULT_PROVIDER_INQUIRY_RECIPIENTS = [
   "dj@idocdentallab.com",
 ] as const;
 
+const CLINICAL_DEMO_RECIPIENT = "haesung@idocdentallab.com";
+
 export function getProviderInquiryRecipients(): string[] {
   const fromEnv = process.env.PROVIDER_INQUIRY_EMAILS?.split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return fromEnv?.length ? fromEnv : [...DEFAULT_PROVIDER_INQUIRY_RECIPIENTS];
+  const recipients = fromEnv?.length ? fromEnv : [...DEFAULT_PROVIDER_INQUIRY_RECIPIENTS];
+  const seen = new Set<string>();
+  return [...recipients, CLINICAL_DEMO_RECIPIENT].filter((email) => {
+    const key = email.toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function escapeInquiryHtml(value: string): string {

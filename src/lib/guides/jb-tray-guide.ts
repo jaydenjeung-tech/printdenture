@@ -19,12 +19,12 @@ export const JB_TRAY_FEATURES = [
   {
     title: "Fewer patient visits",
     description:
-      "Reduce visits from the conventional five to three — with a simplified workflow, as few as two visits in some cases.",
+      "The tray combines the final impression and jaw relation in one visit. The try-in is the next visit. If nothing needs to change, the case ends there. A revision is a third visit.",
   },
   {
     title: "Digital & analog solution",
     description:
-      "Compatible with traditional denture fabrication and digital workflows using intra-oral or model scanners. Supports two-visit digital denture production.",
+      "Compatible with traditional denture fabrication and with intraoral or model scans, followed by a printed try-in and final delivery.",
   },
   {
     title: "POP Bow system integration",

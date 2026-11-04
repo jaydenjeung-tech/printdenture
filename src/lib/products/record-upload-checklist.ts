@@ -167,8 +167,7 @@ const CHECKLISTS: Record<string, RecordUploadChecklist> = {
     title: "Overdenture / All-on-X record checklist",
     intro:
       "One scan file and the confirmation below are required. Implant-level CBCT and aligned IOS data are strongly recommended.",
-    jbNote: "JB Fork Radi+ is the usual capture path when you have CBCT and facial scan data.",
-    items: [...OVERDENTURE_ITEMS, ...JB_FORK_ITEMS, ...TRYIN_SKIP_BASE],
+    items: [...OVERDENTURE_ITEMS, ...TRYIN_SKIP_BASE],
   },
 };
 

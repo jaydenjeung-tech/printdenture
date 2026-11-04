@@ -34,8 +34,8 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
     <div className="flex min-h-screen bg-[var(--pd-bg)]">
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-[var(--pd-border)] bg-white">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[var(--pd-border)]">
-          <Link href="/partner" className="flex items-center gap-2.5 min-w-0 rounded-lg overflow-hidden shrink-0">
-            <PrintDentureLogo variant="dark" size="sm" />
+          <Link href="/partner" className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <PrintDentureLogo variant="light" size="sm" />
           </Link>
           <p className="text-[10px] font-medium text-[var(--pd-muted)] uppercase tracking-wider shrink-0">
             Partner
@@ -90,7 +90,7 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
       <div className="flex flex-1 flex-col min-w-0 min-h-screen">
         <header className="md:hidden h-14 px-4 flex items-center justify-between border-b border-[var(--pd-border)] bg-white shrink-0">
           <Link href="/partner" className="flex items-center gap-2 min-w-0">
-            <PrintDentureLogo variant="dark" size="sm" />
+            <PrintDentureLogo variant="light" size="sm" />
             <span className="text-[10px] font-medium text-[var(--pd-muted)] uppercase tracking-wider">
               Partner
             </span>

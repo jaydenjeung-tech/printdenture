@@ -86,14 +86,15 @@ export function LabPartnerNotice({
   );
 }
 
-export function LabPartnerHeaderTag({ light }: { light?: boolean }) {
+export function LabPartnerHeaderTag({ light, name }: { light?: boolean; name?: string }) {
+  const label = name ?? LAB_PARTNER.name;
   return (
     <LabPartnerLink
       className={cn(
         "hidden xl:inline-flex flex-col border-l pl-3 ml-1 shrink-0 leading-tight no-underline hover:underline",
         light ? "border-[var(--pd-border)]" : "border-white/20"
       )}
-      aria-label={`${LAB_PARTNER.name} (opens in new tab)`}
+      aria-label={`${label} (opens in new tab)`}
     >
       <span
         className={cn(
@@ -104,7 +105,7 @@ export function LabPartnerHeaderTag({ light }: { light?: boolean }) {
         Lab partner
       </span>
       <span className={cn("text-[11px] font-medium", light ? "text-[var(--pd-navy)]" : "text-white/90")}>
-        {LAB_PARTNER.name}
+        {label}
       </span>
     </LabPartnerLink>
   );

@@ -1,39 +1,37 @@
 import Image from "next/image";
-import { HERO_IMAGE } from "@/lib/marketing/copy";
+import { HERO_IMAGE, HERO_VIDEO } from "@/lib/marketing/copy";
 
-/**
- * Full-bleed clinical photo — Pexels free license (commercial OK).
- */
+/** Full-bleed clinic loop for the homepage hero. Still photo shows if motion is reduced. */
 export function HeroBackdrop() {
   return (
-    <div className="absolute inset-0 overflow-hidden" aria-hidden>
+    <div className="absolute inset-0" aria-hidden>
       <Image
         src={HERO_IMAGE.src}
         alt=""
         fill
         priority
-        quality={90}
+        quality={75}
         sizes="100vw"
-        className="object-cover object-[55%_30%] pd-hero-kenburns"
+        className="object-cover object-center"
       />
+      <video
+        className="absolute inset-0 h-full w-full object-cover object-center motion-reduce:hidden"
+        autoPlay
+        muted
+        loop
+        playsInline
+        poster={HERO_IMAGE.src}
+        preload="auto"
+      >
+        <source src={HERO_VIDEO.src} type="video/mp4" />
+      </video>
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-x-0 top-0 hidden h-[58%] lg:block"
         style={{
           background:
-            "linear-gradient(105deg, rgba(5,22,34,0.92) 0%, rgba(5,22,34,0.72) 32%, rgba(5,22,34,0.28) 58%, rgba(5,22,34,0.15) 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-x-0 bottom-0 h-[36%]"
-        style={{
-          background:
-            "linear-gradient(to top, rgba(5,22,34,0.8) 0%, rgba(5,22,34,0.2) 60%, transparent 100%)",
-        }}
-      />
-      <div
-        className="absolute inset-x-0 top-0 h-24"
-        style={{
-          background: "linear-gradient(to bottom, rgba(5,22,34,0.5) 0%, transparent 100%)",
+            "linear-gradient(90deg, #F8F7F4 0%, rgba(248,247,244,0.88) 24%, rgba(248,247,244,0.28) 42%, transparent 54%)",
+          maskImage: "linear-gradient(to bottom, #000 62%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, #000 62%, transparent 100%)",
         }}
       />
     </div>

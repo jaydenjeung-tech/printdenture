@@ -266,6 +266,7 @@ export default function PricingPage() {
             ? "Purchase the JB capture system once, then send cases through our lab — design, printed try-in, QC, and finishing included on every prosthesis."
             : "Transparent pricing from our live catalog."
         }
+        showLabPartner={false}
       />
 
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-14 lg:py-20">
@@ -292,7 +293,7 @@ export default function PricingPage() {
                     <PricingTierHeader
                       eyebrow="One-time purchase"
                       title="Capture devices"
-                      description="Clinically-developed JB Tray, JB Fork Radi+, and ADD POP Bow — the chairside capture system used with the two-visit workflow. Order kits through our equipment shop."
+                      description="Clinically-developed JB Tray, JB Fork Radi+, and ADD POP Bow — the chairside capture system used before the try-in and final delivery. Order kits through our equipment shop."
                     />
 
                     <div className="border-y border-[var(--pd-border)] bg-white mb-10">

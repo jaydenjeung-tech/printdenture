@@ -3,6 +3,8 @@ import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
+import { siteCheckoutFields } from "@/lib/stripe-checkout";
+import { insertWithOptionalSite } from "@/lib/orders/site-scope";
 import {
   equipmentFieldTagForKind,
   type EquipmentKind,
@@ -109,6 +111,7 @@ export async function POST(req: NextRequest) {
     const checkoutTotal = subtotal + shipping;
 
     const orderIds: string[] = [];
+    const createdOrders: { id: string; case_number?: number | null }[] = [];
     const equipmentKinds = new Set<EquipmentKind>();
 
     for (const line of resolvedLines) {
@@ -117,31 +120,28 @@ export async function POST(req: NextRequest) {
 
       if (line.equipmentKind) equipmentKinds.add(line.equipmentKind);
 
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user.id,
-          product_id: line.product.id,
-          product_name: line.product.name,
-          quantity: line.quantity,
-          unit_price: line.product.price,
-          total_price: orderTotal,
-          status: "pending_payment",
-          order_type: "equipment",
-          notes: [
-            line.equipmentKind ? `equipment_kind:${line.equipmentKind}` : null,
-            `variant:${getVariantShortLabel(line.product.fields ?? [])}`,
-            isMultiItem ? "checkout_batch:true" : null,
-          ].filter(Boolean).join(" · ") || null,
-        })
-        .select()
-        .single();
+      const { data: order, error: orderError } = await insertWithOptionalSite(supabase, "orders", {
+        user_id: user.id,
+        product_id: line.product.id,
+        product_name: line.product.name,
+        quantity: line.quantity,
+        unit_price: line.product.price,
+        total_price: orderTotal,
+        status: "pending_payment",
+        order_type: "equipment",
+        notes: [
+          line.equipmentKind ? `equipment_kind:${line.equipmentKind}` : null,
+          `variant:${getVariantShortLabel(line.product.fields ?? [])}`,
+          isMultiItem ? "checkout_batch:true" : null,
+        ].filter(Boolean).join(" · ") || null,
+      });
 
       if (orderError || !order) {
         return NextResponse.json({ error: orderError?.message ?? "Could not create order" }, { status: 500 });
       }
 
       orderIds.push(order.id);
+      createdOrders.push({ id: order.id, case_number: order.case_number });
     }
 
     const stripeLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = resolvedLines.map((line) => ({
@@ -183,8 +183,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       mode: "payment",
       line_items: stripeLineItems,
-      metadata: {
-        orderId: orderIds[0],
+      ...siteCheckoutFields(createdOrders, {
         orderIds: orderIds.join(","),
         userId: user.id,
         orderType: "equipment",
@@ -193,7 +192,7 @@ export async function POST(req: NextRequest) {
         equipmentField: resolvedLines[0]?.equipmentKind
           ? equipmentFieldTagForKind(resolvedLines[0].equipmentKind)
           : "",
-      },
+      }),
       success_url: successUrl,
       cancel_url: cancelUrl,
     });

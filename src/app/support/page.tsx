@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
-import { createAppClient } from "@/lib/supabase";
-import Navbar from "@/components/navbar";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { formatCaseNumberLabel } from "@/lib/case-number";
+import { createAppClient } from "@/lib/supabase";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
+import { PrintDentureMark } from "@/components/logo";
+import { formatCaseNumberHash } from "@/lib/case-number";
+import { insertWithOptionalSite, scopeOrdersForSite, visibleSupportMessages } from "@/lib/orders/site-scope";
 
 type Message = {
   id: string;
@@ -16,14 +17,21 @@ type Message = {
   is_admin: boolean;
   read_at: string | null;
   created_at: string;
+  site?: string | null;
 };
 
 type Order = {
   id: string;
   case_number: number | null;
   product_name: string;
+  product_id?: string | null;
   created_at: string;
+  site?: string | null;
 };
+
+function caseLabel(order: Order) {
+  return `${formatCaseNumberHash(order.case_number, order.id)} · ${order.product_name}`;
+}
 
 function SupportContent() {
   const router = useRouter();
@@ -34,15 +42,16 @@ function SupportContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [selectedOrderId, setSelectedOrderId] = useState("");
 
   useEffect(() => {
-    load();
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // URL에서 orderId 파라미터 가져오기
     const orderId = searchParams.get("orderId");
     if (orderId) setSelectedOrderId(orderId);
   }, [searchParams]);
@@ -54,7 +63,10 @@ function SupportContent() {
   async function load() {
     const supabase = createAppClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/auth"); return; }
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
 
     const [{ data: messagesData }, { data: ordersData }] = await Promise.all([
       supabase.from("support_messages")
@@ -62,180 +74,211 @@ function SupportContent() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: true }),
       supabase.from("orders")
-        .select("id, case_number, product_name, created_at")
+        .select("id, case_number, product_name, product_id, created_at")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10),
+        .order("created_at", { ascending: false }),
     ]);
 
-    if (messagesData) setMessages(messagesData);
-    if (ordersData) setOrders(ordersData);
+    const scopedOrders = await scopeOrdersForSite(supabase, (ordersData ?? []) as Order[]);
+    const scopedMessages = await visibleSupportMessages(supabase, (messagesData ?? []) as Message[]);
 
-    // 읽지 않은 어드민 메시지 읽음 처리
-    const unread = messagesData?.filter(m => m.is_admin && !m.read_at) || [];
+    setOrders(scopedOrders);
+    setMessages(scopedMessages);
+
+    const unread = scopedMessages.filter((message) => message.is_admin && !message.read_at);
     if (unread.length > 0) {
       await supabase.from("support_messages")
         .update({ read_at: new Date().toISOString() })
-        .in("id", unread.map(m => m.id));
+        .in("id", unread.map((message) => message.id));
     }
 
     setLoading(false);
   }
 
   async function sendMessage() {
-    if (!input.trim()) return;
+    if (!input.trim() || sending) return;
     setSending(true);
+    setSendError(null);
 
     const supabase = createAppClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: newMessage } = await supabase
-      .from("support_messages")
-      .insert({
-        user_id: user.id,
-        order_id: selectedOrderId || null,
-        message: input.trim(),
-        is_admin: false,
-      })
-      .select()
-      .single();
-
-    if (newMessage) {
-      setMessages(prev => [...prev, newMessage]);
-      setInput("");
-      setSelectedOrderId("");
+    if (!user) {
+      setSending(false);
+      return;
     }
 
+    const { data: newMessage, error } = await insertWithOptionalSite<Message>(supabase, "support_messages", {
+      user_id: user.id,
+      order_id: attachedOrderId || null,
+      message: input.trim(),
+      is_admin: false,
+    });
+
+    if (error || !newMessage) {
+      setSendError("Message was not sent. Try again.");
+      setSending(false);
+      return;
+    }
+
+    setMessages((prev) => [...prev, newMessage]);
+    setInput("");
     setSending(false);
+
+    void fetch("/api/support/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId: newMessage.id }),
+    });
   }
+
+  const attachedOrderId = orders.some((order) => order.id === selectedOrderId) ? selectedOrderId : "";
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-        <p className="text-sm text-[#9B9B9B]">Loading...</p>
-      </div>
+      <MarketingShell>
+        <div className="min-h-[50vh] flex items-center justify-center pt-24">
+          <p className="text-[14px] text-[var(--pd-muted)]">Loading messages…</p>
+        </div>
+      </MarketingShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F7F4]">
-      <Navbar />
-      <div className="max-w-2xl mx-auto px-6 pt-24 pb-10">
-
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#1A1A1A]">Support</h1>
-          <p className="text-sm text-[#6B6B6B] mt-0.5">
-            Send us a message and we'll get back to you shortly.
+    <MarketingShell>
+      <section className="border-b border-[var(--pd-border)] bg-white">
+        <div className="max-w-2xl mx-auto px-6 lg:px-10 pt-28 pb-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--pd-teal-dark)] mb-2">
+            Provider portal
+          </p>
+          <h1 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-[var(--pd-navy)] tracking-[-0.03em]">
+            Support
+          </h1>
+          <p className="text-[14px] text-[var(--pd-slate)] mt-2 leading-relaxed">
+            This inbox is for billing, training, and shipping. A question about one case belongs on that case — open it in the dashboard and use Message lab.
           </p>
         </div>
+      </section>
 
-        {/* Messages */}
-        <div className="bg-white rounded-2xl border border-[#E2E0D8] overflow-hidden mb-4">
+      <div className="max-w-2xl mx-auto px-6 lg:px-10 py-10 pb-16">
+        <div className="bg-white border border-[var(--pd-border)] overflow-hidden">
           <div className="min-h-96 max-h-[500px] overflow-y-auto p-5 space-y-4">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-80 text-center">
-                <div className="w-12 h-12 bg-[#F8F7F4] rounded-full flex items-center justify-center mb-3">
-                  <span className="text-2xl">💬</span>
-                </div>
-                <p className="font-medium text-[#1A1A1A] mb-1">No messages yet</p>
-                <p className="text-sm text-[#9B9B9B]">Send us a message below and we'll respond soon.</p>
+              <div className="flex flex-col items-center justify-center h-80 text-center px-6">
+                <p className="text-[14px] font-medium text-[var(--pd-navy)]">No messages yet</p>
+                <p className="text-[13px] text-[var(--pd-muted)] mt-1">
+                  Send a note below. The lab replies in this thread.
+                </p>
               </div>
             ) : (
-              messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.is_admin ? "justify-start" : "justify-end"}`}>
-                  <div className={`max-w-[80%] ${msg.is_admin ? "" : ""}`}>
-                    {msg.is_admin && (
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div className="w-5 h-5 bg-[#1A1A1A] rounded-sm flex items-center justify-center">
-                          <span className="text-white text-[8px] font-bold">PC</span>
+              messages.map((msg) => {
+                const linked = orders.find((order) => order.id === msg.order_id);
+                return (
+                  <div key={msg.id} className={`flex ${msg.is_admin ? "justify-start" : "justify-end"}`}>
+                    <div className="max-w-[80%]">
+                      {msg.is_admin && (
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <PrintDentureMark size={18} />
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--pd-muted)]">
+                            PrintDenture
+                          </span>
                         </div>
-                        <span className="text-xs font-medium text-[#6B6B6B]">PrintDenture Support</span>
-                      </div>
-                    )}
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.is_admin
-                        ? "bg-[#F8F7F4] text-[#1A1A1A] rounded-tl-sm"
-                        : "bg-[#1A1A1A] text-white rounded-tr-sm"
-                    }`}>
-                      {msg.order_id && (
-                        <p className={`text-xs mb-1 font-medium ${msg.is_admin ? "text-[#9B9B9B]" : "text-white/60"}`}>
-                          Re: {orders.find(o => o.id === msg.order_id)?.product_name || "Order"}
-                        </p>
                       )}
-                      {msg.message}
+                      <div
+                        className={`px-4 py-2.5 text-[14px] leading-relaxed ${
+                          msg.is_admin
+                            ? "bg-[var(--pd-surface)] text-[var(--pd-navy)] border border-[var(--pd-border)]"
+                            : "bg-[var(--pd-teal)] text-white"
+                        }`}
+                      >
+                        {linked && (
+                          <p className={`text-[11px] mb-1 font-medium ${msg.is_admin ? "text-[var(--pd-muted)]" : "text-white/75"}`}>
+                            Re: {caseLabel(linked)}
+                          </p>
+                        )}
+                        {msg.message}
+                      </div>
+                      <p className={`text-[10px] mt-1 text-[var(--pd-muted)] ${msg.is_admin ? "text-left" : "text-right"}`}>
+                        {new Date(msg.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
                     </div>
-                    <p className={`text-[10px] mt-1 text-[#9B9B9B] ${msg.is_admin ? "text-left" : "text-right"}`}>
-                      {new Date(msg.created_at).toLocaleDateString("en-US", {
-                        month: "short", day: "numeric",
-                        hour: "2-digit", minute: "2-digit",
-                      })}
-                    </p>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input area */}
-          <div className="border-t border-[#E2E0D8] p-4 space-y-3">
-            {/* Order selector */}
-            <select
-              value={selectedOrderId}
-              onChange={(e) => setSelectedOrderId(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-[#E2E0D8] bg-[#F8F7F4] text-sm text-[#6B6B6B] focus:outline-none focus:border-[#1A1A1A]"
-            >
-              <option value="">General inquiry (no specific order)</option>
-              {orders.map(o => (
-                <option key={o.id} value={o.id}>
-                  {o.product_name} · #{formatCaseNumberLabel(o.case_number, o.id)}
-                </option>
-              ))}
-            </select>
+          <div className="border-t border-[var(--pd-border)] p-4 space-y-3 bg-[var(--pd-surface)]">
+            <label className="block">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--pd-muted)] mb-1.5">
+                About a case
+              </span>
+              <select
+                value={attachedOrderId}
+                onChange={(event) => setSelectedOrderId(event.target.value)}
+                className="w-full h-10 px-3 border border-[var(--pd-border)] bg-white text-[14px] text-[var(--pd-navy)] focus:outline-none focus:border-[var(--pd-teal)]"
+              >
+                <option value="">General question</option>
+                {orders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    {caseLabel(order)}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <div className="flex gap-2">
               <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendMessage();
                   }
                 }}
-                placeholder="Type your message..."
+                placeholder="Type your message…"
                 rows={2}
-                className="flex-1 px-3 py-2.5 rounded-xl border border-[#E2E0D8] bg-white text-[#1A1A1A] text-sm resize-none focus:outline-none focus:border-[#1A1A1A] placeholder:text-[#C8C6BE]"
+                className="flex-1 px-3 py-2.5 border border-[var(--pd-border)] bg-white text-[14px] text-[var(--pd-navy)] resize-none focus:outline-none focus:border-[var(--pd-teal)] placeholder:text-[var(--pd-muted)]"
               />
               <button
-                onClick={sendMessage}
+                type="button"
+                onClick={() => void sendMessage()}
                 disabled={!input.trim() || sending}
-                className="h-auto px-4 rounded-xl bg-[#1A1A1A] text-white text-sm font-medium hover:bg-[#2A2A2A] transition-all disabled:opacity-40 self-end pb-2.5 pt-2.5"
+                className="h-10 px-4 self-end bg-[var(--pd-teal)] text-white text-[13px] font-medium hover:bg-[var(--pd-teal-dark)] transition-colors disabled:opacity-40"
               >
-                {sending ? "..." : "Send"}
+                {sending ? "…" : "Send"}
               </button>
             </div>
-            <p className="text-xs text-[#9B9B9B]">Press Enter to send · Shift+Enter for new line</p>
+            {sendError && <p className="text-[12px] text-red-700">{sendError}</p>}
+            <p className="text-[11px] text-[var(--pd-muted)]">Enter to send · Shift+Enter for a new line</p>
           </div>
         </div>
 
-        <Link href="/dashboard" className="text-sm text-[#6B6B6B] hover:text-[#1A1A1A]">
+        <Link href="/dashboard" className="inline-block mt-6 text-[13px] text-[var(--pd-slate)] hover:text-[var(--pd-navy)]">
           ← Back to dashboard
         </Link>
       </div>
-    </div>
+    </MarketingShell>
   );
 }
 
 export default function SupportPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
-        <p className="text-sm text-[#9B9B9B]">Loading...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <MarketingShell>
+          <div className="min-h-[50vh] flex items-center justify-center pt-24">
+            <p className="text-[14px] text-[var(--pd-muted)]">Loading messages…</p>
+          </div>
+        </MarketingShell>
+      }
+    >
       <SupportContent />
     </Suspense>
   );

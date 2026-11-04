@@ -16,6 +16,7 @@ import {
   type AdminOrderDetailStatusHistory,
 } from "@/components/admin/admin-order-detail-ui";
 import { formatCaseNumberHash } from "@/lib/case-number";
+import { insertWithOptionalSite } from "@/lib/orders/site-scope";
 import { runAdminPaymentAction } from "@/components/admin/admin-payments-ui";
 import type { DesignOutsourceFields } from "@/lib/design-outsource";
 
@@ -263,28 +264,25 @@ export default function OrderDetailPage() {
     const supabase = createAppClient();
     const { user } = await getClientUser(supabase);
 
-    const { data: newOrder } = await supabase
-      .from("orders")
-      .insert({
-        user_id: order.user_id,
-        product_id: order.product_id,
-        product_name: order.product_name,
-        quantity: order.quantity,
-        unit_price: 0,
-        total_price: 0,
-        status: "received",
-        shade: order.shade,
-        tooth_number: order.tooth_number,
-        tooth_numbers: order.tooth_numbers,
-        stl_file_path: order.stl_file_path,
-        due_date: order.due_date,
-        is_remake: true,
-        remake_of: order.id,
-        remake_reason: remakeReason,
-        remake_note: remakeNote || null,
-      })
-      .select()
-      .single();
+    const { data: newOrder } = await insertWithOptionalSite(supabase, "orders", {
+      user_id: order.user_id,
+      product_id: order.product_id,
+      product_name: order.product_name,
+      quantity: order.quantity,
+      unit_price: 0,
+      total_price: 0,
+      status: "received",
+      shade: order.shade,
+      tooth_number: order.tooth_number,
+      tooth_numbers: order.tooth_numbers,
+      stl_file_path: order.stl_file_path,
+      due_date: order.due_date,
+      is_remake: true,
+      remake_of: order.id,
+      remake_reason: remakeReason,
+      remake_note: remakeNote || null,
+      order_type: order.order_type ?? "lab_case",
+    });
 
     if (newOrder) {
       await supabase.from("order_messages").insert({

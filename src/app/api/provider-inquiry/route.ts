@@ -6,6 +6,7 @@ import {
   parseProviderInquiry,
   type ProviderInquiry,
 } from "@/lib/provider-inquiry";
+import { getResendFrom, resendErrorMessage, sendResendEmail } from "@/lib/resend-mail";
 
 function inquiryEmailHtml(inquiry: ProviderInquiry): { subject: string; html: string } {
   if (inquiry.type === "demo") {
@@ -98,13 +99,16 @@ export async function POST(req: NextRequest) {
 
   try {
     const resend = new Resend(resendKey);
-    await resend.emails.send({
-      from: "PrintDenture <onboarding@resend.dev>",
+    const sent = await sendResendEmail(resend, {
+      from: getResendFrom(),
       to: recipients,
       replyTo: parsed.email,
       subject,
       html,
     });
+    if (!sent.ok) {
+      return NextResponse.json({ error: resendErrorMessage(sent.error) }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

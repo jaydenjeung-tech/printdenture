@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
+import { insertWithOptionalSite, visibleSupportMessages } from "@/lib/orders/site-scope";
 type Message = {
   id: string;
   user_id: string;
@@ -64,7 +65,13 @@ export default function AdminSupportPage() {
 
     if (!messagesData) { setLoading(false); return; }
 
-    const userIds = [...new Set(messagesData.map(m => m.user_id))];
+    const scopedMessages = await visibleSupportMessages(supabase, messagesData);
+    const userIds = [...new Set(scopedMessages.map(m => m.user_id))];
+    if (userIds.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
     const { data: profilesData } = await supabase
       .from("profiles")
       .select("id, first_name, last_name, practice_name")
@@ -75,7 +82,7 @@ export default function AdminSupportPage() {
 
     // Group by user
     const convMap: Record<string, Message[]> = {};
-    messagesData.forEach(msg => {
+    scopedMessages.forEach(msg => {
       if (!convMap[msg.user_id]) convMap[msg.user_id] = [];
       convMap[msg.user_id].push(msg);
     });
@@ -105,15 +112,11 @@ export default function AdminSupportPage() {
     const { user } = await getClientUser(supabase);
     if (!user) return;
 
-    const { data: newMsg } = await supabase
-      .from("support_messages")
-      .insert({
-        user_id: selectedUserId,
-        message: input.trim(),
-        is_admin: true,
-      })
-      .select()
-      .single();
+    const { data: newMsg } = await insertWithOptionalSite<Message>(supabase, "support_messages", {
+      user_id: selectedUserId,
+      message: input.trim(),
+      is_admin: true,
+    });
 
     if (newMsg) {
       setConversations(prev => prev.map(c =>
@@ -127,16 +130,16 @@ export default function AdminSupportPage() {
     setSending(false);
   }
 
-  async function markAsRead(userId: string) {
+  async function markAsRead(conv: Conversation) {
+    const unreadIds = conv.messages.filter((m) => !m.is_admin && !m.read_at).map((m) => m.id);
+    if (unreadIds.length === 0) return;
     const supabase = createAppClient();
     await supabase.from("support_messages")
       .update({ read_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("is_admin", false)
-      .is("read_at", null);
+      .in("id", unreadIds);
 
     setConversations(prev => prev.map(c =>
-      c.userId === userId
+      c.userId === conv.userId
         ? { ...c, unreadCount: 0, messages: c.messages.map(m => ({ ...m, read_at: m.read_at || new Date().toISOString() })) }
         : c
     ));
@@ -174,7 +177,7 @@ export default function AdminSupportPage() {
             conversations.map(conv => (
               <button
                 key={conv.userId}
-                onClick={() => { setSelectedUserId(conv.userId); markAsRead(conv.userId); }}
+                onClick={() => { setSelectedUserId(conv.userId); void markAsRead(conv); }}
                 className={`w-full text-left p-4 border-b border-[#E2E0D8] hover:bg-[#F8F7F4] transition-all ${
                   selectedUserId === conv.userId ? "bg-[#F8F7F4]" : ""
                 }`}

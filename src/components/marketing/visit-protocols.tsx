@@ -1,15 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { VISIT_PROTOCOLS, VISIT_PROTOCOL_NOTE } from "@/lib/marketing/copy";
-import { JB_FORK_GUIDE_PATH } from "@/lib/guides/jb-fork-guide";
 import { JB_TRAY_GUIDE_PATH } from "@/lib/guides/jb-tray-guide";
 import { SectionEyebrow } from "@/components/marketing/primitives";
 import { cn } from "@/lib/utils";
 
 const GUIDE_HREFS: Record<string, string> = {
-  "jb-fork": JB_FORK_GUIDE_PATH,
   "jb-tray": JB_TRAY_GUIDE_PATH,
 };
+
+const PAGE_PROTOCOLS = VISIT_PROTOCOLS.filter((protocol) => protocol.id !== "jb-fork");
 
 export function VisitProtocolsComparison() {
   return (
@@ -18,12 +18,10 @@ export function VisitProtocolsComparison() {
         <div className="max-w-2xl mx-auto text-center mb-14">
           <SectionEyebrow className="text-center">Visit comparison</SectionEyebrow>
           <h2 className="text-[clamp(1.5rem,3vw,2.25rem)] font-semibold tracking-[-0.03em] text-[var(--pd-navy)] mb-4">
-            From four visits to two
+            How the visits are split
           </h2>
           <p className="text-[16px] leading-relaxed text-[var(--pd-slate)]">
-            Digital denture pathways developed by PNU ADD. Each protocol consolidates chairside
-            records — JB Fork and JB Tray combine steps that conventional digital workflows split
-            across separate appointments.
+            Conventional digital is four visits. With the JB Tray, the try-in is visit 2, and a third visit only if that try-in needs a change.
           </p>
         </div>
 
@@ -31,7 +29,7 @@ export function VisitProtocolsComparison() {
           className="flex items-end justify-center gap-2 sm:gap-5 mb-12"
           aria-hidden
         >
-          {VISIT_PROTOCOLS.map((protocol, i) => (
+          {PAGE_PROTOCOLS.map((protocol, i) => (
             <div key={protocol.id} className="flex items-end gap-2 sm:gap-5">
               {i > 0 && (
                 <span className="mb-8 sm:mb-9 text-[var(--pd-border-strong)] text-[16px] sm:text-[18px]">
@@ -60,8 +58,8 @@ export function VisitProtocolsComparison() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-0 border border-[var(--pd-border)] bg-white">
-          {VISIT_PROTOCOLS.map((protocol, colIndex) => {
+        <div className="grid lg:grid-cols-2 gap-0 border border-[var(--pd-border)] bg-white">
+          {PAGE_PROTOCOLS.map((protocol, colIndex) => {
             const guideHref = GUIDE_HREFS[protocol.id];
             return (
               <article
@@ -94,7 +92,10 @@ export function VisitProtocolsComparison() {
                 </header>
 
                 <ol className="flex-1 p-5 lg:p-6 space-y-4">
-                  {protocol.steps.map((step, stepIndex) => (
+                  {protocol.steps.map((step, stepIndex) => {
+                    const gallery = step.images ?? [];
+                    const hasVisual = gallery.length > 0 || Boolean(step.image);
+                    return (
                     <li key={step.title} className="relative flex gap-3">
                       {stepIndex < protocol.steps.length - 1 && (
                         <span
@@ -104,7 +105,8 @@ export function VisitProtocolsComparison() {
                       )}
                       <span
                         className={cn(
-                          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-[12px] font-semibold tabular-nums mt-6",
+                          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-[12px] font-semibold tabular-nums",
+                          hasVisual && "mt-6",
                           step.combined
                             ? "bg-[var(--pd-navy)] text-white"
                             : protocol.highlighted
@@ -115,15 +117,43 @@ export function VisitProtocolsComparison() {
                         {stepIndex + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="relative aspect-[16/10] bg-[var(--pd-bg)] border border-[var(--pd-border)] overflow-hidden mb-2.5">
-                          <Image
-                            src={step.image}
-                            alt={step.imageAlt}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 1024px) 80vw, 28vw"
-                          />
-                        </div>
+                        {gallery.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                            {gallery.map((item, imageIndex) => (
+                              <div
+                                key={item.src}
+                                className={cn(
+                                  "relative bg-[#e7e7e7] border border-[var(--pd-border)] overflow-hidden",
+                                  imageIndex === 0 ? "col-span-2 aspect-[882/636]" : "aspect-[1024/553]"
+                                )}
+                              >
+                                <Image
+                                  src={item.src}
+                                  alt={item.alt}
+                                  fill
+                                  className={imageIndex === 0 ? "object-contain" : "object-cover object-center"}
+                                  sizes={
+                                    imageIndex === 0
+                                      ? "(max-width: 1024px) 80vw, 36vw"
+                                      : "(max-width: 1024px) 40vw, 18vw"
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          step.image && (
+                            <div className="relative aspect-[16/10] bg-[var(--pd-bg)] border border-[var(--pd-border)] overflow-hidden mb-2.5">
+                              <Image
+                                src={step.image}
+                                alt={step.imageAlt ?? step.title}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 1024px) 80vw, 28vw"
+                              />
+                            </div>
+                          )
+                        )}
                         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                           <p className="text-[14px] font-medium text-[var(--pd-navy)] leading-snug">
                             {step.title}
@@ -139,7 +169,8 @@ export function VisitProtocolsComparison() {
                         </p>
                       </div>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ol>
 
                 {guideHref && (

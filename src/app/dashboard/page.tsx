@@ -9,6 +9,7 @@ import { isPracticeProfileComplete } from "@/lib/profile-requirements";
 import WorkflowReadinessCard from "@/components/workflow-readiness-card";
 import CompleteProfileModal, { type CompleteProfile } from "@/components/complete-profile-modal";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
+import { scopeOrdersForSite } from "@/lib/orders/site-scope";
 import {
   DashboardDraftBanner,
   DashboardEmptyState,
@@ -65,7 +66,7 @@ function DashboardContent() {
       ]);
       if (profileData) setProfile(profileData);
       setNeedsPracticeProfile(!isPracticeProfileComplete(profileData));
-      if (ordersData) setOrders(ordersData);
+      setOrders(await scopeOrdersForSite(supabase, ordersData ?? []));
       setLoading(false);
     }
     void load();

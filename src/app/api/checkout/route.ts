@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
+import { siteCheckoutFields } from "@/lib/stripe-checkout";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -97,7 +98,10 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       mode: "payment",
       line_items: lineItems,
-      metadata: { orderId: order.id, userId: user.id, orderType: "lab_case" },
+      ...siteCheckoutFields([{ id: order.id, case_number: order.case_number }], {
+        userId: user.id,
+        orderType: "lab_case",
+      }),
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
     });

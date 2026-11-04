@@ -204,13 +204,13 @@ export const ORDER_FLOW_STEP_HINTS: Record<OrderFlowStep, OrderFlowStepHint> = {
     title: "What are you ordering?",
     description: "Pick the prosthesis type first, then the specific arch or record protocol.",
     bullets: [
-      "Complete (JB Fork / JB Tray): order a starter kit first if you are new",
-      "Partial, guards, reline & immediate: submit scans directly",
+      "Complete dentures: JB Tray records, or an immediate denture from scans",
+      "Partial, guards, and implant cases: submit scans directly",
     ],
   },
   equipment: {
     title: "Confirm your chairside setup",
-    description: "JB Tray and JB Fork complete-denture cases need the matching kit in your practice before checkout.",
+    description: "JB Tray complete-denture cases need the kit in your practice before checkout.",
     bullets: ["Order kits from PrintDenture if needed", "Mark equipment received on your dashboard"],
   },
   case: {

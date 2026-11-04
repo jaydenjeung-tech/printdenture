@@ -30,10 +30,16 @@ export const HUH_JUNGBO_PROFILE = {
 
 export const NAV_LINKS = [
   { label: "How it works", href: "/how-it-works" },
-  { label: "The system", href: "/the-system" },
-  { label: "Clinical", href: "/clinical" },
-  { label: "Providers", href: "/providers" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Get started", href: "/first-case" },
+] as const;
+
+/** Deeper pages. Kept off the main menu so the first choice stays small. */
+export const LEARN_MORE_LINKS = [
+  { label: "How it works", href: "/how-it-works", detail: "The three steps, written out." },
+  { label: "The tools", href: "/the-system", detail: "JB Tray, JB Fork, and POP Bow." },
+  { label: "Clinical notes", href: "/clinical", detail: "Who designed this, and the studies." },
+  { label: "Pricing", href: "/pricing", detail: "What a case costs." },
 ] as const;
 
 export const HERO_STATS = [
@@ -62,7 +68,7 @@ export const FIRST_CASE_OFFER = {
   eyebrow: "Launch offer",
   title: "50% off your first lab case.",
   lead:
-    "New PrintDenture providers get half off their first complete denture case fulfilled by IDOC Dental Lab — so you can run the two-visit workflow on a real patient before committing at full rate.",
+    "New PrintDenture providers get half off their first complete denture case fulfilled by IDOC Dental Lab — records, a printed try-in, and final delivery.",
   highlights: [
     {
       title: "Half off lab fabrication",
@@ -91,41 +97,38 @@ export const FIRST_CASE_OFFER = {
   demoHref: "/providers#demo",
 } as const;
 
-/**
- * Landing hero photo — Pexels (free for commercial use, attribution optional).
- * Photo by Gustavo Fring — https://www.pexels.com/photo/5622026/
- * License: https://www.pexels.com/license/
- */
+/** Homepage hero — clinic consult with the chairside-to-delivery workflow. */
 export const HERO_IMAGE = {
-  src: "/images/hero/clinic-senior-consult.jpg",
-  alt: "Dental team consulting with a senior patient in a modern clinic",
-  credit: {
-    name: "Gustavo Fring",
-    url: "https://www.pexels.com/photo/5622026/",
-  },
+  src: "/images/hero/chairside-workflow.jpg",
+  alt: "Dentist consulting with a patient, with records, printing, and the finished denture in one workflow",
+} as const;
+
+/** Looping homepage hero. Still frame is HERO_IMAGE. */
+export const HERO_VIDEO = {
+  src: "/videos/hero-steps.mp4",
 } as const;
 
 export const WORKFLOW_STEPS = [
   {
     step: "01",
-    title: "Capture",
-    subtitle: "Single appointment",
+    title: "Final impression and jaw relation",
+    subtitle: "Visit 1",
     description:
-      "Using the JB capture system, take the impression, jaw relation, and occlusal plane in one sitting. Scan and upload.",
+      "Record both in one sitting with the JB Tray, then scan and upload. This visit holds only when those records are captured together.",
   },
   {
     step: "02",
-    title: "IDOC designs & fabricates",
-    subtitle: "Lab-controlled QC",
+    title: "Printed try-in",
+    subtitle: "Visit 2",
     description:
-      "IDOC Dental Lab designs your case, prints a try-in, and handles finishing and QC — no in-office printing or post-processing.",
+      "Dental Lab designs the case and sends a printed try-in. The patient verifies fit, occlusion, and esthetics. If nothing needs to change, the case ends on this visit.",
   },
   {
     step: "03",
-    title: "Verify & deliver",
-    subtitle: "Two visits total",
+    title: "Definitive delivery",
+    subtitle: "Only if the try-in needs a change",
     description:
-      "Confirm esthetics and occlusion with the printed try-in, then deliver the finished prosthesis. Two visits, verified result.",
+      "When the try-in needs a change, Dental Lab revises the denture. The patient returns for that delivery.",
   },
 ] as const;
 
@@ -157,12 +160,18 @@ export const COMPARISON_ROWS = [
  * PNU ADD digital denture visit pathways — clinical protocol comparison
  * (Conventional digital → JB Fork → JB Tray).
  */
+export type VisitProtocolImage = {
+  src: string;
+  alt: string;
+};
+
 export type VisitProtocolStep = {
   title: string;
   detail: string;
   combined: boolean;
-  image: string;
-  imageAlt: string;
+  image?: string;
+  imageAlt?: string;
+  images?: VisitProtocolImage[];
 };
 
 export type VisitProtocol = {
@@ -252,21 +261,33 @@ export const VISIT_PROTOCOLS: VisitProtocol[] = [
     id: "jb-tray",
     name: "JB Tray",
     visits: 2,
-    visitsLabel: "2 visits",
-    summary: "Definitive impression and jaw relation in one appointment — PrintDenture path.",
+    visitsLabel: "2 visits, or 3 if revised",
+    summary: "Try-in on visit 2. If nothing needs to change, the case ends there. A revision is a third visit.",
     device: "JB Tray",
     highlighted: true,
     steps: [
       {
         title: "Definitive impression & jaw relation",
-        detail: "Single visit with JB Tray",
+        detail: "Visit 1 with JB Tray",
         combined: true,
-        image: "/images/visit-protocols/step-tray-upper.jpg",
-        imageAlt: "JB Tray upper impression tray for single-visit capture",
+        images: [
+          {
+            src: "/images/visit-protocols/jb-tray-impression.png",
+            alt: "Final impression recorded with the JB Tray",
+          },
+          {
+            src: "/images/visit-protocols/jb-tray-jaw-front.png",
+            alt: "POP Bow seated for jaw relation, frontal view",
+          },
+          {
+            src: "/images/visit-protocols/jb-tray-jaw-side.png",
+            alt: "Occlusal plane reference with the POP Bow, lateral view",
+          },
+        ],
       },
       {
-        title: "Final denture",
-        detail: "Digital or conventional delivery",
+        title: "Printed try-in",
+        detail: "Visit 2. The case ends here if nothing needs to change. A final denture is a third visit only if the try-in needs a change.",
         combined: false,
         image: "/images/visit-protocols/step-final-denture.jpg",
         imageAlt: "Finished definitive denture",
@@ -276,7 +297,7 @@ export const VISIT_PROTOCOLS: VisitProtocol[] = [
 ];
 
 export const VISIT_PROTOCOL_NOTE =
-  "Protocols developed by PNU ADD (Pusan National University Advanced Digital Dentistry). With PrintDenture, IDOC fabricates from your verified digital record set — including a printed try-in before final delivery.";
+  "Protocols developed by PNU ADD (Pusan National University Advanced Digital Dentistry). With PrintDenture, Dental Lab fabricates from your verified digital record set — including a printed try-in before final delivery.";
 
 export const PROVIDER_BENEFITS = [
   "Faculty-led clinical training & certification",

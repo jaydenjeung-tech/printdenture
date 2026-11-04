@@ -19,9 +19,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PrintDenture — Full dentures in 2 visits",
+  title: "PrintDenture — Try-in on visit 2",
   description:
-    "A clinically-developed capture workflow that cuts denture chair time in half. Single-appointment impression, bite, and occlusal plane — developed by university prosthodontics faculty.",
+    "Chairside records, then a printed try-in. If nothing needs to change, the case ends there. A revision is delivered on a third visit.",
 };
 
 export default function RootLayout({

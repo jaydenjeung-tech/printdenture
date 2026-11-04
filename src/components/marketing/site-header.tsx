@@ -38,7 +38,7 @@ const ADMIN_LINKS = [
   { label: "Products", href: "/admin/products" },
 ];
 
-export default function SiteHeader() {
+export default function SiteHeader({ labName }: { labName?: string }) {
   const [open, setOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [user, setUser] = useState<null | UserState>(null);
@@ -49,7 +49,6 @@ export default function SiteHeader() {
   const adminRef = useRef<HTMLDivElement>(null);
 
   const isMarketingDark =
-    pathname === "/" ||
     pathname.startsWith("/how-it-works") ||
     pathname.startsWith("/pricing") ||
     pathname.startsWith("/the-system") ||
@@ -268,8 +267,8 @@ export default function SiteHeader() {
         <Link href="/auth" className={loginClass}>
           Provider login
         </Link>
-        <CtaLink href="/providers#demo" className="h-10 px-5 text-[14px]">
-          Request a demo
+        <CtaLink href="/first-case" className="h-10 px-5 text-[14px]">
+          Get started
         </CtaLink>
       </div>
     );
@@ -284,11 +283,11 @@ export default function SiteHeader() {
           <Link
             href="/"
             aria-label="PrintDenture home"
-            className={`inline-flex shrink-0 items-center${lightChrome ? " rounded-lg overflow-hidden" : ""}`}
+            className="inline-flex shrink-0 items-center"
           >
-            <PrintDentureLogo variant="dark" size="md" />
+            <PrintDentureLogo variant={lightChrome ? "light" : "dark"} size="md" />
           </Link>
-          <LabPartnerHeaderTag light={lightChrome} />
+          <LabPartnerHeaderTag light={lightChrome} name={labName} />
         </div>
 
         <nav className="hidden lg:flex items-center gap-7 flex-1 justify-center">
@@ -319,9 +318,9 @@ export default function SiteHeader() {
                     <Link href="/auth" onClick={() => setOpen(false)} className="text-[16px] font-medium">
                       Provider login
                     </Link>
-                    <Link href="/providers#demo" onClick={() => setOpen(false)}>
+                    <Link href="/first-case" onClick={() => setOpen(false)}>
                       <span className="flex w-full h-11 items-center justify-center bg-[var(--pd-teal)] text-white text-[14px] font-medium">
-                        Request a demo
+                        Get started
                       </span>
                     </Link>
                   </>

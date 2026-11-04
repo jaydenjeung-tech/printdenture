@@ -240,7 +240,14 @@ export function DashboardOrderCard({
       })
       .select()
       .single();
-    if (inserted) setMessages((prev) => [...prev, inserted]);
+    if (inserted) {
+      setMessages((prev) => [...prev, inserted]);
+      void fetch("/api/message/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, message: newMessage.trim() }),
+      });
+    }
     setNewMessage("");
     setSendingMsg(false);
   }

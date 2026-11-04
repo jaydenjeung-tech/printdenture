@@ -90,8 +90,8 @@ export default function ProvidersPage() {
             <p className="text-[15px] leading-relaxed text-[var(--pd-slate)] mb-6">
               The provider program is designed for mainstream U.S. general practitioners and
               prosthodontic-minded clinicians — not a community-specific network. Certification
-              signals that your practice delivers the full two-visit workflow with faculty-backed
-              training.
+              signals that your practice follows the records and try-in workflow — a third visit only if
+              the try-in needs a change — with faculty-backed training.
             </p>
             <CtaLink href="#apply">Apply to the provider program</CtaLink>
           </div>

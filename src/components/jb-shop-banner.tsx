@@ -30,12 +30,8 @@ export function JbShopBanner({ productCategory }: Props) {
     <div className="mb-6 border border-amber-200 bg-amber-50 p-4 sm:p-5">
       <p className="text-[14px] font-semibold text-amber-950">New to {notice.equipmentLabel}?</p>
       <p className="text-[14px] text-amber-900/90 mt-1 leading-relaxed">
-        Order JB Tray or JB Fork supplies from PrintDenture, mark received on your dashboard when they arrive,
-        then capture records and upload scans here. Not sure Fork or Tray?{" "}
-        <Link href="/shop#protocol-chooser" className="font-medium text-[var(--pd-teal-dark)] hover:underline">
-          See the protocol guide
-        </Link>
-        .
+        Order a {notice.equipmentLabel} kit from PrintDenture, mark it received on your dashboard when it arrives,
+        then capture records and upload scans here.
       </p>
       <div className="mt-4 flex flex-col sm:flex-row gap-2">
         <Link href={shopHref} className={ORDER_BTN_PRIMARY}>

@@ -134,7 +134,7 @@ export function AuthPanelAside() {
           Provider portal
         </p>
         <h1 className="text-[clamp(1.75rem,3vw,2.25rem)] font-semibold tracking-[-0.03em] leading-tight mb-4">
-          Manage cases. Track workflow. Deliver in two visits.
+          Manage cases. Track the try-in. Then the final.
         </h1>
         <p className="text-[15px] text-[#A8C4D4] leading-relaxed max-w-md">
           Sign in to submit denture cases, upload scans, and track try-in and delivery status through

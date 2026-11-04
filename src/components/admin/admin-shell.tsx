@@ -110,8 +110,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-[#F8F7F4]">
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-[#E2E0D8] bg-white h-screen sticky top-0">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[#E2E0D8] shrink-0">
-          <Link href="/admin" className="flex items-center gap-2.5 min-w-0 rounded-lg overflow-hidden shrink-0">
-            <PrintDentureLogo variant="dark" size="sm" />
+          <Link href="/admin" className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <PrintDentureLogo variant="light" size="sm" />
           </Link>
           <p className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</p>
         </div>
@@ -140,8 +140,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       <div className="flex flex-1 flex-col min-w-0 min-h-screen">
         <header className="md:hidden h-14 px-4 flex items-center justify-between border-b border-[#E2E0D8] bg-white shrink-0">
-          <Link href="/admin" className="flex items-center gap-2 min-w-0 rounded-lg overflow-hidden">
-            <PrintDentureLogo variant="dark" size="sm" />
+          <Link href="/admin" className="flex items-center gap-2 min-w-0">
+            <PrintDentureLogo variant="light" size="sm" />
             <span className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</span>
           </Link>
           <select

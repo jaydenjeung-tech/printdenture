@@ -17,6 +17,7 @@ import {
 } from "@/lib/design-outsource";
 import { formatCaseNumberLabel } from "@/lib/case-number";
 import { findDesignPartnerIdByEmail } from "@/lib/partner-api-auth";
+import { getResendFrom, resendErrorMessage, sendResendEmail } from "@/lib/resend-mail";
 
 type SignedFileLink = StoredCaseFile & { url: string };
 
@@ -163,8 +164,8 @@ export async function POST(req: NextRequest) {
     const adminCaseUrl = `${getAppUrl()}/admin/orders/${orderId}`;
     const partnerCaseUrl = `${getAppUrl()}/partner/cases/${orderId}`;
 
-    await resend.emails.send({
-      from: "PrintDenture Lab <onboarding@resend.dev>",
+    const sent = await sendResendEmail(resend, {
+      from: getResendFrom("PrintDenture Lab"),
       to: partnerEmail,
       replyTo: process.env.ADMIN_EMAIL || undefined,
       subject: `CAD design request — Case #${caseId} · ${order.product_name} · PrintDenture → ${partner.name}`,
@@ -282,6 +283,9 @@ export async function POST(req: NextRequest) {
       </html>
     `,
     });
+    if (!sent.ok) {
+      return NextResponse.json({ error: resendErrorMessage(sent.error) }, { status: 500 });
+    }
   }
 
   const sentAt = new Date().toISOString();

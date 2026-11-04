@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { formatCaseNumberLabel } from "@/lib/case-number";
+import { getResendFrom, resendErrorMessage, sendResendEmail } from "@/lib/resend-mail";
 
 function getAdminSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -44,8 +45,8 @@ export async function POST(req: NextRequest) {
 
     const labUrl = `${process.env.NEXT_PUBLIC_APP_URL}/lab`;
 
-    await resend.emails.send({
-      from: "PrintDenture <onboarding@resend.dev>",
+    const sent = await sendResendEmail(resend, {
+      from: getResendFrom(),
       to: process.env.ADMIN_EMAIL!,
       subject: `🦷 New order #${caseId} — ${order.product_name}`,
       html: `
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest) {
         </html>
       `,
     });
+    if (!sent.ok) {
+      return NextResponse.json({ error: resendErrorMessage(sent.error) }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {
