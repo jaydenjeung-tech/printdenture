@@ -40,7 +40,7 @@ export default function Home() {
           <div className="relative aspect-video w-full">
             <HeroBackdrop />
           </div>
-          <div className="px-6 py-10 lg:absolute lg:inset-0 lg:flex lg:items-start lg:px-6 lg:pt-16 lg:pb-0">
+          <div className="relative z-30 px-6 py-10 lg:absolute lg:inset-0 lg:flex lg:items-start lg:px-6 lg:pt-16 lg:pb-0">
             <div className="max-w-6xl mx-auto w-full">
               <div className="max-w-xl">
                 <h1 className="text-[clamp(2.4rem,6vw,4rem)] font-semibold tracking-[-0.04em] leading-[1.05] text-[var(--pd-navy)]">
