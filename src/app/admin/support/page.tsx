@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
 import { insertWithOptionalSite, visibleSupportMessages } from "@/lib/orders/site-scope";
+import { useAdminSite } from "@/components/admin/admin-site";
 type Message = {
   id: string;
   user_id: string;
@@ -38,6 +39,7 @@ export default function AdminSupportPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string>("");
+  const { site } = useAdminSite();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +55,7 @@ export default function AdminSupportPage() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [site]);
 
   async function loadData() {
     const supabase = createAppClient();
@@ -65,7 +67,8 @@ export default function AdminSupportPage() {
 
     if (!messagesData) { setLoading(false); return; }
 
-    const scopedMessages = await visibleSupportMessages(supabase, messagesData);
+    const scopedMessages =
+      site === "all" ? messagesData : await visibleSupportMessages(supabase, messagesData, site);
     const userIds = [...new Set(scopedMessages.map(m => m.user_id))];
     if (userIds.length === 0) {
       setConversations([]);

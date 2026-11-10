@@ -7,7 +7,7 @@ import Image from "next/image";
 export const metadata = {
   title: "How it works — PrintDenture",
   description:
-    "Take records, then check a printed try-in. If nothing needs to change, the case ends on that second visit. A revision is a third visit.",
+    "Take records, then check a printed try-in. If nothing needs to change, the case ends on that second visit. A design change adds a design fee and a third visit.",
 };
 
 export default function HowItWorksPage() {
@@ -16,7 +16,7 @@ export default function HowItWorksPage() {
       <PageHero
         eyebrow="Workflow"
         title="The try-in can be the last visit."
-        lead="If nothing needs to change, the case ends on visit 2. If it does, the lab revises the denture and the patient comes back for the final."
+        lead="If nothing needs to change, the case ends on visit 2. If it does, the lab revises the denture, a design fee is added, and the patient comes back for the final."
         showLabPartner={false}
       />
 

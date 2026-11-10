@@ -43,6 +43,7 @@ function fallbackProduct(order: OrderScopeRow): CatalogProduct | null {
   if (productId && !isUuid(productId)) return { category: productId };
   const name = order.product_name?.trim() ?? "";
   if (!name) return null;
+  if (/sports guard/i.test(name)) return { category: "sportsguard" };
   if (/guard/i.test(name)) return { category: "nightguard" };
   if (/denture|partial|overdenture|reline|jb[\s-]?tray|jb[\s-]?fork|immediate/i.test(name)) {
     return { category: "complete" };
@@ -90,6 +91,13 @@ async function loadProducts(supabase: SupabaseClient, ids: string[]): Promise<Pr
   const { data, error } = await supabase.from("products").select("id, category, sites").in("id", uuidIds);
   if (error) return [];
   return (data ?? []) as ProductScopeRow[];
+}
+
+export function resolveOrderCatalogProduct(
+  order: OrderScopeRow,
+  byId: Map<string, CatalogProduct>
+): CatalogProduct | null {
+  return productForOrder(order, byId as Map<string, ProductScopeRow>);
 }
 
 function productForOrder(order: OrderScopeRow, byId: Map<string, ProductScopeRow>): CatalogProduct | null {

@@ -10,7 +10,8 @@ export type DentureServiceGroupId =
   | "partial"
   | "overdenture"
   | "removable"
-  | "reline";
+  | "reline"
+  | "design";
 
 export type DentureServiceGroup = {
   id: DentureServiceGroupId;
@@ -20,75 +21,54 @@ export type DentureServiceGroup = {
   categories: readonly string[];
 };
 
-/** Order flow & product picker tabs */
+/** Order flow & product picker tabs — printed lab services only. */
 export const DENTURE_SERVICE_GROUPS: readonly DentureServiceGroup[] = [
   {
     id: "complete",
-    label: "Complete",
-    shortLabel: "Complete dentures",
+    label: "Full denture",
+    shortLabel: "Full denture",
     description: COMPLETE_DENTURE_INTRO.description,
-    categories: ["complete", "jb_tray", "immediate"],
+    categories: ["jb_tray"],
   },
   {
     id: "partial",
     label: "Partial",
     shortLabel: "Partial dentures",
-    description:
-      "Flexible and cast partials, removable partials, and temporary flippers — scan, upload, and our lab designs the prosthesis.",
+    description: "Printed flexible partials and temporary flippers from a scan.",
     categories: ["partial"],
   },
   {
-    id: "overdenture",
-    label: "Overdenture / All-on-X",
-    shortLabel: "Implant cases",
-    description:
-      "Locator or bar overdentures and full-arch All-on-X when implant position is in your aligned CBCT / IOS dataset.",
-    categories: ["overdenture"],
-  },
-  {
     id: "removable",
-    label: "Guards",
-    shortLabel: "Guards",
-    description:
-      "Custom night guards and sports guards from intraoral scans — not denture prosthetics.",
-    categories: ["nightguard", "sportsguard"],
+    label: "Night guard",
+    shortLabel: "Night guard",
+    description: "Printed night guard from an intraoral scan.",
+    categories: ["nightguard"],
   },
   {
-    id: "reline",
-    label: "Reline / repair",
-    shortLabel: "Maintenance",
-    description:
-      "Hard or soft reline, tooth fracture, and base repair on prostheses already in the patient's mouth.",
-    categories: ["reline"],
+    id: "design",
+    label: "Design",
+    shortLabel: "Design",
+    description: "Full denture design only, $45 per arch. Fabrication and try-in are not included.",
+    categories: ["design"],
   },
 ] as const;
 
-/** Order page tabs — excludes reline/repair (not offered in self-serve order flow). */
-export const ORDER_DENTURE_SERVICE_GROUPS = DENTURE_SERVICE_GROUPS.filter(
-  (group) => group.id !== "reline"
-);
+/** Order page tabs. */
+export const ORDER_DENTURE_SERVICE_GROUPS = DENTURE_SERVICE_GROUPS;
 
 /** Pricing page section order (excludes equipment). */
-export const DENTURE_PRICING_CATEGORY_ORDER = [
-  "complete",
-  "jb_tray",
-  "immediate",
-  "partial",
-  "overdenture",
-  "reline",
-  "nightguard",
-  "sportsguard",
-] as const;
+export const DENTURE_PRICING_CATEGORY_ORDER = ["jb_tray", "partial", "nightguard"] as const;
 
 export const PRODUCT_CATEGORY_SECTION_LABELS: Record<string, string> = {
-  complete: "JB Fork Radi+ records",
+  complete: "JB Tray records",
   jb_tray: "JB Tray records",
   immediate: "Immediate — no JB kit",
   partial: "Partial denture options",
   overdenture: "Implant-retained options",
   reline: "Reline & repair options",
-  removable: "Night & sports guards",
-  nightguard: "Night guards",
+  removable: "Printed night guard",
+  nightguard: "Printed night guard",
+  design: "Full denture design",
   sportsguard: "Sports guards",
 };
 
@@ -97,5 +77,5 @@ export function serviceGroupForCategory(category: string): DentureServiceGroup |
 }
 
 export function isCompleteServiceGroup(groupLabel: string): boolean {
-  return groupLabel === "Complete";
+  return groupLabel === "Full denture" || groupLabel === "Complete";
 }

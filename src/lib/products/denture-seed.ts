@@ -2,6 +2,7 @@ import type { SiteId } from "@/lib/products/site-catalog";
 import { ARCH_PRICING_BY_CATEGORY } from "@/lib/products/arch-pricing";
 import { RETIRED_EQUIPMENT_PRODUCT_NAMES, CHAIRSIDE_EQUIPMENT_PRICES } from "@/lib/products/chairside-equipment";
 import { SHARED_GUARD_SEEDS } from "@/lib/products/guard-seeds";
+import { DENTURE_DESIGN_NAME, DENTURE_DESIGN_PRICE_PER_ARCH } from "@/lib/products/denture-design";
 
 export type ProductSeed = {
   category: string;
@@ -18,27 +19,12 @@ export type ProductSeed = {
 
 /** Default PrintDenture catalog — dentures & removable prosthetics. */
 export const PRINTDENTURE_PRODUCT_SEEDS: ProductSeed[] = [
-  // Complete dentures — JB Fork Radi+ records (arch chosen in case details)
-  {
-    category: "complete",
-    name: "Complete Denture — JB Fork Radi+",
-    description:
-      "Definitive complete denture from JB Fork-aligned digital scans. Choose upper, lower, or both in case details.",
-    price: ARCH_PRICING_BY_CATEGORY.complete.upper,
-    turnaround: "7–12 business days",
-    accent: "#0F6E56",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 10,
-    sites: ["printdenture"],
-  },
-
   // Complete dentures — JB Tray records
   {
     category: "jb_tray",
     name: "Complete Denture — JB Tray",
     description:
-      "Complete denture from JB Tray final impression and jaw relation. Choose upper, lower, or both in case details.",
+      "Printed full denture from a JB Tray final impression and jaw relation. Choose upper, lower, or both in case details.",
     price: ARCH_PRICING_BY_CATEGORY.jb_tray.upper,
     turnaround: "7–12 business days",
     accent: "#5DCAA5",
@@ -48,63 +34,23 @@ export const PRINTDENTURE_PRODUCT_SEEDS: ProductSeed[] = [
     sites: ["printdenture"],
   },
 
-  // Immediate — no JB kit
-  {
-    category: "immediate",
-    name: "Immediate Denture",
-    description:
-      "Delivery denture at extraction or shortly after — from pre-op or day-of scans. No JB equipment check.",
-    price: ARCH_PRICING_BY_CATEGORY.immediate.upper,
-    turnaround: "5–10 business days",
-    accent: "#085041",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 30,
-    sites: ["printdenture"],
-  },
-
-  // Partial dentures
   {
     category: "partial",
     name: "Flexible Partial Denture",
-    description: "Valplast-style flexible partial with digital tooth setup and natural clasp design.",
+    description: "Printed flexible partial. Choose the arch and the teeth to replace. Price follows the arch.",
     price: 399,
     turnaround: "7–10 business days",
     accent: "#1D9E75",
-    fields: ["shade", "arch"],
+    fields: ["shade", "arch", "toothNumber"],
     active: true,
     sort_order: 40,
     sites: ["printdenture"],
   },
   {
     category: "partial",
-    name: "Cast Metal Partial Denture",
-    description: "Cobalt-chrome or titanium framework partial with surveyed clasp design from digital records.",
-    price: 549,
-    turnaround: "10–14 business days",
-    accent: "#1D9E75",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 41,
-    sites: ["printdenture"],
-  },
-  {
-    category: "partial",
-    name: "Removable Partial Denture",
-    description: "Removable partial prosthesis from digital scan or model — shade and tooth setup included.",
-    price: 349,
-    turnaround: "7–10 business days",
-    accent: "#1D9E75",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 42,
-    sites: ["printdenture"],
-  },
-  {
-    category: "partial",
     name: "Temporary Flipper",
-    description: "Single-tooth or short-span temporary partial for interim esthetics.",
-    price: 199,
+    description: "Printed temporary flipper for interim esthetics. $129 for up to 3 teeth.",
+    price: 129,
     turnaround: "3–5 business days",
     accent: "#1D9E75",
     fields: ["shade", "toothNumber"],
@@ -113,86 +59,20 @@ export const PRINTDENTURE_PRODUCT_SEEDS: ProductSeed[] = [
     sites: ["printdenture"],
   },
 
-  // Implant overdentures & full-arch
   {
-    category: "overdenture",
-    name: "Locator Overdenture",
-    description:
-      "Implant-retained overdenture with locator attachments — JB Fork Radi+ aligned CBCT / IOS data typical.",
-    price: 699,
-    turnaround: "12–16 business days",
-    accent: "#378ADD",
-    fields: ["shade", "arch"],
+    category: "design",
+    name: DENTURE_DESIGN_NAME,
+    description: `Full denture design only. $${DENTURE_DESIGN_PRICE_PER_ARCH} per arch. Fabrication and try-in are not included.`,
+    price: DENTURE_DESIGN_PRICE_PER_ARCH,
+    turnaround: "3–5 business days",
+    accent: "#0F6E56",
+    fields: ["arch"],
     active: true,
-    sort_order: 50,
-    sites: ["printdenture"],
-  },
-  {
-    category: "overdenture",
-    name: "Bar Overdenture",
-    description:
-      "Milled or cast bar-retained overdenture for full-arch implant cases with digital verification.",
-    price: 999,
-    turnaround: "14–18 business days",
-    accent: "#378ADD",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 51,
-    sites: ["printdenture"],
-  },
-  {
-    category: "overdenture",
-    name: "All-on-X Fixed Prosthesis",
-    description:
-      "Fixed full-arch implant prosthesis from aligned scan sets — JB Fork Radi+ record protocol.",
-    price: 1499,
-    turnaround: "14–21 business days",
-    accent: "#378ADD",
-    fields: ["shade", "arch"],
-    active: true,
-    sort_order: 52,
+    sort_order: 25,
     sites: ["printdenture"],
   },
 
-  // Reline & repair — flat price; arch identifies which prosthesis
-  {
-    category: "reline",
-    name: "Hard Reline",
-    description: "Chairside or lab hard reline on an existing PrintDenture prosthesis — mail-in shipper available.",
-    price: 149,
-    turnaround: "3–5 business days",
-    accent: "#1B2B3A",
-    fields: ["arch"],
-    active: true,
-    sort_order: 60,
-    sites: ["printdenture"],
-  },
-  {
-    category: "reline",
-    name: "Soft Reline",
-    description: "Soft liner reline for tissue conditioning or patient comfort on existing dentures.",
-    price: 179,
-    turnaround: "3–5 business days",
-    accent: "#1B2B3A",
-    fields: ["arch"],
-    active: true,
-    sort_order: 61,
-    sites: ["printdenture"],
-  },
-  {
-    category: "reline",
-    name: "Denture Repair",
-    description: "Tooth addition, fracture repair, or base repair on dentures originally made through PrintDenture.",
-    price: 89,
-    turnaround: "2–4 business days",
-    accent: "#1B2B3A",
-    fields: ["arch"],
-    active: true,
-    sort_order: 62,
-    sites: ["printdenture"],
-  },
-
-  // Shared guards — PrintCrown & PrintDenture (category nightguard / sportsguard)
+  // Printed night guard — shared with PrintCrown. Sports guard is PrintCrown only.
   ...SHARED_GUARD_SEEDS,
 
   // Chairside equipment — PNUADD / Add-on Dental
@@ -207,19 +87,6 @@ export const PRINTDENTURE_PRODUCT_SEEDS: ProductSeed[] = [
     fields: ["jbTray", "trayBox"],
     active: true,
     sort_order: 10,
-    sites: ["printdenture"],
-  },
-  {
-    category: "equipment",
-    name: "JB Fork Radi+ — Box (10 EA)",
-    description:
-      "One box with ten JB Fork Solution Radi+ devices (no POP Bow). Jaw relation for digital & implant cases (PNUADD).",
-    price: CHAIRSIDE_EQUIPMENT_PRICES.jbForkBox,
-    turnaround: "3–5 business days",
-    accent: "#0F6E56",
-    fields: ["jbFork", "forkBox"],
-    active: true,
-    sort_order: 20,
     sites: ["printdenture"],
   },
   {
@@ -239,6 +106,7 @@ export const PRINTDENTURE_PRODUCT_SEEDS: ProductSeed[] = [
 
 /** Retired arch-split SKUs — deactivated on catalog sync. */
 export const RETIRED_DENTURE_PRODUCT_NAMES: readonly string[] = [
+  "Complete Denture — JB Fork Radi+",
   "Complete Denture — Upper (JB Fork)",
   "Complete Denture — Lower (JB Fork)",
   "Complete Denture — Full Set (JB Fork)",
@@ -255,6 +123,15 @@ export const RETIRED_DENTURE_PRODUCT_NAMES: readonly string[] = [
   "Immediate Denture — Full Set",
   "Removable Partial — Upper",
   "Removable Partial — Lower",
+  "Immediate Denture",
+  "Cast Metal Partial Denture",
+  "Removable Partial Denture",
+  "Locator Overdenture",
+  "Bar Overdenture",
+  "All-on-X Fixed Prosthesis",
+  "Hard Reline",
+  "Soft Reline",
+  "Denture Repair",
   ...RETIRED_EQUIPMENT_PRODUCT_NAMES,
 ];
 

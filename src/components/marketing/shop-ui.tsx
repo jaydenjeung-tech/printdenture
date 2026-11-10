@@ -28,7 +28,7 @@ export function ShopPageHeader() {
           Capture devices
         </p>
         <h1 className="text-[clamp(1.5rem,3vw,2rem)] font-semibold text-[var(--pd-navy)] tracking-[-0.03em]">
-          JB Tray, JB Fork & ADD POP Bow
+          JB Tray & ADD POP Bow
         </h1>
         <p className="text-[14px] text-[var(--pd-slate)] mt-2 max-w-2xl leading-relaxed">
           Order the chairside capture kit for your practice. When it arrives, mark received on your{" "}
@@ -141,7 +141,7 @@ export function ShopCartPanel({
 
       {cartItems.length === 0 ? (
         <p className="text-[14px] text-[var(--pd-muted)] leading-relaxed">
-          Add items from any category — mix JB Tray, JB Fork, and POP Bow in one order.
+          Add a JB Tray box, an ADD POP Bow pouch, or both.
         </p>
       ) : (
         <>

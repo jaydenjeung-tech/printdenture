@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { calculateDueDate } from "@/lib/utils/due-date";
 import { ownsCheckoutSession } from "@/lib/stripe-checkout";
+import { handoffDentureDesignOrder } from "@/lib/orders/ultran-design-handoff";
 
 function getAdminSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,9 +36,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
     const session = event.data.object as Stripe.Checkout.Session;
     if (!ownsCheckoutSession(session.metadata)) {
+      return NextResponse.json({ received: true });
+    }
+    if (session.payment_status !== "paid") {
       return NextResponse.json({ received: true });
     }
     const orderIds = [
@@ -93,6 +100,59 @@ export async function POST(req: NextRequest) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId: primaryOrder.id }),
         });
+        for (const id of orderIds) {
+          try {
+            await handoffDentureDesignOrder(supabase, id);
+          } catch (err) {
+            console.error("Ultran design handoff failed", id, err);
+          }
+        }
+      }
+    }
+  }
+
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    if (!ownsCheckoutSession(invoice.metadata)) {
+      return NextResponse.json({ received: true });
+    }
+    const orderId = invoice.metadata?.orderId;
+    if (!orderId) return NextResponse.json({ received: true });
+
+    const paidAt = new Date((invoice.status_transitions.paid_at ?? invoice.created) * 1000);
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, product_name, product_id, order_type, paid_at")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!order || order.paid_at) return NextResponse.json({ received: true });
+
+    const isEquipment = invoice.metadata?.orderType === "equipment" || order.order_type === "equipment";
+    const dueDate = isEquipment
+      ? null
+      : calculateDueDate(paidAt, order.product_name, order.product_id);
+
+    await supabase
+      .from("orders")
+      .update({
+        status: "received",
+        stripe_session_id: invoice.id,
+        paid_at: paidAt.toISOString(),
+        due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
+      })
+      .eq("id", order.id);
+
+    if (!isEquipment) {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notify-new-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      try {
+        await handoffDentureDesignOrder(supabase, order.id);
+      } catch (err) {
+        console.error("Ultran design handoff failed", order.id, err);
       }
     }
   }

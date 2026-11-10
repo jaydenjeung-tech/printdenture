@@ -147,7 +147,7 @@ export function RecordUploadChecklistPanel({
       {recommendedItems.length > 0 && (
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#6B6B6B] mb-2">
-            Recommended — helps avoid try-in
+            Recommended — helps the setup
           </p>
           <ul className="space-y-2">
             {recommendedItems.map((item) => (

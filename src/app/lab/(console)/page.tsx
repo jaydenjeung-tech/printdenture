@@ -25,6 +25,7 @@ import {
   chipClass,
 } from "@/components/marketing/order-ui";
 import { isLabFulfillable } from "@/lib/order-payment";
+import { useAdminSite } from "@/components/admin/admin-site";
 
 type Order = {
   id: string;
@@ -119,6 +120,7 @@ export default function LabPage() {
   const [batchSaving, setBatchSaving] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const { matchesOrder } = useAdminSite();
 
   useEffect(() => {
     checkAndLoad();
@@ -243,8 +245,9 @@ export default function LabPage() {
     return true;
   }
 
-  const activeOrders = orders.filter((o) => o.status !== "delivered");
-  const completedOrders = orders.filter((o) => o.status === "delivered");
+  const siteOrders = orders.filter((order) => matchesOrder(order));
+  const activeOrders = siteOrders.filter((o) => o.status !== "delivered");
+  const completedOrders = siteOrders.filter((o) => o.status === "delivered");
   const baseOrders = activeTab === "active" ? activeOrders : completedOrders;
 
   const filtered = baseOrders.filter((o) => {
@@ -291,10 +294,10 @@ export default function LabPage() {
   });
 
   const stats = {
-    received: orders.filter((o) => o.status === "received").length,
-    printing: orders.filter((o) => o.status === "printing").length,
-    qc: orders.filter((o) => o.status === "qc").length,
-    shipped: orders.filter((o) => o.status === "shipped").length,
+    received: siteOrders.filter((o) => o.status === "received").length,
+    printing: siteOrders.filter((o) => o.status === "printing").length,
+    qc: siteOrders.filter((o) => o.status === "qc").length,
+    shipped: siteOrders.filter((o) => o.status === "shipped").length,
   };
 
   if (loading) return <AdminOrdersLoading />;

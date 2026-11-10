@@ -28,6 +28,12 @@ export type OrderDraftStored = {
   guardType: string;
   color: string;
   arch: string;
+  patientName?: string;
+  patientChart?: string;
+  nextVisit?: string;
+  shadeNote?: string;
+  designShadeLetter?: string;
+  designShadeNumber?: string;
   dentistName: string;
   licenseNo: string;
   licenseState: string;
@@ -64,6 +70,12 @@ type DraftSource = {
   guardType: string;
   color: string;
   arch: string;
+  patientName?: string;
+  patientChart?: string;
+  nextVisit?: string;
+  shadeNote?: string;
+  designShadeLetter?: string;
+  designShadeNumber?: string;
   dentistName: string;
   licenseNo: string;
   licenseState: string;
@@ -104,6 +116,12 @@ export function saveOrderDraft(source: DraftSource) {
     guardType: source.guardType,
     color: source.color,
     arch: source.arch,
+    patientName: source.patientName,
+    patientChart: source.patientChart,
+    nextVisit: source.nextVisit,
+    shadeNote: source.shadeNote,
+    designShadeLetter: source.designShadeLetter,
+    designShadeNumber: source.designShadeNumber,
     dentistName: source.dentistName,
     licenseNo: source.licenseNo,
     licenseState: source.licenseState,

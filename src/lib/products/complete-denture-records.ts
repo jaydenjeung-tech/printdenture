@@ -1,22 +1,26 @@
-/** Complete dentures share one prosthesis type — JB Fork vs JB Tray is the records protocol. */
+/** Printed full dentures are captured with the JB Tray. */
 
 export const COMPLETE_DENTURE_INTRO = {
-  title: "Complete dentures",
+  title: "Printed full denture",
   description:
-    "Full-arch removable prosthetics. Pick one PNUADD record protocol per case — JB Fork Radi+ (Radi+ alignment) or JB Tray (one-visit tray impressions). Immediate cases skip JB kits and upload scans directly.",
+    "Printed full denture. Record the final impression and jaw relation with the JB Tray, then we print the try-in and the finished denture.",
 };
+
+/** Shown wherever a dentist is told the try-in can be changed. */
+export const TRY_IN_REVISION_NOTE =
+  "The printed try-in is included. If that try-in needs a design change, a design fee is added before the final denture.";
 
 export const RECORD_PROTOCOL_LABELS: Record<
   "complete" | "jb_tray",
   { sectionLabel: string; equipmentNote: string }
 > = {
   complete: {
-    sectionLabel: "Records: JB Fork Radi+",
-    equipmentNote: "Radi+ aligns facial, CBCT, and IOS — choose for digital full-arch & implant cases.",
+    sectionLabel: "Records: JB Tray",
+    equipmentNote: "One-visit tray impression, vertical dimension, and centric relation.",
   },
   jb_tray: {
     sectionLabel: "Records: JB Tray",
-    equipmentNote: "One-visit tray impression + VD/CR — choose when Radi+ alignment is not needed.",
+    equipmentNote: "One-visit tray impression, vertical dimension, and centric relation.",
   },
 };
 

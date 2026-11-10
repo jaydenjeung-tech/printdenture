@@ -14,6 +14,7 @@ export const ARCH_PRICING_BY_CATEGORY: Record<string, ArchPricingTier> = {
   jb_tray: { upper: 429, lower: 429, both: 799 },
   immediate: { upper: 479, lower: 479, both: 899 },
   overdenture: { upper: 699, lower: 699, both: 1299 },
+  design: { upper: 45, lower: 45, both: 90 },
 };
 
 /** Partial & other prosthesis types priced per product name. */
@@ -33,6 +34,7 @@ export const ARCH_PRICED_CATEGORIES = new Set([
   "immediate",
   "partial",
   "overdenture",
+  "design",
 ]);
 
 export const ARCH_OPTIONS: { value: ArchSelection; label: string }[] = [
@@ -78,10 +80,49 @@ export function getArchPricingTier(product: {
   };
 }
 
+/** Printed night guard — one rate for every material, charged per arch. */
+export const NIGHT_GUARD_PRICE_PER_ARCH = 89;
+
+/** One temporary flipper includes this many teeth at a flat price. */
+export const FLIPPER_PRICE = 129;
+export const FLIPPER_MAX_TEETH = 3;
+
+export function isTemporaryFlipper(product: { name?: string | null }): boolean {
+  return /\bflippers?\b/i.test(product.name ?? "");
+}
+
+/** One prosthesis per order. Crowns still bill one unit per selected tooth. */
+export function isSingleCaseProduct(product: { name?: string | null; fields?: readonly string[] | null }): boolean {
+  if (isTemporaryFlipper(product)) return true;
+  const fields = product.fields ?? [];
+  return fields.includes("arch") || fields.includes("guardType");
+}
+
+export function archChoicePrice(
+  product: { category: string; name: string; price: number },
+  arch: ArchSelection
+): number | null {
+  if (isTemporaryFlipper(product)) return null;
+  if (isNightGuardProduct(product)) {
+    return arch === "both" ? NIGHT_GUARD_PRICE_PER_ARCH * 2 : NIGHT_GUARD_PRICE_PER_ARCH;
+  }
+  const tier = getArchPricingTier(product);
+  if (!tier) return null;
+  return tier[arch];
+}
+
+export function isNightGuardProduct(product: { category: string; name: string }): boolean {
+  return product.category === "nightguard" || /\bnight\s*guards?\b/i.test(product.name);
+}
+
 export function resolveLineItemPrice(
   product: { category: string; name: string; price: number },
   arch: string
 ): number {
+  if (isNightGuardProduct(product)) {
+    return arch === "both" ? NIGHT_GUARD_PRICE_PER_ARCH * 2 : NIGHT_GUARD_PRICE_PER_ARCH;
+  }
+  if (isTemporaryFlipper(product)) return FLIPPER_PRICE;
   const tier = getArchPricingTier(product);
   if (!tier || !arch) return product.price;
   if (arch === "upper") return tier.upper;
@@ -91,7 +132,7 @@ export function resolveLineItemPrice(
 }
 
 export function formatArchLabel(arch: string): string {
-  if (arch === "both") return "Full set";
+  if (arch === "both") return "Both arches";
   if (arch === "upper") return "Upper";
   if (arch === "lower") return "Lower";
   return arch;
@@ -107,6 +148,8 @@ export function formatProductPriceHint(product: {
   name: string;
   price: number;
 }): string {
+  if (isNightGuardProduct(product)) return `$${NIGHT_GUARD_PRICE_PER_ARCH} per arch`;
+  if (isTemporaryFlipper(product)) return `$${FLIPPER_PRICE} for up to ${FLIPPER_MAX_TEETH} teeth`;
   const tier = getArchPricingTier(product);
   if (!tier) return `$${product.price}`;
   if (tier.upper === tier.lower) {
@@ -127,6 +170,20 @@ export function formatPricingCardPrice(product: {
   name: string;
   price: number;
 }): PricingCardDisplay {
+  if (isNightGuardProduct(product)) {
+    return {
+      primary: `$${NIGHT_GUARD_PRICE_PER_ARCH}`,
+      secondary: "per arch",
+      flat: true,
+    };
+  }
+  if (isTemporaryFlipper(product)) {
+    return {
+      primary: `$${FLIPPER_PRICE}`,
+      secondary: `up to ${FLIPPER_MAX_TEETH} teeth`,
+      flat: true,
+    };
+  }
   const tier = getArchPricingTier(product);
   if (!tier) {
     return {
@@ -152,28 +209,32 @@ export const LEGACY_PRODUCT_ARCH_MAP: Record<
   string,
   { seedName: string; arch: ArchSelection }
 > = {
+  "Complete Denture — JB Fork Radi+": {
+    seedName: "Complete Denture — JB Tray",
+    arch: "upper",
+  },
   "Complete Denture — Upper (JB Fork)": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "upper",
   },
   "Complete Denture — Lower (JB Fork)": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "lower",
   },
   "Complete Denture — Full Set (JB Fork)": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "both",
   },
   "Complete Denture — Upper": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "upper",
   },
   "Complete Denture — Lower": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "lower",
   },
   "Complete Denture — Full Set": {
-    seedName: "Complete Denture — JB Fork Radi+",
+    seedName: "Complete Denture — JB Tray",
     arch: "both",
   },
   "Complete Denture — Upper (JB Tray)": {

@@ -25,7 +25,7 @@ export const DESIGN_OUTSOURCE_CATEGORIES = [
 ] as const;
 
 export const DESIGN_OUTSOURCE_CATEGORY_LABELS: Record<string, string> = {
-  complete: "Complete denture (JB Fork)",
+  complete: "Complete denture",
   jb_tray: "Complete denture (JB Tray)",
   immediate: "Immediate denture",
   partial: "Partial denture",
@@ -64,6 +64,7 @@ export function orderQualifiesForDesignOutsource(category: string | null | undef
 export function inferProductCategoryFromName(productName: string | null | undefined): string | null {
   if (!productName?.trim()) return null;
   const lower = productName.toLowerCase();
+  if (lower.includes("denture design")) return "design";
   if (lower.includes("jb tray")) return "jb_tray";
   if (lower.includes("jb fork") || lower.includes("radi+")) return "complete";
   if (lower.includes("immediate")) return "immediate";

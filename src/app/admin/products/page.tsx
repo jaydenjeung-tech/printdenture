@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
-import { getProductSites, type SiteId } from "@/lib/products/site-catalog";
+import { getProductSites, productVisibleOnSite, type SiteId } from "@/lib/products/site-catalog";
+import { useAdminSite } from "@/components/admin/admin-site";
 import {
   AdminNotice,
   AdminProductCategorySection,
@@ -20,7 +21,7 @@ import {
 } from "@/components/admin/admin-products-ui";
 
 const CATEGORIES: AdminCategory[] = [
-  { value: "complete", label: "Complete (JB Fork)", accent: "#0F6E56", group: "Complete" },
+  { value: "complete", label: "Complete", accent: "#0F6E56", group: "Complete" },
   { value: "jb_tray", label: "Complete (JB Tray)", accent: "#5DCAA5", group: "Complete" },
   { value: "immediate", label: "Complete (Immediate)", accent: "#085041", group: "Complete" },
   { value: "partial", label: "Partial", accent: "#1D9E75", group: "Partial" },
@@ -42,9 +43,7 @@ const FIELD_OPTIONS = [
   { value: "arch", label: "Arch (U/L/Set)" },
   { value: "jawRelation", label: "Jaw relation" },
   { value: "jbTray", label: "JB Tray (family)" },
-  { value: "jbFork", label: "JB Fork (family)" },
   { value: "trayBox", label: "JB Tray box (5 sets)" },
-  { value: "forkBox", label: "Fork box (10 EA)" },
   { value: "popBow", label: "ADD POP Bow (family)" },
   { value: "popBowPouch", label: "POP Bow pouch (12 sets)" },
 ];
@@ -78,6 +77,7 @@ export default function AdminProductsPage() {
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const { site } = useAdminSite();
 
   useEffect(() => {
     let cancelled = false;
@@ -283,10 +283,12 @@ export default function AdminProductsPage() {
     setForm((prev) => ({ ...prev, ...applyCategoryDefaults(category, CATEGORIES) }));
   }
 
+  const visibleProducts =
+    site === "all" ? products : products.filter((product) => productVisibleOnSite(product, site));
   const grouped = CATEGORIES.map((cat) => ({
     ...cat,
-    items: products.filter((p) => p.category === cat.value),
-  }));
+    items: visibleProducts.filter((p) => p.category === cat.value),
+  })).filter((cat) => site === "all" || cat.items.length > 0);
 
   if (loading) {
     return <AdminProductsLoading />;

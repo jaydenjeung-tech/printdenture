@@ -67,28 +67,20 @@ function StatusRow({
 }
 
 export default function WorkflowReadinessCard({ userId, profile, onUpdate }: Props) {
-  const [marking, setMarking] = useState<"jb_tray" | "jb_fork" | null>(null);
+  const [marking, setMarking] = useState(false);
 
   const trayStatus = (profile.jb_tray_status as EquipmentStatus) || "need";
-  const forkStatus = (profile.jb_fork_status as EquipmentStatus) || "need";
 
-  async function markReceived(kind: "jb_tray" | "jb_fork") {
-    setMarking(kind);
+  async function markReceived() {
+    setMarking(true);
     const supabase = createAppClient();
-    const patch =
-      kind === "jb_tray"
-        ? { jb_tray_status: "have" as const, jb_tray_trained: true }
-        : { jb_fork_status: "have" as const, jb_fork_trained: true };
+    const patch = { jb_tray_status: "have" as const, jb_tray_trained: true };
     const { error } = await supabase.from("profiles").update(patch).eq("id", userId);
-    setMarking(null);
+    setMarking(false);
     if (!error) onUpdate({ ...profile, ...patch });
   }
 
-  const allReady =
-    trayStatus === "have" &&
-    forkStatus === "have" &&
-    profile.jb_tray_trained &&
-    profile.jb_fork_trained;
+  const allReady = trayStatus === "have" && profile.jb_tray_trained;
 
   return (
     <div className="border border-[var(--pd-border)] bg-white mb-6 overflow-hidden">
@@ -99,7 +91,7 @@ export default function WorkflowReadinessCard({ userId, profile, onUpdate }: Pro
           </p>
           <p className="text-[14px] font-medium text-[var(--pd-navy)]">JB starter kit status</p>
           <p className="text-[12px] text-[var(--pd-muted)] mt-0.5">
-            Order kit → mark received → submit JB Fork / JB Tray lab cases
+            Order the JB Tray kit → mark received → submit lab cases
           </p>
         </div>
         <Link href="/shop" className="text-[12px] font-medium text-[var(--pd-teal-dark)] hover:underline shrink-0">
@@ -111,23 +103,15 @@ export default function WorkflowReadinessCard({ userId, profile, onUpdate }: Pro
           label="JB Tray"
           status={trayStatus}
           trained={!!profile.jb_tray_trained}
-          marking={marking === "jb_tray"}
-          onMarkReceived={() => void markReceived("jb_tray")}
-        />
-        <StatusRow
-          label="JB Fork Radi+"
-          status={forkStatus}
-          trained={!!profile.jb_fork_trained}
-          marking={marking === "jb_fork"}
-          onMarkReceived={() => void markReceived("jb_fork")}
+          marking={marking}
+          onMarkReceived={() => void markReceived()}
         />
       </div>
       {!allReady && (
         <div className="px-4 sm:px-5 py-3 bg-[var(--pd-surface)] border-t border-[var(--pd-border)]">
           <p className="text-[12px] text-[var(--pd-slate)] leading-relaxed">
-            Complete denture and overdenture cases that use JB Fork or JB Tray require a PrintDenture
-            starter kit in your practice before checkout. Order from the shop, mark received here when it
-            arrives, then upload scans from your order dashboard.
+            JB Tray complete-denture cases need the kit in your practice before checkout. Order from the
+            shop, mark it received here when it arrives, then upload scans from your order dashboard.
           </p>
         </div>
       )}

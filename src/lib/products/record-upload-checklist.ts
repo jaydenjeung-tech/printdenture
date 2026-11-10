@@ -7,6 +7,7 @@ import {
   CASE_FILE_KIND_ORDER,
   type CaseFileKind,
 } from "@/lib/products/case-files";
+import { TRY_IN_REVISION_NOTE } from "@/lib/products/complete-denture-records";
 
 export type ChecklistItemTier = "required" | "recommended";
 
@@ -61,32 +62,10 @@ const TRYIN_SKIP_BASE: RecordChecklistItem[] = [
   },
   {
     id: "tryin_skip_ack",
-    label: "I understand try-in may be required if records are incomplete",
-    detail: "PrintDenture fabricates from your upload. Missing VD, borders, or relation may require a try-in or remake.",
+    label: "I understand a design change after the printed try-in adds a design fee",
+    detail: TRY_IN_REVISION_NOTE,
     tier: "required",
     satisfier: { type: "acknowledgment" },
-  },
-];
-
-const JB_FORK_ITEMS: RecordChecklistItem[] = [
-  {
-    id: "jb_fork_alignment",
-    label: "JB Fork Radi+ alignment set is captured",
-    detail: "Facial, CBCT, and intraoral datasets registered to the fork protocol.",
-    tier: "recommended",
-    satisfier: { type: "file_all", groups: [["scan"], ["cbct", "archive"]] },
-  },
-  {
-    id: "jb_fork_cbct",
-    label: "CBCT includes fork and anterior markers in field",
-    tier: "recommended",
-    satisfier: { type: "file", kinds: ["cbct", "archive"] },
-  },
-  {
-    id: "jb_fork_ios",
-    label: "Intraoral scan matches the aligned reference arch",
-    tier: "recommended",
-    satisfier: { type: "file", kinds: ["scan"] },
   },
 ];
 
@@ -95,7 +74,7 @@ const JB_TRAY_ITEMS: RecordChecklistItem[] = [
     id: "jb_tray_impression",
     label: "JB Tray final impression with VD rods captured",
     detail: "One-visit impression and jaw-relation per JB Tray protocol.",
-    tier: "recommended",
+    tier: "required",
     satisfier: { type: "file", kinds: ["scan"] },
   },
   {
@@ -144,17 +123,15 @@ const OVERDENTURE_ITEMS: RecordChecklistItem[] = [
 
 const CHECKLISTS: Record<string, RecordUploadChecklist> = {
   complete: {
-    title: "JB Fork Radi+ record checklist",
-    intro:
-      "One scan file and the confirmation below are required to submit. Additional CBCT, photos, and alignment files are strongly recommended for try-in–skip delivery.",
-    jbNote: "Using JB Fork Radi+? Upload scan + CBCT (or scanner ZIP) when available.",
-    items: [...JB_FORK_ITEMS, ...TRYIN_SKIP_BASE],
+    title: "JB Tray record checklist",
+    intro: `Upload the JB Tray impression scan. ${TRY_IN_REVISION_NOTE}`,
+    jbNote: "The impression scan is required. Jaw-relation notes and POP Bow photos help the setup.",
+    items: [...JB_TRAY_ITEMS, ...TRYIN_SKIP_BASE],
   },
   jb_tray: {
     title: "JB Tray record checklist",
-    intro:
-      "One scan file and the confirmation below are required. Tray impression detail, jaw-relation docs, and POP Bow photos help us deliver without a try-in.",
-    jbNote: "Using JB Tray? Add impression scans and any jaw-relation documentation you have.",
+    intro: `Upload the JB Tray impression scan. ${TRY_IN_REVISION_NOTE}`,
+    jbNote: "The impression scan is required. Jaw-relation notes and POP Bow photos help the setup.",
     items: [...JB_TRAY_ITEMS, ...TRYIN_SKIP_BASE],
   },
   immediate: {

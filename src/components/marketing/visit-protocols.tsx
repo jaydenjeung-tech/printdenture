@@ -9,7 +9,7 @@ const GUIDE_HREFS: Record<string, string> = {
   "jb-tray": JB_TRAY_GUIDE_PATH,
 };
 
-const PAGE_PROTOCOLS = VISIT_PROTOCOLS.filter((protocol) => protocol.id !== "jb-fork");
+const PAGE_PROTOCOLS = VISIT_PROTOCOLS;
 
 export function VisitProtocolsComparison() {
   return (
@@ -21,7 +21,7 @@ export function VisitProtocolsComparison() {
             How the visits are split
           </h2>
           <p className="text-[16px] leading-relaxed text-[var(--pd-slate)]">
-            Conventional digital is four visits. With the JB Tray, the try-in is visit 2, and a third visit only if that try-in needs a change.
+            Conventional digital is four visits. With the JB Tray, the try-in is visit 2. A design change adds a design fee and a third visit.
           </p>
         </div>
 

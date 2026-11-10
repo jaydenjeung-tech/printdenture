@@ -18,6 +18,7 @@ const PRODUCT_WORKING_DAYS: Record<string, number> = {
   printcrown: 5,
   guards: 7,
   "night guard": 7,
+  "full denture design": 5,
   "sports guard": 7,
   retainer: 7,
 };
@@ -25,6 +26,7 @@ const PRODUCT_WORKING_DAYS: Record<string, number> = {
 const PRODUCT_ID_PATTERNS: Array<{ pattern: RegExp; days: number }> = [
   { pattern: /zirconia/i, days: 7 },
   { pattern: /print.?crown/i, days: 5 },
+  { pattern: /full denture design/i, days: 5 },
   { pattern: /guard/i, days: 7 },
   { pattern: /retainer/i, days: 7 },
 ];

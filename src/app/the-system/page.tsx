@@ -5,7 +5,7 @@ import { CtaLink } from "@/components/marketing/primitives";
 export const metadata = {
   title: "The system — PrintDenture",
   description:
-    "JB Tray, JB Fork, and POP Bow — a clinically-developed capture system for single-appointment denture records.",
+    "JB Tray and POP Bow — a clinically-developed capture system for single-appointment denture records.",
 };
 
 export default function TheSystemPage() {

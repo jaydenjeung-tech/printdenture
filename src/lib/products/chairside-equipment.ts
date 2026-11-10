@@ -16,10 +16,10 @@ export const RETIRED_EQUIPMENT_PRODUCT_NAMES: readonly string[] = [
   "JB Fork Radi+ — Single Unit",
   "JB Fork Radi+ — Practice 2-Pack",
   "JB Fork Radi+ — Box (5 EA)",
+  "JB Fork Radi+ — Box (10 EA)",
 ];
 
 export const CHAIRSIDE_EQUIPMENT_PRICES = {
   jbTrayBox: 99,
-  jbForkBox: 99,
   popBowPouch: 21,
 } as const;

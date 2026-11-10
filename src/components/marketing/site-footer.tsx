@@ -97,7 +97,7 @@ export default function SiteFooter({ labName }: { labName?: string }) {
 
         <p className="text-[11px] text-[#5A7D94] mt-4 leading-relaxed max-w-3xl">
           {/* TODO: Confirm exact FDA registration language with legal */}
-          JB Tray, JB Fork, and POP Bow are clinical capture/recording devices. PrintDenture is an
+          JB Tray and POP Bow are clinical capture/recording devices. PrintDenture is an
           independent U.S. provider of the workflow and lab services — not affiliated with the device
           inventor&apos;s institution beyond licensing.
         </p>

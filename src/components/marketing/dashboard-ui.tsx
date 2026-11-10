@@ -28,6 +28,7 @@ export type DashboardOrder = {
   is_remake: boolean;
   remake_reason: string | null;
   order_type?: string | null;
+  ultran_os_number?: string | null;
 };
 
 export type DashboardProfile = {
@@ -280,6 +281,11 @@ export function DashboardOrderCard({
               )}
               {!order.paid_at && !order.is_remake && (
                 <StatusBadge className="bg-[#FFF7ED] text-[#C2410C] border-[#FED7AA]">Unpaid</StatusBadge>
+              )}
+              {order.ultran_os_number && (
+                <StatusBadge className="bg-[var(--pd-surface)] text-[var(--pd-navy)] border-[var(--pd-border)]">
+                  Ultran {order.ultran_os_number}
+                </StatusBadge>
               )}
               {order.order_type === "equipment" && (
                 <StatusBadge className="bg-[var(--pd-surface)] text-[var(--pd-navy)] border-[var(--pd-border)]">

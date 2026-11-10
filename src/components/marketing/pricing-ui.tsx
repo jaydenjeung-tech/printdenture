@@ -197,7 +197,6 @@ export function PricingLoadingSkeleton() {
 }
 
 function shopFamilyFromProduct(product: PricingProduct): string {
-  if (product.fields?.includes("jbFork")) return "jb_fork";
   if (product.fields?.includes("popBow")) return "pop_bow";
   return "jb_tray";
 }

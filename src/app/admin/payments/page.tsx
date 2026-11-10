@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
+import { useAdminSite } from "@/components/admin/admin-site";
 import { isOrderPaid, isOrderUnpaid } from "@/lib/order-payment";
 import {
   AdminPaymentActions,
@@ -44,6 +45,7 @@ export default function AdminPaymentsPage() {
   const [dateFilter, setDateFilter] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionMessages, setActionMessages] = useState<Record<string, string>>({});
+  const { matchesOrder } = useAdminSite();
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +68,7 @@ export default function AdminPaymentsPage() {
     const supabase = createAppClient();
     const { data: ordersData } = await supabase
       .from("orders")
-      .select("id, user_id, product_name, total_price, status, created_at, paid_at, stripe_session_id, case_number, is_remake, order_type")
+      .select("id, user_id, product_id, product_name, total_price, status, created_at, paid_at, stripe_session_id, case_number, is_remake, order_type")
       .order("created_at", { ascending: false });
 
     if (!ordersData) {
@@ -111,7 +113,8 @@ export default function AdminPaymentsPage() {
   }
 
   const now = new Date();
-  const chargeable = orders.filter((o) => !o.is_remake);
+  const siteOrders = orders.filter((order) => matchesOrder(order));
+  const chargeable = siteOrders.filter((o) => !o.is_remake);
   const unpaidOrders = chargeable.filter((o) => isOrderUnpaid(o));
   const paidOrders = chargeable.filter((o) => isOrderPaid(o) && o.paid_at);
 
@@ -127,7 +130,7 @@ export default function AdminPaymentsPage() {
     })
     .reduce((sum, o) => sum + o.total_price, 0);
 
-  const filtered = orders
+  const filtered = siteOrders
     .filter((o) => {
       const profile = profiles[o.user_id];
       const q = search.toLowerCase();

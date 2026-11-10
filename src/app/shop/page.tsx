@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 import {
@@ -14,7 +15,7 @@ import { OrderNoticeBanner, ORDER_BTN_NAVY } from "@/components/marketing/order-
 import { GuideImageFrame } from "@/components/marketing/guide-image";
 import { createAppClient, getClientUser } from "@/lib/supabase";
 import { SHIPPING_FLAT_RATE, SHIPPING_LABEL } from "@/lib/shipping";
-import { JbProtocolChooser } from "@/components/jb-protocol-chooser";
+import { isJbForkOffering, withoutJbForkCopy } from "@/lib/products/public-catalog";
 import {
   addCartLine,
   EQUIPMENT_FAMILIES,
@@ -68,11 +69,9 @@ function ShopContent() {
       const label =
         kind === "jb_tray"
           ? "JB Tray"
-          : kind === "jb_fork"
-            ? "JB Fork"
-            : kind === "pop_bow"
-              ? "ADD POP Bow"
-              : "Equipment";
+          : kind === "pop_bow"
+            ? "ADD POP Bow"
+            : "Equipment";
       setBanner(`${label} payment confirmed. Mark it as received on your dashboard when it arrives.`);
     }
   }, [searchParams]);
@@ -92,7 +91,7 @@ function ShopContent() {
         .eq("category", "equipment")
         .order("sort_order");
 
-      setProducts((data as ShopProduct[]) || []);
+      setProducts(((data as ShopProduct[]) || []).filter((product) => !isJbForkOffering(product)));
       setLoading(false);
     }
     void load();
@@ -172,7 +171,7 @@ function ShopContent() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-[var(--pd-border)] border border-[var(--pd-border)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[var(--pd-border)] border border-[var(--pd-border)]">
               {EQUIPMENT_FAMILIES.map((family) => {
                 const active = family.id === activeFamily;
                 const count = grouped[family.id]?.length ?? 0;
@@ -256,7 +255,7 @@ function ShopContent() {
                             )}
                           </div>
                           <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">
-                            {product.description}
+                            {withoutJbForkCopy(product.description)}
                           </p>
                         </div>
                         <p className="text-base font-semibold text-[var(--pd-navy)] shrink-0">${product.price}</p>
@@ -317,15 +316,13 @@ function ShopContent() {
         </div>
 
         <section className="mt-16 pt-12 border-t-2 border-[var(--pd-navy)]">
-          <p className="text-[13px] text-[var(--pd-slate)] mb-8 leading-relaxed max-w-2xl">
-            Not sure which kit? Most visits use Fork or Tray alone — use the protocol guide below to
-            decide. Flat-rate {SHIPPING_LABEL} shipping (${SHIPPING_FLAT_RATE}).
+          <p className="text-[13px] text-[var(--pd-slate)] leading-relaxed max-w-2xl">
+            The JB Tray is the chairside kit. ADD POP Bow is optional, for occlusal plane and anterior
+            esthetic transfer. Flat-rate {SHIPPING_LABEL} shipping (${SHIPPING_FLAT_RATE}).{" "}
+            <Link href="/guides/jb-tray" className="text-[var(--pd-teal-dark)] font-medium hover:underline">
+              JB Tray clinical guide
+            </Link>
           </p>
-          <JbProtocolChooser
-            variant="shop"
-            activeFamily={activeFamily === "pop_bow" ? undefined : activeFamily}
-            onSelectFamily={setActiveFamily}
-          />
         </section>
 
         <p className="text-[11px] text-[var(--pd-muted)] leading-relaxed mt-10 max-w-2xl">

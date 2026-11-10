@@ -13,14 +13,14 @@ export type GuardProductSeed = {
   sites: SiteId[];
 };
 
-/** Shared night & sports guard SKUs — one row per product, both storefronts. */
+/** Night guard is on both storefronts. Sports guard stays on PrintCrown only. */
 export const SHARED_GUARD_SEEDS: GuardProductSeed[] = [
   {
     category: "nightguard",
     name: "Night Guard",
     description:
-      "Custom-fit digital night guard for bruxism — soft, hard, or dual-laminate options.",
-    price: 129,
+      "Printed night guard for bruxism — soft, hard, or Thermo-flex. $89 per arch.",
+    price: 89,
     turnaround: "5–7 business days",
     accent: "#D97706",
     fields: ["guardType", "arch"],
@@ -39,7 +39,7 @@ export const SHARED_GUARD_SEEDS: GuardProductSeed[] = [
     fields: ["color", "arch"],
     active: true,
     sort_order: 81,
-    sites: ["printcrown", "printdenture"],
+    sites: ["printcrown"],
   },
 ];
 

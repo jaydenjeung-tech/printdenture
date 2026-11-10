@@ -23,6 +23,7 @@ import {
 export type AdminPaymentOrder = {
   id: string;
   user_id: string;
+  product_id?: string | null;
   product_name: string;
   total_price: number;
   status: string;

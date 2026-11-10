@@ -37,7 +37,7 @@ export const NAV_LINKS = [
 /** Deeper pages. Kept off the main menu so the first choice stays small. */
 export const LEARN_MORE_LINKS = [
   { label: "How it works", href: "/how-it-works", detail: "The three steps, written out." },
-  { label: "The tools", href: "/the-system", detail: "JB Tray, JB Fork, and POP Bow." },
+  { label: "The tools", href: "/the-system", detail: "JB Tray and POP Bow." },
   { label: "Clinical notes", href: "/clinical", detail: "Who designed this, and the studies." },
   { label: "Pricing", href: "/pricing", detail: "What a case costs." },
 ] as const;
@@ -80,7 +80,7 @@ export const FIRST_CASE_OFFER = {
     },
     {
       title: "You capture. We fabricate.",
-      detail: "Use JB Tray or JB Fork chairside, upload your records, and IDOC handles the rest.",
+      detail: "Use the JB Tray chairside, upload your records, and IDOC handles the rest.",
     },
   ],
   steps: [
@@ -128,7 +128,7 @@ export const WORKFLOW_STEPS = [
     title: "Definitive delivery",
     subtitle: "Only if the try-in needs a change",
     description:
-      "When the try-in needs a change, Dental Lab revises the denture. The patient returns for that delivery.",
+      "When the try-in needs a change, Dental Lab revises the denture and a design fee is added. The patient returns for that delivery.",
   },
 ] as const;
 
@@ -157,8 +157,7 @@ export const COMPARISON_ROWS = [
 ] as const;
 
 /**
- * PNU ADD digital denture visit pathways — clinical protocol comparison
- * (Conventional digital → JB Fork → JB Tray).
+ * Visit pathways — conventional digital compared with the JB Tray workflow.
  */
 export type VisitProtocolImage = {
   src: string;
@@ -226,43 +225,11 @@ export const VISIT_PROTOCOLS: VisitProtocol[] = [
     ],
   },
   {
-    id: "jb-fork",
-    name: "JB Fork",
-    visits: 3,
-    visitsLabel: "3 visits",
-    summary: "Jaw relation and initial records combined chairside with JB Fork.",
-    device: "JB Fork Radi+",
-    highlighted: false,
-    steps: [
-      {
-        title: "Scans & jaw relation",
-        detail: "Initial scans with JB Fork",
-        combined: true,
-        image: "/images/visit-protocols/hero-jb-fork.jpg",
-        imageAlt: "JB Fork Radi+ jaw-relation device",
-      },
-      {
-        title: "Definitive impression",
-        detail: "With temporary denture",
-        combined: false,
-        image: "/images/visit-protocols/step-fork-records.jpg",
-        imageAlt: "Definitive impression records with temporary denture",
-      },
-      {
-        title: "Final denture",
-        detail: "Definitive delivery",
-        combined: false,
-        image: "/images/visit-protocols/step-final-denture.jpg",
-        imageAlt: "Finished definitive denture",
-      },
-    ],
-  },
-  {
     id: "jb-tray",
     name: "JB Tray",
     visits: 2,
     visitsLabel: "2 visits, or 3 if revised",
-    summary: "Try-in on visit 2. If nothing needs to change, the case ends there. A revision is a third visit.",
+    summary: "Try-in on visit 2. If nothing needs to change, the case ends there. A design change adds a design fee and a third visit.",
     device: "JB Tray",
     highlighted: true,
     steps: [

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { verifyAdminAccess } from "@/lib/admin-auth";
+import { useAdminSite } from "@/components/admin/admin-site";
 import { ADMIN_STATUS_STEPS } from "@/components/admin/admin-orders-ui";
 import {
   AdminOverviewAtAGlance,
@@ -28,6 +29,7 @@ export default function AdminPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [productCategoryById, setProductCategoryById] = useState<Record<string, string>>({});
+  const { matchesOrder } = useAdminSite();
   const [defaultPartnerEmail, setDefaultPartnerEmail] = useState("");
   const [defaultPartnerName, setDefaultPartnerName] = useState("JD");
 
@@ -156,23 +158,25 @@ export default function AdminPage() {
     }
   }
 
-  const activeOrders = orders.filter((o) => o.status !== "delivered");
+  const siteOrders = orders.filter((order) => matchesOrder(order));
+  const openOrder = selectedOrder && matchesOrder(selectedOrder) ? selectedOrder : null;
+  const activeOrders = siteOrders.filter((o) => o.status !== "delivered");
   const filtered =
     filterStatus === "all"
-      ? orders
+      ? siteOrders
       : filterStatus === "active"
         ? activeOrders
-        : orders.filter((o) => o.status === filterStatus);
+        : siteOrders.filter((o) => o.status === filterStatus);
 
   const statusCounts = ADMIN_STATUS_STEPS.reduce(
     (acc, s) => {
-      acc[s] = orders.filter((o) => o.status === s).length;
+      acc[s] = siteOrders.filter((o) => o.status === s).length;
       return acc;
     },
     {} as Record<string, number>
   );
 
-  const atJd = orders.filter((o) => o.design_outsource_status === "sent").length;
+  const atJd = siteOrders.filter((o) => o.design_outsource_status === "sent").length;
   const inLab = (statusCounts.printing ?? 0) + (statusCounts.qc ?? 0);
   const attentionOrders = getOverviewAttentionOrders(activeOrders);
 
@@ -212,33 +216,33 @@ export default function AdminPage() {
             active={filterStatus}
             onChange={setFilterStatus}
             counts={statusCounts}
-            total={orders.length}
+            total={siteOrders.length}
             activeCount={activeOrders.length}
           />
           <AdminOverviewOrderList
             orders={filtered}
-            selectedId={selectedOrder?.id ?? null}
+            selectedId={openOrder?.id ?? null}
             onSelect={selectOrder}
           />
         </div>
 
-        {selectedOrder ? (
+        {openOrder ? (
           <AdminOverviewDetailPanel
-            order={selectedOrder}
+            order={openOrder}
             trackingInput={trackingInput}
             carrierInput={carrierInput}
             updating={updating}
             onTrackingChange={setTrackingInput}
             onCarrierChange={setCarrierInput}
-            onStatusChange={(status) => void updateStatus(selectedOrder.id, status)}
-            onSaveTracking={() => void updateTracking(selectedOrder.id)}
-            onDownloadStl={() => void downloadSTL(selectedOrder.stl_file_path!, selectedOrder.id)}
+            onStatusChange={(status) => void updateStatus(openOrder.id, status)}
+            onSaveTracking={() => void updateTracking(openOrder.id)}
+            onDownloadStl={() => void downloadSTL(openOrder.stl_file_path!, openOrder.id)}
             productCategory={
-              selectedOrder.product_id ? productCategoryById[selectedOrder.product_id] ?? null : null
+              openOrder.product_id ? productCategoryById[openOrder.product_id] ?? null : null
             }
             defaultPartnerEmail={defaultPartnerEmail}
             defaultPartnerName={defaultPartnerName}
-            onOutsourceSent={(fields) => handleOutsourceSent(selectedOrder.id, fields)}
+            onOutsourceSent={(fields) => handleOutsourceSent(openOrder.id, fields)}
           />
         ) : (
           <AdminOverviewAtAGlance

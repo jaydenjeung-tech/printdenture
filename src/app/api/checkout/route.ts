@@ -94,17 +94,19 @@ export async function POST(req: NextRequest) {
       quantity: 1,
     });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: lineItems,
-      ...siteCheckoutFields([{ id: order.id, case_number: order.case_number }], {
-        userId: user.id,
-        orderType: "lab_case",
-      }),
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
-    });
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: lineItems,
+        ...siteCheckoutFields([{ id: order.id, case_number: order.case_number }], {
+          userId: user.id,
+          orderType: "lab_case",
+        }),
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?ordered=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/order`,
+      },
+      { idempotencyKey: `printdenture-lab-checkout-${order.id}` }
+    );
 
     await supabase
       .from("orders")

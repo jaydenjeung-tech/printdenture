@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  async redirects() {
+    return [
+      { source: "/guides/jb-fork", destination: "/guides/jb-tray", permanent: true },
+      { source: "/guides/jb-fork/:path*", destination: "/guides/jb-tray", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

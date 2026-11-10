@@ -26,7 +26,7 @@ const STEPS = [
     n: "03",
     visit: "Visit 3",
     title: "Definitive delivery",
-    text: "The lab revises the denture, and the patient returns for delivery.",
+    text: "The lab revises the denture, a design fee is added, and the patient returns for delivery.",
     note: "Only if the try-in needs a change",
     conditional: true,
   },
@@ -128,7 +128,7 @@ export default function Home() {
             2 visits, unless it needs a change
           </p>
           <p className="mt-4 text-[17px] leading-relaxed text-[var(--pd-slate)]">
-            A right try-in ends the case. A change means we revise it, and that final delivery is a third visit.
+            A right try-in ends the case. A design change adds a design fee, and that final delivery is a third visit.
           </p>
         </div>
       </section>

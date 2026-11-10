@@ -2,14 +2,16 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import PrintDentureLogo from "@/components/logo";
+import { usePathname, useRouter } from "next/navigation";
+import { AdminBrandMarks } from "@/components/logo";
+import { createClient } from "@/lib/supabase";
 import {
   ADMIN_NAV,
   ADMIN_NAV_SECTIONS,
   ADMIN_UTILITY_LINKS,
   isAdminNavActive,
 } from "@/lib/admin-nav";
+import { AdminSiteProvider, AdminSiteTabs } from "@/components/admin/admin-site";
 
 const NAV_ICONS: Record<string, ReactNode> = {
   "/admin": (
@@ -97,9 +99,44 @@ function SidebarLink({
   );
 }
 
+function AccountLinks() {
+  const router = useRouter();
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    if (supabase) await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <Link href="/" className="text-sm font-medium text-[#4B4B4B] hover:text-[#1A1A1A]">
+        Marketing site
+      </Link>
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        className="text-sm font-medium text-[#9B9B9B] hover:text-[#1A1A1A]"
+      >
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 export default function AdminShell({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminSiteProvider>
+      <AdminShellFrame>{children}</AdminShellFrame>
+    </AdminSiteProvider>
+  );
+}
+
+function AdminShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const flush = pathname === "/admin/support";
+  const showSiteTabs = pathname !== "/lab/scan";
 
   const mobileValue =
     ADMIN_NAV.find((item) => isAdminNavActive(pathname, item.href))?.href ??
@@ -110,8 +147,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-[#F8F7F4]">
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-[#E2E0D8] bg-white h-screen sticky top-0">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[#E2E0D8] shrink-0">
-          <Link href="/admin" className="flex items-center gap-2.5 min-w-0 shrink-0">
-            <PrintDentureLogo variant="light" size="sm" />
+          <Link href="/admin" aria-label="Admin home" className="flex items-center min-w-0 shrink-0">
+            <AdminBrandMarks />
           </Link>
           <p className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</p>
         </div>
@@ -139,9 +176,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       </aside>
 
       <div className="flex flex-1 flex-col min-w-0 min-h-screen">
+        <header className="hidden md:flex h-14 px-6 items-center justify-end border-b border-[#E2E0D8] bg-white shrink-0">
+          <AccountLinks />
+        </header>
         <header className="md:hidden h-14 px-4 flex items-center justify-between border-b border-[#E2E0D8] bg-white shrink-0">
-          <Link href="/admin" className="flex items-center gap-2 min-w-0">
-            <PrintDentureLogo variant="light" size="sm" />
+          <Link href="/admin" aria-label="Admin home" className="flex items-center gap-2 min-w-0">
+            <AdminBrandMarks />
             <span className="text-[10px] font-medium text-[#9B9B9B] uppercase tracking-wider shrink-0">Admin</span>
           </Link>
           <select
@@ -162,6 +202,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             ))}
           </select>
         </header>
+        <div className="md:hidden px-4 py-2.5 flex justify-end border-b border-[#E2E0D8] bg-white shrink-0">
+          <AccountLinks />
+        </div>
+        {showSiteTabs && (
+          <div className="px-4 sm:px-6 py-3 border-b border-[#E2E0D8] bg-white shrink-0">
+            <AdminSiteTabs />
+          </div>
+        )}
 
         {flush ? (
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</div>

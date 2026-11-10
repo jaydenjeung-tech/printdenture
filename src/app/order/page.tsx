@@ -36,6 +36,8 @@ import {
 } from "@/lib/products/denture-service-groups";
 import { ORDER_FLOW_CATEGORIES } from "@/lib/products/site-catalog";
 import { resolveOrderProductSelection } from "@/lib/products/order-product-link";
+import { isJbForkOffering } from "@/lib/products/public-catalog";
+import { isPrintableLabProduct, presentPrintableLabProduct } from "@/lib/products/printable-lab";
 import { JbShopBanner } from "@/components/jb-shop-banner";
 import { CaseFileUploadSection } from "@/components/case-file-upload";
 import { RecordUploadChecklistPanel } from "@/components/record-upload-checklist";
@@ -48,7 +50,6 @@ import {
   equipmentBlockReason,
   flowStepToIndex,
   getEquipmentNoticeForCategory,
-  getRequiredEquipment,
   isJbWorkflowCategory,
   productRequiresEquipmentCheck,
   resolveDraftStepIndex,
@@ -75,13 +76,27 @@ import {
 } from "@/lib/products/case-files";
 import {
   ARCH_OPTIONS,
+  FLIPPER_MAX_TEETH,
+  FLIPPER_PRICE,
+  archChoicePrice,
   formatArchLabel,
   formatOrderProductName,
   formatProductPriceHint,
+  isSingleCaseProduct,
+  isTemporaryFlipper,
   productNeedsArchSelection,
   resolveLegacyProductSelection,
   resolveLineItemPrice,
 } from "@/lib/products/arch-pricing";
+import { TRY_IN_REVISION_NOTE, isCompleteDentureCategory } from "@/lib/products/complete-denture-records";
+import {
+  DESIGN_OCCLUSIONS,
+  DESIGN_SHADE_LETTERS,
+  DESIGN_SHADE_NUMBERS,
+  dentureDesignShade,
+  isDentureDesignProduct,
+} from "@/lib/products/denture-design";
+import { buildClinicalNotes, isMissingClinicalColumn } from "@/lib/orders/clinical-notes";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Product = {
@@ -119,6 +134,12 @@ type OrderData = {
   guardType: string;
   color: string;
   arch: string;
+  patientName: string;
+  patientChart: string;
+  nextVisit: string;
+  shadeNote: string;
+  designShadeLetter: string;
+  designShadeNumber: string;
   dentistName: string;
   licenseNo: string;
   licenseState: string;
@@ -137,10 +158,11 @@ const CAD_DESIGN_FEE = 5;
 function getOrderPricing(data: OrderData) {
   const product = data.product;
   const unitPrice = product ? resolveLineItemPrice(product, data.arch) : 0;
-  const subtotal = unitPrice * data.quantity;
+  const quantity = product && isSingleCaseProduct(product) ? 1 : data.quantity;
+  const subtotal = unitPrice * quantity;
   const shipping = SHIPPING_FLAT_RATE;
   const designFee = data.designChoice === "cad" ? CAD_DESIGN_FEE : 0;
-  return { subtotal, shipping, designFee, unitPrice, total: subtotal + shipping + designFee };
+  return { subtotal, shipping, designFee, unitPrice, quantity, total: subtotal + shipping + designFee };
 }
 
 function needsDentbirdDesign(product: Product | null) {
@@ -170,9 +192,15 @@ function draftFieldsFromStored(draft: OrderDraftStored, product: Product): Parti
     phone: draft.phone,
     marginType: draft.marginType,
     occlusion: draft.occlusion,
-    guardType: draft.guardType,
+    guardType: normalizeGuardType(draft.guardType),
     color: draft.color,
     arch: draft.arch,
+    patientName: draft.patientName ?? "",
+    patientChart: draft.patientChart ?? "",
+    nextVisit: draft.nextVisit ?? "",
+    shadeNote: draft.shadeNote ?? "",
+    designShadeLetter: draft.designShadeLetter ?? "",
+    designShadeNumber: draft.designShadeNumber ?? "",
     dentistName: draft.dentistName,
     licenseNo: draft.licenseNo,
     licenseState: draft.licenseState,
@@ -187,10 +215,14 @@ function draftFieldsFromStored(draft: OrderDraftStored, product: Product): Parti
   };
 }
 
-const SHADES = ["A1", "A2", "A3", "A3.5", "B1", "B2", "B3", "C1", "C2", "D2"];
+const SHADES = ["A1", "A2", "A3", "A3.5", "B1", "B2", "B3", "C1", "C2", "D2", "Match existing"];
 const MARGIN_TYPES = ["Feather", "Chamfer", "Shoulder"];
 const OCCLUSIONS = ["Light", "Normal", "Heavy"];
-const GUARD_TYPES = ["Soft", "Hard", "Dual-laminate"];
+const GUARD_TYPES = ["Soft", "Hard", "Thermo-flex"];
+
+function normalizeGuardType(value: string): string {
+  return /dual/i.test(value) ? "Thermo-flex" : value;
+}
 const COLORS = ["Clear", "Blue", "Red", "Green", "Black", "Custom"];
 const US_STATES = ["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
 const UPPER_TEETH = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16];
@@ -201,10 +233,7 @@ const CATEGORY_GROUPS =
     ? ORDER_DENTURE_SERVICE_GROUPS.map((group) => ({
         label: group.label,
         shortLabel: group.shortLabel,
-        description:
-          group.id === "complete"
-            ? "Full-arch removable prosthetics. Record the final impression and jaw relation with the JB Tray, or send an immediate denture from scans."
-            : group.description,
+        description: group.description,
         categories: group.categories.filter((category) => category !== "complete"),
       }))
     : [
@@ -216,26 +245,10 @@ function isOrderLabProduct(product: Product) {
   return ORDER_FLOW_CATEGORIES.includes(product.category);
 }
 
-function isForkOrderProduct(product: { category: string; name: string; fields?: string[] }) {
-  if (product.category === "complete") return true;
-  if (product.fields?.includes("jbFork")) return true;
-  return /jb\s*fork/i.test(product.name);
-}
-
-/** Order flow no longer offers the JB Fork path. Tray requirements stay. */
+/** Order flow offers the JB Tray path. Fork SKUs stay off the picker. */
 function orderCategory(category: string | null | undefined): string | null {
-  if (!category || isForkOrderProduct({ category, name: "" })) return null;
-  if (getRequiredEquipment(category).includes("jb_fork")) return null;
+  if (!category || isJbForkOffering({ category, name: "" })) return null;
   return category;
-}
-
-function stripForkCopy(text: string): string {
-  return text
-    .replace(/\s*[—–-]\s*JB Fork[^.]*(?:\.|$)/gi, "")
-    .replace(/\bJB Fork(?:\s+Radi\+)?\b/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([.,])/g, "$1")
-    .trim();
 }
 
 function serviceGroupLabelFromParam(value: string | null): string | null {
@@ -372,11 +385,12 @@ function EquipmentNoticeCard({
 }
 
 // ── Step 1 ─────────────────────────────────────────────────────────────────
-function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel, preferredGroupLabel }: {
+function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel, preferredGroupLabel, equipmentBlock }: {
   products: Product[];
   selectedProduct: Product | null;
   onSelect: (p: Product) => void;
   onContinue: () => void;
+  equipmentBlock?: string | null;
   flowStepLabel?: string;
   preferredGroupLabel?: string | null;
 }) {
@@ -384,8 +398,7 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
     ...g,
     items: products.filter((p) => g.categories.includes(p.category)),
   }));
-  const visibleGroups =
-    CURRENT_SITE === "printdenture" ? groups : groups.filter((g) => g.items.length > 0);
+  const visibleGroups = groups.filter((g) => g.items.length > 0);
 
   const [activeGroup, setActiveGroup] = useState(
     preferredGroupLabel && visibleGroups.some((g) => g.label === preferredGroupLabel)
@@ -498,8 +511,8 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="text-[15px] font-semibold text-[var(--pd-navy)]">{stripForkCopy(product.name)}</h3>
-                            <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">{stripForkCopy(product.description)}</p>
+                            <h3 className="text-[15px] font-semibold text-[var(--pd-navy)]">{product.name}</h3>
+                            <p className="text-[13px] text-[var(--pd-slate)] mt-1 leading-relaxed">{product.description}</p>
                             {productRequiresEquipmentCheck(orderCategory(product.category)) ? (
                               <p className="text-[12px] text-[var(--pd-muted)] mt-2 leading-relaxed">
                                 {getEquipmentNoticeForCategory(orderCategory(product.category))?.equipmentLabel} starter kit
@@ -532,33 +545,35 @@ function Step1({ products, selectedProduct, onSelect, onContinue, flowStepLabel,
             </p>
             {selectedProduct && (
               <p className="text-xs text-[var(--pd-muted)] mt-1">
-                ${selectedProduct.price} · {selectedProduct.turnaround}
+                {formatProductPriceHint(selectedProduct)} · {selectedProduct.turnaround}
               </p>
             )}
           </div>
           <button
             type="button"
             className={`${ORDER_BTN_NAVY} h-12 px-6 w-full sm:w-auto shrink-0`}
-            disabled={!selectedProduct}
+            disabled={!selectedProduct || !!equipmentBlock}
             onClick={onContinue}
           >
             Continue to case details
           </button>
         </div>
-        {selectedProduct && productRequiresEquipmentCheck(orderCategory(selectedProduct.category)) && (
+        {equipmentBlock && (
           <div className="border border-amber-200 bg-amber-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[12px] text-amber-950 leading-relaxed">
-              {getEquipmentNoticeForCategory(orderCategory(selectedProduct.category))?.equipmentLabel} starter kit
-              recommended — order from Shop, or continue to confirm your scan records on the next step.
-            </p>
-            {shopHrefForProductCategory(orderCategory(selectedProduct.category)) && (
-              <Link
-                href={shopHrefForProductCategory(orderCategory(selectedProduct.category))!}
-                className={`${ORDER_BTN_PRIMARY} h-9 px-4 text-[12px] shrink-0`}
-              >
-                Open Shop
+            <p className="text-[12px] text-amber-950 leading-relaxed">{equipmentBlock}</p>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              {selectedProduct && shopHrefForProductCategory(orderCategory(selectedProduct.category)) && (
+                <Link
+                  href={shopHrefForProductCategory(orderCategory(selectedProduct.category))!}
+                  className={`${ORDER_BTN_PRIMARY} h-9 px-4 text-[12px]`}
+                >
+                  Open Shop
+                </Link>
+              )}
+              <Link href="/dashboard" className={`${ORDER_BTN_BACK} h-9 px-4 text-[12px] text-amber-950 border-amber-300`}>
+                Mark kit received
               </Link>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -581,6 +596,9 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
   showJbShopBanner: boolean;
 }) {
   const p = data.product!;
+  const isFlipper = isTemporaryFlipper(p);
+  const isDesign = isDentureDesignProduct(p);
+  const [toothLimitNote, setToothLimitNote] = useState(false);
   const needsShade = p.fields.includes("shade");
   const needsTooth = p.fields.includes("toothNumber");
   const needsGuard = p.fields.includes("guardType");
@@ -599,10 +617,19 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
   const shadeRequired = needsShade && !recordChecklistDef;
   const shadeSatisfied =
     !shadeRequired || !!data.shade || data.caseFiles.some((f) => f.kind === "photo");
-  const canProceed = hasRequiredScan(data.caseFiles) &&
+  const designOk = !isDesign || Boolean(
+    data.arch && data.designShadeLetter && data.designShadeNumber && data.occlusion
+  );
+  const toothCountOk = !needsTooth || (
+    data.toothNumbers.length > 0 &&
+    (!isFlipper || data.toothNumbers.length <= FLIPPER_MAX_TEETH)
+  );
+  const canProceed = data.patientName.trim().length > 0 &&
+    hasRequiredScan(data.caseFiles) &&
     checklistComplete &&
     shadeSatisfied &&
-    (needsTooth ? data.toothNumbers.length > 0 : true) &&
+    designOk &&
+    toothCountOk &&
     (needsGuard ? (data.guardType && data.arch) : true) &&
     (needsArch ? !!data.arch : true);
 
@@ -627,6 +654,48 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
 
       {showJbShopBanner && <JbShopBanner productCategory={p.category} />}
 
+      <div className="mb-5 grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Patient name *</label>
+          <input
+            type="text"
+            value={data.patientName}
+            onChange={(e) => onChange("patientName", e.target.value)}
+            placeholder="Patient name"
+            className={ORDER_INPUT_CLASS}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">
+            Chart number <span className="text-[var(--pd-muted)] font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={data.patientChart}
+            onChange={(e) => onChange("patientChart", e.target.value)}
+            placeholder="Chart #"
+            className={ORDER_INPUT_CLASS}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">
+            Next visit <span className="text-[var(--pd-muted)] font-normal">(optional)</span>
+          </label>
+          <input
+            type="date"
+            value={data.nextVisit}
+            onChange={(e) => onChange("nextVisit", e.target.value)}
+            className={ORDER_INPUT_CLASS}
+          />
+        </div>
+      </div>
+
+      {isCompleteDentureCategory(p.category) && (
+        <p className="text-[13px] text-[var(--pd-slate)] bg-[var(--pd-surface)] border border-[var(--pd-border)] px-3 py-2 mb-5 leading-relaxed">
+          {TRY_IN_REVISION_NOTE}
+        </p>
+      )}
+
       {needsArch && !needsGuard && (
         <div className="mb-5">
           <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Arch *</label>
@@ -634,16 +703,75 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
             Select which arch(es) this lab case covers. Price updates based on your selection.
           </p>
           <div className="flex flex-wrap gap-2">
-            {ARCH_OPTIONS.map((a) => (
-              <button
-                key={a.value}
-                type="button"
-                onClick={() => onChange("arch", a.value)}
-                className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}
-              >
-                {a.label}
-              </button>
-            ))}
+            {ARCH_OPTIONS.map((a) => {
+              const price = archChoicePrice(p, a.value);
+              return (
+                <button
+                  key={a.value}
+                  type="button"
+                  onClick={() => onChange("arch", a.value)}
+                  className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}
+                >
+                  {a.label}{price != null ? ` · $${price}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {isDesign && (
+        <div className="mb-5 space-y-5">
+          <p className="text-[13px] text-[var(--pd-slate)] bg-[var(--pd-surface)] border border-[var(--pd-border)] px-3 py-2 leading-relaxed">
+            Design only, $45 per arch. Fabrication and try-in are not included. After payment, Ultran assigns the design vendor.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Teeth shade *</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {DESIGN_SHADE_LETTERS.map((letter) => (
+                <button
+                  key={letter}
+                  type="button"
+                  onClick={() => {
+                    onChange("designShadeLetter", letter);
+                    onChange("shade", dentureDesignShade(letter, data.designShadeNumber));
+                  }}
+                  className={chipClass(data.designShadeLetter === letter, "px-3 h-8 text-sm")}
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {DESIGN_SHADE_NUMBERS.map((number) => (
+                <button
+                  key={number}
+                  type="button"
+                  onClick={() => {
+                    onChange("designShadeNumber", number);
+                    onChange("shade", dentureDesignShade(data.designShadeLetter, number));
+                  }}
+                  className={chipClass(data.designShadeNumber === number, "px-3 h-8 text-sm")}
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Occlusion *</label>
+            <div className="flex flex-wrap gap-2">
+              {DESIGN_OCCLUSIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onChange("occlusion", option)}
+                  className={chipClass(data.occlusion === option, "px-4 h-9 text-sm")}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -651,16 +779,45 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
       {needsTooth && (
         <div className="mb-5">
           <label className="block text-sm font-medium text-[var(--pd-navy)] mb-3">Tooth chart *</label>
-          <p className="text-sm text-[var(--pd-slate)] mb-3">Tap teeth on the chart. Quantity updates with your selection.</p>
+          <p className="text-sm text-[var(--pd-slate)] mb-3">
+            {isFlipper
+              ? `Tap up to ${FLIPPER_MAX_TEETH} teeth. One flipper stays $${FLIPPER_PRICE}.`
+              : "Tap the teeth this partial replaces. The price follows the arch."}
+          </p>
           <div className="p-4 border border-[var(--pd-border)] bg-white">
-            <ToothSelector selected={data.toothNumbers} onChange={onTeethChange} />
+            <ToothSelector
+              selected={data.toothNumbers}
+              onChange={(teeth) => {
+                if (isFlipper && teeth.length > FLIPPER_MAX_TEETH) {
+                  setToothLimitNote(true);
+                  return;
+                }
+                setToothLimitNote(false);
+                onTeethChange(teeth);
+              }}
+            />
           </div>
+          {isFlipper && toothLimitNote && (
+            <p className="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mt-3 leading-relaxed">
+              A flipper includes up to {FLIPPER_MAX_TEETH} teeth.
+            </p>
+          )}
         </div>
       )}
 
+      {(!isSingleCaseProduct(p) || isFlipper) && (
       <div className="mb-5">
-        <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Quantity</label>
-        {needsTooth ? (
+        <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">{isFlipper ? "Price" : "Quantity"}</label>
+        {isFlipper ? (
+          <div className="border border-[var(--pd-border)] bg-[var(--pd-surface)] px-4 py-3">
+            <p className="text-2xl font-semibold text-[var(--pd-navy)]">${FLIPPER_PRICE}</p>
+            <p className="text-sm text-[var(--pd-slate)] mt-1">
+              {data.toothNumbers.length === 0
+                ? `Select 1–${FLIPPER_MAX_TEETH} teeth. The price stays $${FLIPPER_PRICE}.`
+                : `${data.toothNumbers.length} of ${FLIPPER_MAX_TEETH} teeth included.`}
+            </p>
+          </div>
+        ) : isSingleCaseProduct(p) ? null : needsTooth ? (
           <div className="border border-[var(--pd-border)] bg-[var(--pd-surface)] px-4 py-3">
             <p className="text-2xl font-semibold text-[var(--pd-navy)]">{data.toothNumbers.length}</p>
             <p className="text-sm text-[var(--pd-slate)] mt-1">
@@ -681,6 +838,7 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
           </div>
         )}
       </div>
+      )}
 
       {/* Shade */}
       {needsShade && (
@@ -694,6 +852,16 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
               </button>
             ))}
           </div>
+          <label className="block text-sm font-medium text-[var(--pd-navy)] mt-4 mb-2">
+            Shade note <span className="text-[var(--pd-muted)] font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={data.shadeNote}
+            onChange={(e) => onChange("shadeNote", e.target.value)}
+            placeholder="Match the existing denture, or split anterior and posterior shades"
+            className={ORDER_INPUT_CLASS}
+          />
         </div>
       )}
 
@@ -702,7 +870,7 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
         <>
           <div className="mb-5">
             <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Guard type *</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {GUARD_TYPES.map((g) => (
                 <button key={g} onClick={() => onChange("guardType", g)}
                   className={chipClass(data.guardType === g, "px-4 h-9 text-sm")}>
@@ -710,20 +878,20 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
                 </button>
               ))}
             </div>
+            <p className="text-xs text-[var(--pd-slate)] mt-2 leading-relaxed">Thermo-flex is hard on the outside and soft on the inside.</p>
           </div>
           <div className="mb-5">
             <label className="block text-sm font-medium text-[var(--pd-navy)] mb-2">Arch *</label>
-            <div className="flex gap-2">
-              {[
-                { value: "upper", label: "Upper" },
-                { value: "lower", label: "Lower" },
-                { value: "both", label: "Both" },
-              ].map((a) => (
-                <button key={a.value} onClick={() => onChange("arch", a.value)}
-                  className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}>
-                  {a.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {ARCH_OPTIONS.map((a) => {
+                const price = archChoicePrice(p, a.value);
+                return (
+                  <button key={a.value} type="button" onClick={() => onChange("arch", a.value)}
+                    className={chipClass(data.arch === a.value, "px-4 h-9 text-sm")}>
+                    {a.label}{price != null ? ` · $${price}` : ""}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>
@@ -764,7 +932,7 @@ function Step2({ data, onNext, onBack, onChange, onCaseFileAdd, onCaseFileRemove
 
       {recordChecklistDef && !checklistComplete && (
         <p className="text-[13px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 mb-5 leading-relaxed">
-          Confirm the required checklist item to continue. Recommended uploads are optional but reduce try-in risk.
+          Confirm the required checklist item to continue. Recommended uploads are optional but help the setup.
         </p>
       )}
 
@@ -1220,7 +1388,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
   equipmentBlock?: string | null;
 }) {
   const p = data.product!;
-  const { subtotal, shipping, designFee, total } = getOrderPricing(data);
+  const { subtotal, shipping, designFee, quantity, total } = getOrderPricing(data);
   const canSubmit = data.firstName && data.lastName && data.practiceName &&
     data.address && data.city && data.state && data.zip && data.phone && !equipmentBlock;
 
@@ -1259,7 +1427,7 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-5 rounded-full" style={{ background: p.accent }} />
-            <span className="text-sm text-[var(--pd-navy)]">{p.name} × {data.quantity}</span>
+            <span className="text-sm text-[var(--pd-navy)]">{p.name} × {quantity}</span>
           </div>
           <span className="text-sm font-medium text-[var(--pd-navy)]">${subtotal}</span>
         </div>
@@ -1271,10 +1439,12 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         )}
         {data.guardType && <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Guard: {data.guardType} · Arch: {formatArchLabel(data.arch)}</p>}
         {data.arch && !data.guardType && (
-          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Arch: {formatArchLabel(data.arch)}</p>
+          <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Arch: {formatArchLabel(data.arch)}{data.occlusion ? ` · ${data.occlusion}` : ""}</p>
         )}
         {data.marginType && <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Margin: {data.marginType} · Occlusion: {data.occlusion}</p>}
         <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Rx: Dr. {data.dentistName} · #{data.licenseNo} ({data.licenseState})</p>
+        <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Patient: {data.patientName}{data.patientChart ? ` · Chart ${data.patientChart}` : ""}{data.nextVisit ? ` · Next visit ${data.nextVisit}` : ""}</p>
+        {data.shadeNote && <p className="text-xs text-[var(--pd-muted)] ml-4 mb-1">Shade note: {data.shadeNote}</p>}
         {data.caseFiles.length > 0 && (
           <div className="text-xs text-[var(--pd-muted)] ml-4 mb-1 space-y-0.5">
             {data.caseFiles.map((f) => (
@@ -1311,7 +1481,8 @@ function Step4({ data, onBack, onChange, onSubmit, submitting, equipmentBlock }:
         </div>
       </div>
 
-      <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-4">Shipping address</p>
+        <p className="text-xs text-[var(--pd-slate)] mb-4">Practice, license, and shipping are filled from your account. Change only what is different.</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--pd-muted)] mb-4">Shipping address</p>
       <div className="space-y-3 mb-8">
         <div className="flex gap-3">
           <Field label="First name" placeholder="John" half value={data.firstName} onChange={(v) => onChange("firstName", v)} />
@@ -1367,6 +1538,8 @@ function OrderContent() {
     firstName: "", lastName: "", practiceName: "",
     address: "", city: "", state: "", zip: "", phone: "",
     marginType: "", occlusion: "", guardType: "", color: "", arch: "",
+    patientName: "", patientChart: "", nextVisit: "", shadeNote: "",
+    designShadeLetter: "", designShadeNumber: "",
     dentistName: "", licenseNo: "", licenseState: "", authorized: false,
     aiDesignStatus: "idle", aiDesignApproved: false, aiDesignSummary: "",
     aiDesignedFileName: "", aiDesignError: "", designChoice: "",
@@ -1398,11 +1571,15 @@ function OrderContent() {
 
       const { data: productData } = await supabase
         .from("products").select("*").eq("active", true).order("sort_order");
-      const visibleProducts = prepareCatalogProducts(productData || []);
-      const labOnly = visibleProducts.filter(isOrderLabProduct).filter((product) => !isForkOrderProduct(product));
-      const visibleLab = visibleProducts.filter(
-        (product) => product.category !== "equipment" && !isForkOrderProduct(product)
-      );
+      const catalog = prepareCatalogProducts(productData || []).filter((product) => !isJbForkOffering(product));
+      const visibleProducts =
+        CURRENT_SITE === "printdenture"
+          ? catalog
+              .filter((product) => isPrintableLabProduct(product))
+              .map((product) => presentPrintableLabProduct(product))
+          : catalog;
+      const labOnly = visibleProducts.filter(isOrderLabProduct);
+      const visibleLab = visibleProducts.filter((product) => product.category !== "equipment");
       setLabProducts(labOnly);
       setProductsLoading(false);
 
@@ -1441,7 +1618,7 @@ function OrderContent() {
               quantity: prevOrder.quantity || prev.quantity,
               shade: prevOrder.shade || prev.shade,
               toothNumbers: prevOrder.tooth_numbers || prev.toothNumbers,
-              guardType: prevRx?.guard_type || prev.guardType,
+              guardType: normalizeGuardType(prevRx?.guard_type || prev.guardType),
               color: prevRx?.color || prev.color,
               marginType: prevRx?.margin_type || prev.marginType,
               occlusion: prevRx?.occlusion || prev.occlusion,
@@ -1549,11 +1726,11 @@ function OrderContent() {
   }, [router, searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("equipment") === "ordered" && searchParams.get("kind") !== "jb_fork") {
+    if (searchParams.get("equipment") === "ordered") {
       const kind = searchParams.get("kind");
       const label = kind === "jb_tray" ? "JB Tray" : "Equipment";
       setEquipmentBanner(
-        `${label} order confirmed. You can continue preparing this case — submit payment after you mark the kit received on your dashboard.`
+        `${label} order confirmed. Mark the kit received on your dashboard before submitting this case.`
       );
     }
   }, [searchParams]);
@@ -1587,6 +1764,12 @@ function OrderContent() {
         guardType: data.guardType,
         color: data.color,
         arch: data.arch,
+        patientName: data.patientName,
+        patientChart: data.patientChart,
+        nextVisit: data.nextVisit,
+        shadeNote: data.shadeNote,
+        designShadeLetter: data.designShadeLetter,
+        designShadeNumber: data.designShadeNumber,
         dentistName: data.dentistName,
         licenseNo: data.licenseNo,
         licenseState: data.licenseState,
@@ -1672,7 +1855,7 @@ function OrderContent() {
   }
 
   function continueFromProduct() {
-    if (!data.product) return;
+    if (!data.product || equipmentBlock) return;
     goToFlowStep("case");
   }
 
@@ -1688,6 +1871,12 @@ function OrderContent() {
       ...prev,
       product,
       arch: "",
+      quantity: 1,
+      toothNumbers: [],
+      shade: "",
+      occlusion: "",
+      designShadeLetter: "",
+      designShadeNumber: "",
       caseFiles: [],
       fileUploadError: null,
       file: null,
@@ -1770,7 +1959,21 @@ function OrderContent() {
     }
 
     const p = data.product;
-    const { total, unitPrice } = getOrderPricing(data);
+    const { total, unitPrice, quantity } = getOrderPricing(data);
+    const clinicalNotes = buildClinicalNotes({
+      patientName: data.patientName,
+      patientChart: data.patientChart,
+      nextVisit: data.nextVisit,
+      shadeNote: data.shadeNote,
+      notes: [
+        data.notes,
+        data.designChoice === "cad"
+          ? `CAD design requested (+$${CAD_DESIGN_FEE} design fee)`
+          : data.aiDesignApproved && data.aiDesignedFileName
+            ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
+            : null,
+      ].filter(Boolean).join("\n"),
+    });
     const checklistContext = {
       files: data.caseFiles,
       shade: data.shade,
@@ -1779,28 +1982,34 @@ function OrderContent() {
     const recordChecklist = buildRecordChecklistSnapshot(p.category, checklistContext);
 
     // 1. orders 저장
-    const { data: order, error: orderError } = await insertWithOptionalSite(supabase, "orders", {
+    const orderRow = {
       user_id: user.id,
       product_id: p.id,
       product_name: formatOrderProductName(p.name, data.arch),
-      quantity: data.quantity,
+      quantity,
       unit_price: unitPrice,
       total_price: total,
       shade: data.shade || null,
       tooth_number: data.toothNumbers[0]?.toString() || null,
       tooth_numbers: data.toothNumbers,
-      notes: [
-        data.notes,
-        data.designChoice === "cad"
-          ? `CAD design requested (+$${CAD_DESIGN_FEE} design fee)`
-          : data.aiDesignApproved && data.aiDesignedFileName
-            ? `Dentbird AI crown approved: ${data.aiDesignedFileName}`
-            : null,
-      ].filter(Boolean).join("\n") || null,
+      notes: clinicalNotes || null,
       status: "pending_payment",
       order_type: "lab_case",
       record_checklist: recordChecklist,
-    });
+      patient_name: data.patientName.trim(),
+      patient_chart: data.patientChart.trim() || null,
+      requested_delivery: data.nextVisit || null,
+      shade_note: data.shadeNote.trim() || null,
+    };
+    let { data: order, error: orderError } = await insertWithOptionalSite(supabase, "orders", orderRow);
+    if (orderError && isMissingClinicalColumn(orderError)) {
+      const { patient_name, patient_chart, requested_delivery, shade_note, ...withoutClinical } = orderRow;
+      void patient_name;
+      void patient_chart;
+      void requested_delivery;
+      void shade_note;
+      ({ data: order, error: orderError } = await insertWithOptionalSite(supabase, "orders", withoutClinical));
+    }
 
     if (orderError || !order) {
       alert("Failed to place order. Please try again.");
@@ -1826,7 +2035,7 @@ function OrderContent() {
         license_state: data.licenseState,
         authorized: data.authorized,
         authorized_at: new Date().toISOString(),
-        notes: data.notes || null,
+        notes: clinicalNotes || null,
       })
       .select().single();
 
@@ -1963,7 +2172,7 @@ function OrderContent() {
               activeFlowStep={activeFlowStep}
               productCategory={data.product?.category ?? null}
               productName={data.product?.name ?? null}
-              quantity={data.quantity}
+              quantity={orderPricing?.quantity ?? data.quantity}
               pricing={orderPricing}
               onGoToStep={goToFlowStep}
             />
@@ -1982,6 +2191,7 @@ function OrderContent() {
                     selectedProduct={data.product}
                     onSelect={selectProduct}
                     onContinue={continueFromProduct}
+                    equipmentBlock={equipmentBlock}
                     flowStepLabel={flowStepLabel}
                     preferredGroupLabel={serviceGroupLabelFromParam(searchParams.get("group"))}
                   />
@@ -2000,11 +2210,14 @@ function OrderContent() {
                   }
                   onChecklistChange={handleChecklistChange}
                   onTeethChange={(teeth) => {
-                    setData((prev) => ({
-                      ...prev,
-                      toothNumbers: teeth,
-                      quantity: teeth.length > 0 ? teeth.length : 1,
-                    }));
+                    setData((prev) => {
+                      const single = prev.product ? isSingleCaseProduct(prev.product) : false;
+                      return {
+                        ...prev,
+                        toothNumbers: teeth,
+                        quantity: single ? 1 : teeth.length > 0 ? teeth.length : 1,
+                      };
+                    });
                   }}
                   onBack={() => goToFlowStep("product")}
                   onNext={() => goToFlowStep("rx")} />
@@ -2037,6 +2250,13 @@ function OrderContent() {
             </div>
           </main>
         </div>
+        <p className="mt-8 text-[13px] leading-relaxed text-[var(--pd-muted)]">
+          Reline, repair, and immediate dentures are not in this menu.{" "}
+          <Link href="/support" className="underline hover:text-[var(--pd-navy)]">
+            Contact the lab
+          </Link>
+          .
+        </p>
       </div>
     </MarketingShell>
   );

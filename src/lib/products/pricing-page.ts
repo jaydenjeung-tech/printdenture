@@ -45,23 +45,19 @@ const LAB_GROUP_META: Record<
 > = {
   complete: {
     accent: "#0F6E56",
-    features: ["JB Fork or JB Tray records", "Printed try-in included", "Lab CAD design", "Free remake guarantee"],
+    features: ["JB Tray records", "Printed try-in included", "Try-in change adds a design fee", "Free remake guarantee"],
   },
   partial: {
     accent: "#1D9E75",
-    features: ["Flexible & cast partial", "Removable partial & flipper", "Digital clasp design", "Free remake guarantee"],
+    features: ["Printed flexible partial", "Printed temporary flipper", "Digital clasp design", "Free remake guarantee"],
   },
-  overdenture: {
-    accent: "#378ADD",
-    features: ["Implant-level records", "Bar, locator & All-on-X", "Lab design & fab", "Free remake guarantee"],
+  design: {
+    accent: "#0F6E56",
+    features: ["Design only", "$45 per arch", "Sent to Ultran", "Fabrication not included"],
   },
   removable: {
     accent: "#D97706",
-    features: ["Night & sports guards", "Soft, hard & dual-laminate", "Custom colors", "Free remake guarantee"],
-  },
-  reline: {
-    accent: "#1B2B3A",
-    features: ["Mail-in or digital", "Same-week options", "Quality check included", "Free remake guarantee"],
+    features: ["Printed night guard", "Soft, hard & Thermo-flex", "$89 per arch", "Free remake guarantee"],
   },
 };
 

@@ -20,7 +20,7 @@ export const CATEGORY_SITE_DEFAULTS: Record<string, SiteId[]> = {
   printed: ["printcrown"],
   implant: ["printcrown"],
   nightguard: ["printcrown", "printdenture"],
-  sportsguard: ["printcrown", "printdenture"],
+  sportsguard: ["printcrown"],
   // PrintDenture — dentures & removable
   complete: ["printdenture"],
   partial: ["printdenture"],
@@ -28,6 +28,7 @@ export const CATEGORY_SITE_DEFAULTS: Record<string, SiteId[]> = {
   overdenture: ["printdenture"],
   reline: ["printdenture"],
   jb_tray: ["printdenture"],
+  design: ["printdenture"],
   equipment: ["printdenture"],
 };
 
@@ -39,6 +40,7 @@ export const DENTURE_CATEGORIES = [
   "partial",
   "overdenture",
   "reline",
+  "design",
   "nightguard",
   "sportsguard",
   "equipment",
@@ -54,10 +56,18 @@ export function defaultSitesForCategory(category: string): SiteId[] {
 }
 
 export function getProductSites(product: CatalogProduct): SiteId[] {
-  if (product.sites && product.sites.length > 0) {
-    return product.sites.filter((s): s is SiteId => s === "printcrown" || s === "printdenture");
+  const stored =
+    product.sites && product.sites.length > 0
+      ? product.sites.filter((s): s is SiteId => s === "printcrown" || s === "printdenture")
+      : defaultSitesForCategory(product.category);
+
+  if (product.category === "nightguard" && !stored.includes("printdenture")) {
+    return [...stored, "printdenture"];
   }
-  return defaultSitesForCategory(product.category);
+  if (product.category === "sportsguard") {
+    return stored.filter((site) => site !== "printdenture");
+  }
+  return stored;
 }
 
 export function productVisibleOnSite(product: CatalogProduct, site: SiteId = CURRENT_SITE): boolean {

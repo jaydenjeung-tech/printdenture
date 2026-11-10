@@ -13,6 +13,10 @@ export function stripeCheckoutSessionDashboardUrl(sessionId: string): string {
   return `https://dashboard.stripe.com${stripeDashboardPrefix()}/checkout/sessions/${sessionId}`;
 }
 
+export function stripeInvoiceDashboardUrl(invoiceId: string): string {
+  return `https://dashboard.stripe.com${stripeDashboardPrefix()}/invoices/${invoiceId}`;
+}
+
 export function stripePaymentDashboardUrl(paymentIntentId: string): string {
   return `https://dashboard.stripe.com${stripeDashboardPrefix()}/payments/${paymentIntentId}`;
 }

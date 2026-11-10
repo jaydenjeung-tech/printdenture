@@ -48,6 +48,11 @@ const COLORS: Record<LogoVariant, { print: string; denture: string }> = {
   light: { print: "#05264A", denture: "#12C4A4" },
 };
 
+const CROWN_COLORS: Record<LogoVariant, { print: string; crown: string }> = {
+  dark: { print: "#FFFFFF", crown: "#7EB6FF" },
+  light: { print: "#05264A", crown: "#2563EB" },
+};
+
 type MarkProps = {
   size?: number;
   className?: string;
@@ -84,6 +89,31 @@ export function PrintDentureWordmark({ variant = "dark", size = "md", className 
     >
       <span style={{ color: colors.print, fontWeight: 500 }}>Print</span>
       <span style={{ color: colors.denture, fontWeight: 800 }}>Denture</span>
+    </span>
+  );
+}
+
+export function PrintCrownWordmark({ variant = "dark", size = "md", className }: WordmarkProps) {
+  const sizeClass = typeof size === "number" ? "" : WORDMARK_SIZES[size];
+  const fontSize = typeof size === "number" ? { fontSize: size } : undefined;
+  const colors = CROWN_COLORS[variant];
+
+  return (
+    <span
+      className={`${outfit.className} tracking-[-0.06em] leading-none select-none inline-flex items-center logo-wordmark ${sizeClass} ${className ?? ""}`}
+      style={fontSize}
+    >
+      <span style={{ color: colors.print, fontWeight: 500 }}>Print</span>
+      <span style={{ color: colors.crown, fontWeight: 800 }}>Crown</span>
+    </span>
+  );
+}
+
+export function AdminBrandMarks() {
+  return (
+    <span className="inline-flex flex-col gap-0.5">
+      <PrintDentureWordmark variant="light" size={13} />
+      <PrintCrownWordmark variant="light" size={13} />
     </span>
   );
 }

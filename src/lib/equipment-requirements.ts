@@ -1,5 +1,5 @@
 /**
- * JB Tray / JB Fork equipment readiness for PrintDenture lab-case orders.
+ * JB Tray equipment readiness for PrintDenture lab-case orders.
  */
 
 export type EquipmentKind = "jb_tray" | "jb_fork";
@@ -27,8 +27,6 @@ export const EQUIPMENT_STATUS_LABELS: Record<EquipmentStatus, string> = {
 
 const JB_WORKFLOW_CATEGORIES: Record<string, EquipmentKind[]> = {
   jb_tray: ["jb_tray"],
-  complete: ["jb_fork"],
-  overdenture: ["jb_fork"],
 };
 
 export function getRequiredEquipment(productCategory: string | null | undefined): EquipmentKind[] {
@@ -67,20 +65,6 @@ const CATEGORY_EQUIPMENT_NOTICES: Record<string, EquipmentOrderNotice> = {
       "This is a complete denture case captured with the JB Tray protocol. Confirm JB Tray (and POP Bow when indicated) in your practice before submitting, or order kits from PrintDenture.",
     equipmentLabel: "JB Tray",
     shopLabel: "Order JB Tray kit",
-  },
-  complete: {
-    title: "JB Fork Radi+ required",
-    body:
-      "This is a complete denture case from JB Fork-aligned digital scans. Confirm JB Fork Radi+ in your practice before submitting, or order a kit from PrintDenture.",
-    equipmentLabel: "JB Fork Radi+",
-    shopLabel: "Order JB Fork kit",
-  },
-  overdenture: {
-    title: "JB Fork Radi+ required",
-    body:
-      "Implant overdenture cases need aligned CBCT / IOS data — typically captured with JB Fork Radi+. Confirm equipment in your practice or order from PrintDenture before case submission.",
-    equipmentLabel: "JB Fork Radi+",
-    shopLabel: "Order JB Fork kit",
   },
 };
 
@@ -160,7 +144,7 @@ export function equipmentBlockReason(
   for (const kind of required) {
     const status = state[statusFieldForKind(kind)];
     const trained = state[trainedFieldForKind(kind)];
-    const label = kind === "jb_tray" ? "JB Tray" : "JB Fork Radi+";
+    const label = "JB Tray";
 
     if (status === "need") {
       return `Order your ${label} starter kit from PrintDenture, capture records when it arrives, then submit this case.`;
@@ -204,8 +188,8 @@ export const ORDER_FLOW_STEP_HINTS: Record<OrderFlowStep, OrderFlowStepHint> = {
     title: "What are you ordering?",
     description: "Pick the prosthesis type first, then the specific arch or record protocol.",
     bullets: [
-      "Complete dentures: JB Tray records, or an immediate denture from scans",
-      "Partial, guards, and implant cases: submit scans directly",
+      "Printed full denture: JB Tray records",
+      "Flexible partial, temporary flipper, and printed night guard: submit scans directly",
     ],
   },
   equipment: {
@@ -291,5 +275,5 @@ export function equipmentFieldTagForKind(kind: EquipmentKind): string {
 export function shopHrefForProductCategory(category: string | null | undefined): string | null {
   const kind = getRequiredEquipment(category)[0];
   if (!kind) return null;
-  return `/shop?family=${kind === "jb_tray" ? "jb_tray" : "jb_fork"}`;
+  return "/shop?family=jb_tray";
 }

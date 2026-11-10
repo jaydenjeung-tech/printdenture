@@ -14,6 +14,7 @@ import {
   getVariantShortLabel,
   SHOP_QUANTITY_MIN,
 } from "@/lib/equipment-shop";
+import { isJbForkOffering } from "@/lib/products/public-catalog";
 
 type CheckoutLineInput = {
   productId: string;
@@ -93,6 +94,10 @@ export async function POST(req: NextRequest) {
 
     if (!products?.length || products.length !== productIds.length) {
       return NextResponse.json({ error: "One or more equipment products were not found" }, { status: 404 });
+    }
+
+    if (products.some((product) => isJbForkOffering(product))) {
+      return NextResponse.json({ error: "That equipment kit is no longer offered" }, { status: 400 });
     }
 
     const productById = new Map(products.map((product) => [product.id, product]));
@@ -179,23 +184,25 @@ export async function POST(req: NextRequest) {
     const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}${safeReturn}${safeReturn.includes("?") ? "&" : "?"}${successParams.toString()}`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}${safeReturn}`;
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: stripeLineItems,
-      ...siteCheckoutFields(createdOrders, {
-        orderIds: orderIds.join(","),
-        userId: user.id,
-        orderType: "equipment",
-        equipmentKind: resolvedLines[0]?.equipmentKind ?? "",
-        equipmentKinds: [...equipmentKinds].join(","),
-        equipmentField: resolvedLines[0]?.equipmentKind
-          ? equipmentFieldTagForKind(resolvedLines[0].equipmentKind)
-          : "",
-      }),
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-    });
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        line_items: stripeLineItems,
+        ...siteCheckoutFields(createdOrders, {
+          orderIds: orderIds.join(","),
+          userId: user.id,
+          orderType: "equipment",
+          equipmentKind: resolvedLines[0]?.equipmentKind ?? "",
+          equipmentKinds: [...equipmentKinds].join(","),
+          equipmentField: resolvedLines[0]?.equipmentKind
+            ? equipmentFieldTagForKind(resolvedLines[0].equipmentKind)
+            : "",
+        }),
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      },
+      { idempotencyKey: `printdenture-equip-checkout-${orderIds[0]}` }
+    );
 
     await supabase
       .from("orders")

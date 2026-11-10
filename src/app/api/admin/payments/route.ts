@@ -4,6 +4,7 @@ import { requireAdminServiceClient } from "@/lib/admin-api-auth";
 import { calculateDueDate } from "@/lib/utils/due-date";
 import {
   stripeCheckoutSessionDashboardUrl,
+  stripeInvoiceDashboardUrl,
   stripePaymentDashboardUrl,
 } from "@/lib/stripe-admin";
 
@@ -85,6 +86,46 @@ export async function POST(req: NextRequest) {
         { error: "No Stripe checkout session linked to this order" },
         { status: 400 }
       );
+    }
+
+    if (String(order.stripe_session_id).startsWith("in_")) {
+      const invoice = await stripe.invoices.retrieve(order.stripe_session_id);
+      if (invoice.status !== "paid") {
+        return NextResponse.json({
+          ok: false,
+          payment_status: invoice.status,
+          message: "Stripe shows this invoice is not paid yet",
+          stripeSessionUrl: stripeInvoiceDashboardUrl(invoice.id),
+        });
+      }
+
+      const paidAt = new Date((invoice.status_transitions.paid_at ?? invoice.created) * 1000);
+      const isEquipment = order.order_type === "equipment";
+      const dueDate = isEquipment
+        ? null
+        : calculateDueDate(paidAt, order.product_name, order.product_id);
+
+      const { error: updateError } = await auth.service
+        .from("orders")
+        .update({
+          paid_at: paidAt.toISOString(),
+          stripe_session_id: invoice.id,
+          due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
+          ...(order.status === "pending_payment" ? { status: "received" } : {}),
+        })
+        .eq("id", orderId);
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        paid_at: paidAt.toISOString(),
+        due_date: dueDate ? dueDate.toISOString().split("T")[0] : null,
+        payment_status: invoice.status,
+        stripeSessionUrl: stripeInvoiceDashboardUrl(invoice.id),
+      });
     }
 
     const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);

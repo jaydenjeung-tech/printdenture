@@ -59,8 +59,8 @@ export function OrderPageHeader() {
           New lab case
         </h1>
         <p className="text-[14px] text-[var(--pd-slate)] mt-2 max-w-2xl leading-relaxed">
-          Partial, guards, and immediate cases go straight to scan upload. Complete and
-          overdenture JB cases start with a starter kit from the shop.
+          Printed full dentures, flexible partials, temporary flippers, and printed night guards.
+          Full dentures start with a JB Tray kit from the shop.
         </p>
       </div>
     </section>

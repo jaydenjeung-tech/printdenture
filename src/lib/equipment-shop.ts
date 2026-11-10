@@ -39,22 +39,12 @@ export const EQUIPMENT_FAMILIES: EquipmentFamily[] = [
     orderHint: "One JB Tray box is enough to start — add an ADD POP Bow pouch if you need esthetic transfer supplies.",
   },
   {
-    id: "jb_fork",
-    label: "JB Fork Radi+",
-    description:
-      "JB Fork Solution with Radi+ markers for digital & implant jaw-relation records. POP Bow sold separately.",
-    image: "/images/jb-fork/product.jpg",
-    variantHints: ["Box · 10 units · $99"],
-    orderHint: "One box includes ten chairside units. POP Bow is optional and ordered separately.",
-  },
-  {
     id: "pop_bow",
     label: "ADD POP Bow",
-    description:
-      "Occlusal plane & anterior esthetic transfer — separate from JB Tray and JB Fork boxes.",
+    description: "Occlusal plane and anterior esthetic transfer — sold separately from the JB Tray box.",
     image: "/images/jb-tray/pop-bow.jpg",
     variantHints: ["Pouch · 12 sets · $21"],
-    orderHint: "Use with JB Tray or JB Fork when you need POP Bow transfer — not included in tray or fork boxes.",
+    orderHint: "Optional with the JB Tray when you need POP Bow transfer — not included in the tray box.",
   },
 ];
 
@@ -122,7 +112,8 @@ export function getDefaultProductForFamily(
 }
 
 export function parseShopFamilyParam(value: string | null): EquipmentFamilyId | null {
-  if (value === "jb_tray" || value === "jb_fork" || value === "pop_bow") return value;
+  if (value === "jb_fork") return "jb_tray";
+  if (value === "jb_tray" || value === "pop_bow") return value;
   return null;
 }
 

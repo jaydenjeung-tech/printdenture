@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo } from "react";
 import { CURRENT_SITE, CROWN_CATEGORIES } from "@/lib/products/site-catalog";
 import { prepareCatalogProducts } from "@/lib/products/guard-catalog";
 import { COMPLETE_DENTURE_INTRO } from "@/lib/products/complete-denture-records";
+import { isJbForkOffering, withoutJbForkCopy } from "@/lib/products/public-catalog";
+import { isPrintableLabProduct, presentPrintableLabProduct } from "@/lib/products/printable-lab";
 import { formatPricingCardPrice } from "@/lib/products/arch-pricing";
 import {
   orderProductHref,
@@ -54,9 +56,9 @@ const CATEGORY_META: Record<string, { label: string; description: string; featur
     features: ["SLA printed", "Temporary & permanent", "Same-day dispatch", "Free remake guarantee"],
   },
   nightguard: {
-    label: "Night Guards",
-    description: "Custom-fit digital night guards to protect against bruxism.",
-    features: ["Soft, hard & dual-laminate", "Digital scan required", "Adjustments included", "Free remake guarantee"],
+    label: "Printed Night Guard",
+    description: "Printed night guard for bruxism, made from an intraoral scan.",
+    features: ["Printed", "Soft, hard & Thermo-flex", "Digital scan required", "Free remake guarantee"],
   },
   sportsguard: {
     label: "Sports Guards",
@@ -69,14 +71,14 @@ const CATEGORY_META: Record<string, { label: string; description: string; featur
     features: ["Compatible with major platforms", "Shade matching", "Rush options", "Free remake guarantee"],
   },
   complete: {
-    label: "Complete",
+    label: "Full denture",
     description: COMPLETE_DENTURE_INTRO.description,
-    features: ["JB Fork or JB Tray records", "Printed try-in included", "Lab CAD design", "Free remake guarantee"],
+    features: ["Printed full denture", "JB Tray records", "Printed try-in included", "Try-in change adds a design fee"],
   },
   partial: {
     label: "Partial",
-    description: "Flexible, cast, removable partials, and temporary flippers for partially edentulous arches.",
-    features: ["Flexible & cast partial", "Removable partial & flipper", "Digital clasp design", "Free remake guarantee"],
+    description: "Printed flexible partials and temporary flippers.",
+    features: ["Printed flexible partial", "Printed temporary flipper", "Digital clasp design", "Free remake guarantee"],
   },
   immediate: {
     label: "Immediate",
@@ -103,7 +105,7 @@ const DEVICE_INCLUDES = [
 ];
 
 const LAB_INCLUDES = [
-  "Printed try-in included",
+  "Printed in our lab",
   "Lab-controlled QC",
   "Free remake guarantee",
   "No setup fees",
@@ -210,7 +212,14 @@ export default function PricingPage() {
         supabase.from("products").select("*").eq("active", true).order("sort_order"),
         getClientUser(supabase),
       ]);
-      setProducts(prepareCatalogProducts(data || []) as PricingProduct[]);
+      const catalog = (prepareCatalogProducts(data || []) as PricingProduct[])
+        .filter((product) => !isJbForkOffering(product))
+        .map((product) => ({
+          ...product,
+          name: withoutJbForkCopy(product.name),
+          description: withoutJbForkCopy(product.description),
+        }));
+      setProducts(catalog);
       setIsAuthenticated(!!user);
       setLoading(false);
     }
@@ -243,8 +252,11 @@ export default function PricingPage() {
     }
 
     const { equipment, lab: labProducts } = splitPricingProducts(products);
+    const printableLab = labProducts
+      .filter((product) => isPrintableLabProduct(product))
+      .map((product) => presentPrintableLabProduct(product));
     const devices = buildDevicePricingGroups(equipment);
-    const labBuilt = buildLabPricingGroups(labProducts, categoryMeta);
+    const labBuilt = buildLabPricingGroups(printableLab, categoryMeta);
 
     return {
       deviceGroups: devices,
@@ -293,7 +305,7 @@ export default function PricingPage() {
                     <PricingTierHeader
                       eyebrow="One-time purchase"
                       title="Capture devices"
-                      description="Clinically-developed JB Tray, JB Fork Radi+, and ADD POP Bow — the chairside capture system used before the try-in and final delivery. Order kits through our equipment shop."
+                      description="Clinically-developed JB Tray and ADD POP Bow — the chairside capture system used before the try-in and final delivery. Order kits through our equipment shop."
                     />
 
                     <div className="border-y border-[var(--pd-border)] bg-white mb-10">
@@ -328,9 +340,9 @@ export default function PricingPage() {
                     </div>
 
                     <p className="text-[13px] text-[var(--pd-muted)]">
-                      Need help choosing Tray vs Fork?{" "}
+                      See how the JB Tray and POP Bow are used.{" "}
                       <Link href="/the-system" className="text-[var(--pd-teal-dark)] hover:underline">
-                        Compare the capture system →
+                        Capture system →
                       </Link>
                     </p>
                   </div>
@@ -343,7 +355,7 @@ export default function PricingPage() {
                         <PricingTierHeader
                           eyebrow="Per case"
                           title="Lab services"
-                          description="Send scans after chairside capture — we design, print a try-in, and deliver the finished prosthesis. Pricing at checkout matches what you see here."
+                          description="Printed full dentures, flexible partials, temporary flippers, and night guards. Pricing at checkout matches what you see here."
                         />
                         <div className="border-y border-[var(--pd-border)] bg-white mb-12">
                           <div className="grid grid-cols-2 lg:grid-cols-4">

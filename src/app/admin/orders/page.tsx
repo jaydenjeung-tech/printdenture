@@ -4,6 +4,7 @@ import { useEffect, useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { createAppClient } from "@/lib/supabase";
 import { verifyAdminAccess } from "@/lib/admin-auth";
+import { useAdminSite } from "@/components/admin/admin-site";
 import { isOrderPaid, isOrderUnpaid } from "@/lib/order-payment";
 import { cn } from "@/lib/utils";
 import {
@@ -25,6 +26,7 @@ import {
 type Order = {
   id: string;
   user_id: string;
+  product_id?: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -100,6 +102,7 @@ export default function AdminOrdersPage() {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const { matchesOrder } = useAdminSite();
 
   useEffect(() => {
     let cancelled = false;
@@ -191,7 +194,8 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const paidOrders = orders.filter((o) => o.paid_at && !o.is_remake);
+  const siteOrders = orders.filter((order) => matchesOrder(order));
+  const paidOrders = siteOrders.filter((o) => o.paid_at && !o.is_remake);
   const now = new Date();
   const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total_price, 0);
   const thisMonthRevenue = paidOrders
@@ -205,13 +209,13 @@ export default function AdminOrdersPage() {
     .reduce((sum, o) => sum + o.total_price, 0);
 
   const statusStats = {
-    received: orders.filter((o) => o.status === "received").length,
-    inProgress: orders.filter((o) => ["printing", "qc"].includes(o.status)).length,
-    shipped: orders.filter((o) => o.status === "shipped").length,
-    delivered: orders.filter((o) => o.status === "delivered").length,
+    received: siteOrders.filter((o) => o.status === "received").length,
+    inProgress: siteOrders.filter((o) => ["printing", "qc"].includes(o.status)).length,
+    shipped: siteOrders.filter((o) => o.status === "shipped").length,
+    delivered: siteOrders.filter((o) => o.status === "delivered").length,
   };
 
-  const filtered = orders
+  const filtered = siteOrders
     .filter((o) => {
       const profile = profiles[o.user_id];
       const q = search.toLowerCase();
@@ -271,14 +275,14 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="max-w-[1400px] w-full">
-      <AdminOrdersHeader totalCount={orders.length} />
+      <AdminOrdersHeader totalCount={siteOrders.length} />
 
       <AdminOrdersMetricRow
         items={[
           {
             label: "Today's revenue",
             value: `$${todayRevenue}`,
-            sub: `${orders.filter((o) => new Date(o.created_at).toDateString() === now.toDateString()).length} orders`,
+            sub: `${siteOrders.filter((o) => new Date(o.created_at).toDateString() === now.toDateString()).length} orders`,
           },
           {
             label: "This month",
