@@ -53,7 +53,7 @@ const LAB_GROUP_META: Record<
   },
   design: {
     accent: "#0F6E56",
-    features: ["Design only", "$45 per arch", "Sent to Ultran", "Fabrication not included"],
+    features: ["Design only", "$45 per arch", "Fabrication not included"],
   },
   removable: {
     accent: "#D97706",
