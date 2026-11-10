@@ -81,6 +81,21 @@ export default function SiteFooter({ labName }: { labName?: string }) {
                 </a>
               </li>
               <li>California, USA</li>
+              <li>
+                <Link href="/policies/terms" className="hover:text-white transition-colors">
+                  Terms
+                </Link>
+              </li>
+              <li>
+                <Link href="/policies/privacy" className="hover:text-white transition-colors">
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link href="/policies/refund" className="hover:text-white transition-colors">
+                  Refunds
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
