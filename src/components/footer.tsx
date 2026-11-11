@@ -108,10 +108,10 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="mailto:infor@printdenture.com"
+                  href="mailto:info@printdenture.com"
                   className="hover:text-white transition-colors"
                 >
-                  infor@printdenture.com
+                  info@printdenture.com
                 </a>
               </li>
               <li>California, USA</li>

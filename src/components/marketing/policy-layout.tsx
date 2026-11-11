@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
 
 export const POLICY_UPDATED = "November 10, 2026";
-export const POLICY_EMAIL = "infor@printdenture.com";
+export const POLICY_EMAIL = "info@printdenture.com";
 
 export function PolicyLayout({
   title,

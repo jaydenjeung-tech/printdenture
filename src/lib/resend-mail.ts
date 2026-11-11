@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const DEFAULT_FROM_ADDRESS = "infor@printdenture.com";
+const DEFAULT_FROM_ADDRESS = "info@printdenture.com";
 
 export function getResendFrom(name = "PrintDenture"): string {
   const configured = process.env.RESEND_FROM_EMAIL?.trim();

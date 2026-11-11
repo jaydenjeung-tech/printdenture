@@ -76,8 +76,8 @@ export default function SiteFooter({ labName }: { labName?: string }) {
                 </Link>
               </li>
               <li>
-                <a href="mailto:infor@printdenture.com" className="hover:text-white transition-colors">
-                  infor@printdenture.com
+                <a href="mailto:info@printdenture.com" className="hover:text-white transition-colors">
+                  info@printdenture.com
                 </a>
               </li>
               <li>California, USA</li>
